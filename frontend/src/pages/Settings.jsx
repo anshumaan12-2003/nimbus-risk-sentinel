@@ -118,8 +118,8 @@ export default function Settings() {
             <dl className="ui-settings-list">
               <Row k="Regions" v={c.regions?.join(', ')} mono />
               <Row k="Home region" v={c.default_region} mono />
-              <Row k="Executor" v={c.scan_executor === 'celery' ? 'Celery worker (scheduled)' : 'In-process background task'} />
-              <Row k="Schedule" v={c.scan_executor === 'celery' ? `Every ${c.scan_interval_minutes} min` : 'Manual only (enable Celery for schedules)'} />
+              <Row k="Executor" v={c.scan_executor === 'celery' ? 'Celery worker' : 'In-process background task'} />
+              <Row k="Schedule" v={c.scheduled_scans ? `Every ${c.scan_interval_minutes} min` : 'Manual only (SCHEDULED_SCANS_ENABLED=false)'} />
               <Row k="Live events" v={c.events_backend} />
               <Row k="Crown-jewel tags" v={c.crown_jewel_tag_keys?.join(', ')} mono />
               <Row k="Crown-jewel name hints" v={c.crown_jewel_name_hints?.join(', ')} mono />

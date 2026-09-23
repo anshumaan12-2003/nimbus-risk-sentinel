@@ -21,7 +21,10 @@ import KeyRound from 'lucide-react/dist/esm/icons/key-round'
 import Server from 'lucide-react/dist/esm/icons/server'
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
 import FileCheck from 'lucide-react/dist/esm/icons/file-check'
-import { getFindingStats, getLatestScan, listFindings, getTopologyGraph } from '../api/nimbus'
+import {
+  getFindingStats, getLatestScan, listFindings, getTopologyGraph, listScans, getLatestDrift,
+  getScanWarnings, getFindingBlastRadius, apiError,
+} from '../api/nimbus'
 import RiskScoreGauge from '../components/RiskScoreGauge'
 import StatsCard from '../components/StatsCard'
 import SeverityBadge from '../components/SeverityBadge'
@@ -83,13 +86,25 @@ const SERVICE_META = {
   rds: { name: 'Amazon RDS', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
 }
 
-/* ── Trend data ──────────────────────────────────────────────────── */
-const TREND_DATA = [
-  { day: 'Mon', score: 72 }, { day: 'Tue', score: 68 },
-  { day: 'Wed', score: 75 }, { day: 'Thu', score: 70 },
-  { day: 'Fri', score: 65 }, { day: 'Sat', score: 60 },
-  { day: 'Sun', score: 58 },
-]
+/* ── Real trends from scan history ───────────────────────────────── */
+// Scan counts arrive as strings from the API.
+const num = (v) => Number(v) || 0
+
+// Change since the previous completed scan, in StatsCard's shape. No previous scan -> no arrow.
+function delta(curr, prev) {
+  if (curr == null || prev == null) return {}
+  const d = num(curr) - num(prev)
+  return { trend: d > 0 ? 'up' : d < 0 ? 'down' : 'neutral', trendValue: d > 0 ? `+${d}` : d < 0 ? `${d}` : '0' }
+}
+
+// Resolve every request even when some fail, remembering why.
+const settle = (p) => p.then(data => ({ data }), error => ({ error }))
+
+// Network failure (no HTTP response) means the API is down; anything else is the API reporting a problem.
+function describeFailure(error) {
+  if (!error?.response) return { kind: 'down', msg: 'Backend unreachable — is the API running? (uvicorn on :8001, proxied through Vite)' }
+  return { kind: 'error', msg: `The API returned an error (${error.response.status}): ${apiError(error)}` }
+}
 
 /* ═════════════════════════════════════════════════════════════════ */
 export default function Dashboard() {
@@ -103,7 +118,11 @@ export default function Dashboard() {
   const [recentFindings, setRecent] = useState([])
   const [graphData, setGraphData] = useState(null)
   const [loading, setLoading]     = useState(false)
-  const [offline, setOffline]     = useState(false)
+  const [problem, setProblem]     = useState(null)   // { kind: 'down' | 'error', msg }
+  const [history, setHistory]     = useState([])     // completed scans, oldest first
+  const [drift, setDrift]         = useState(null)
+  const [assetCount, setAssetCount] = useState(null)
+  const [blast, setBlast]         = useState(null)
   // Nimbo reacts to fresh stream events for a few seconds, then goes
   // back to reflecting overall posture.
   const latestEvent = useEventStore(s => s.events[0])
@@ -121,30 +140,43 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     if (dataSource === 'demo') {
-      setOffline(false)
+      setProblem(null)
       setStats(MOCK_STATS)
       setLatestScan(MOCK_LATEST_SCAN)
       setRecent(MOCK_FINDINGS.slice(0, 6))
       setGraphData(MOCK_ATTACK_GRAPH)
+      setHistory([]); setDrift(null); setAssetCount(null); setBlast(null)
       return
     }
 
     setLoading(true)
     try {
-      const FAIL = Symbol('fail')
-      const [s, sc, f, g] = await Promise.all([
-        getFindingStats().catch(() => FAIL),
-        getLatestScan().catch(() => FAIL),
-        listFindings({ limit: 6 }).catch(() => FAIL),
-        getTopologyGraph().catch(() => FAIL),
+      const [s, sc, f, g, h, d, b] = await Promise.all([
+        settle(getFindingStats()),
+        settle(getLatestScan()),
+        settle(listFindings({ limit: 6 })),
+        settle(getTopologyGraph()),
+        settle(listScans(30)),
+        settle(getLatestDrift()),
+        settle(getFindingBlastRadius('internet')),
       ])
-      const isOffline = s === FAIL
-      setOffline(isOffline)
-      // Live mode never substitutes demo data — empty + "offline" banner instead
-      setStats(s === FAIL ? EMPTY_STATS : s)
-      setLatestScan(sc === FAIL ? null : sc)
-      setRecent(f === FAIL ? [] : f)
-      setGraphData(g === FAIL || !g?.nodes ? EMPTY_GRAPH : g)
+      // Report the first failure honestly; live mode never substitutes demo data.
+      const firstError = [s, sc, f, g, h].find(r => r.error)?.error
+      setProblem(firstError ? describeFailure(firstError) : null)
+      setStats(s.data || EMPTY_STATS)
+      setLatestScan(sc.data || null)
+      setRecent(f.data || [])
+      setGraphData(g.data?.nodes ? g.data : EMPTY_GRAPH)
+      setHistory((h.data || []).filter(x => x.status === 'COMPLETED').reverse())
+      setDrift(d.data || null)
+      setBlast(sc.data && b.data ? b.data : null)   // no scan yet -> nothing to measure
+      if (sc.data?.id) {
+        const w = await settle(getScanWarnings(sc.data.id))
+        const counts = w.data?.asset_counts || {}
+        setAssetCount(Object.keys(counts).length ? Object.values(counts).reduce((a, n) => a + num(n), 0) : null)
+      } else {
+        setAssetCount(null)
+      }
     } catch (e) {
       console.warn('Dashboard data fallback:', e)
     } finally {
@@ -155,18 +187,35 @@ export default function Dashboard() {
   useEffect(() => { load() }, [load])
 
   /* Animated counters */
-  const animatedScore   = useCountUp(latestScan?.risk_score || stats?.risk_score || 84, 1400)
-  const animatedCrit    = useCountUp(stats?.critical ?? 4,  900)
-  const animatedHigh    = useCountUp(stats?.high     ?? 8,  900)
-  const animatedMedium  = useCountUp(stats?.medium   ?? 9,  900)
-  const animatedLow     = useCountUp(stats?.low      ?? 3,  900)
-  const animatedTotal   = useCountUp(stats?.total    ?? 24, 1100)
+  // A clean account really can score 0 — never fall back to made-up numbers.
+  const scoreNow        = num(latestScan?.risk_score ?? stats?.risk_score)
+  const animatedScore   = useCountUp(scoreNow, 1400)
+  const animatedCrit    = useCountUp(stats?.critical ?? 0, 900)
+  const animatedHigh    = useCountUp(stats?.high     ?? 0, 900)
+  const animatedMedium  = useCountUp(stats?.medium   ?? 0, 900)
+  const animatedLow     = useCountUp(stats?.low      ?? 0, 900)
+  const animatedTotal   = useCountUp(stats?.total    ?? 0, 1100)
+
+  // Trend arrows compare the two most recent completed scans.
+  const prevScan = history.length > 1 ? history[history.length - 2] : null
+  const trendOf = (key) => (prevScan && latestScan ? delta(latestScan[key], prevScan[key]) : {})
+  const trendData = history.slice(-14).map(s => ({
+    day: s.completed_at ? new Date(s.completed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '',
+    score: num(s.risk_score),
+  }))
+  const serviceRows = (() => {
+    const bySvc = stats?.by_service
+      || recentFindings.reduce((acc, f) => { const k = (f.service || 'other').toLowerCase(); acc[k] = (acc[k] || 0) + 1; return acc }, {})
+    const total = Object.values(bySvc).reduce((a, n) => a + n, 0)
+    return Object.entries(bySvc).sort((a, b) => b[1] - a[1])
+      .map(([svc, count]) => ({ svc, count, pct: total ? Math.round((count / total) * 100) : 0 }))
+  })()
+  const driftEvents = drift?.summary?.total_drift_events
 
   // One derived posture drives the mascot, its message and the grade
   // badge, so they can never contradict each other.
   const critCount = stats?.critical ?? 0
   const openCount = stats?.open ?? stats?.total ?? 0
-  const scoreNow  = latestScan?.risk_score || stats?.risk_score || 84
   const grade = scoreNow >= 85 ? { label: 'Critical Risk', letter: 'F', tone: 'critical' }
     : scoreNow >= 70 ? { label: 'High Risk',     letter: 'D', tone: 'high' }
     : scoreNow >= 50 ? { label: 'Elevated Risk', letter: 'C', tone: 'medium' }
@@ -207,10 +256,10 @@ export default function Dashboard() {
         <div className="hero-content">
           {/* Left copy */}
           <div className="hero-left">
-            {offline && (
+            {problem && (
               <div className="offline-banner" role="status">
                 <span className="offline-dot" />
-                Backend unreachable — live data unavailable. Start the API on :8000.
+                {problem.msg}
                 <button className="offline-retry" onClick={load}>Retry</button>
               </div>
             )}
@@ -298,8 +347,7 @@ export default function Dashboard() {
             icon={AlertTriangle}
             variant="critical"
             subtitle="Immediate action required"
-            trend="up"
-            trendValue="+2"
+            {...trendOf('critical_count')}
           />
           </div>
         </div>
@@ -311,8 +359,7 @@ export default function Dashboard() {
             icon={AlertCircle}
             variant="high"
             subtitle="Fix within 24 hours"
-            trend="up"
-            trendValue="+1"
+            {...trendOf('high_count')}
           />
           </div>
         </div>
@@ -324,7 +371,7 @@ export default function Dashboard() {
             icon={Layers}
             variant="medium"
             subtitle="Fix within 7 days"
-            trend="neutral"
+            {...trendOf('medium_count')}
           />
           </div>
         </div>
@@ -336,8 +383,7 @@ export default function Dashboard() {
             icon={CheckCircle2}
             variant="low"
             subtitle="Best practice guidance"
-            trend="down"
-            trendValue="-1"
+            {...trendOf('low_count')}
           />
           </div>
         </div>
@@ -354,7 +400,8 @@ export default function Dashboard() {
             value={animatedTotal}
             icon={Activity}
             variant="brand"
-            subtitle="Across 4 AWS services"
+            subtitle={serviceRows.length ? `Across ${serviceRows.length} AWS service${serviceRows.length === 1 ? '' : 's'}` : 'Run a scan to populate'}
+            {...trendOf('total_findings')}
           />
           </div>
         </div>
@@ -362,12 +409,10 @@ export default function Dashboard() {
           <div className="card-spotlight" style={{ height: '100%' }}>
           <StatsCard
             title="Open Issues"
-            value={stats?.open ?? 20}
+            value={stats?.open ?? 0}
             icon={AlertTriangle}
             variant="high"
             subtitle="Unresolved vulnerabilities"
-            trend="up"
-            trendValue="+3"
           />
           </div>
         </div>
@@ -375,12 +420,11 @@ export default function Dashboard() {
           <div className="card-spotlight" style={{ height: '100%' }}>
           <StatsCard
             title="Resolved"
-            value={stats?.resolved ?? 4}
+            value={stats?.resolved ?? 0}
             icon={CheckCircle2}
             variant="low"
-            subtitle="Auto-remediated via Sentinel"
-            trend="up"
-            trendValue="+2"
+            subtitle="Fixed or marked resolved"
+            {...(drift?.summary?.resolved_count ? { trend: 'up', trendValue: `+${drift.summary.resolved_count}` } : {})}
           />
           </div>
         </div>
@@ -419,24 +463,28 @@ export default function Dashboard() {
               <Shield size={10} />
               Posture Score
             </span>
-            <span className="live-badge">
-              <span className="live-badge-dot" />
-              Live
-            </span>
+            {dataSource !== 'demo' && latestScan && !problem && (
+              <span className="live-badge">
+                <span className="live-badge-dot" />
+                Live
+              </span>
+            )}
           </div>
           <RiskScoreGauge score={animatedScore} />
           <div className="posture-meta-box">
             <div className="posture-meta-item">
-              <span className="meta-label">Zero-Trust SLA</span>
-              <span className="meta-val text-cyan">99.99%</span>
+              <span className="meta-label">Last scan</span>
+              <span className="meta-val text-cyan">{lastScanTime}</span>
             </div>
             <div className="posture-meta-item">
               <span className="meta-label">Assets</span>
-              <span className="meta-val">142</span>
+              <span className="meta-val">{assetCount ?? '—'}</span>
             </div>
             <div className="posture-meta-item">
               <span className="meta-label">Blast Radius</span>
-              <span className="meta-val text-critical">94/100</span>
+              <span className={`meta-val ${num(blast?.blast_radius_score) >= 70 ? 'text-critical' : ''}`}>
+                {blast ? `${num(blast.blast_radius_score)}/100` : '—'}
+              </span>
             </div>
           </div>
         </div>
@@ -494,20 +542,27 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* 7-day risk trend */}
+        {/* Risk trend across recent scans */}
         <div className="bento-col-6 card card-container glass-tactile card-spotlight reveal-on-scroll" style={{ animationDelay: '0.1s' }}>
           <div className="card-header" style={{ marginBottom: 16 }}>
             <div>
               <div className="card-kicker">
                 <TrendingUp size={10} />
-                7-Day Telemetry
+                Scan History
               </div>
               <div className="card-title-text">Risk Score Trend</div>
             </div>
-            <span style={{ fontSize: 11, color: 'var(--text-4)', fontWeight: 500 }}>Posture Drift</span>
+            <span style={{ fontSize: 11, color: 'var(--text-4)', fontWeight: 500 }}>
+              Last {trendData.length} scan{trendData.length === 1 ? '' : 's'}
+            </span>
           </div>
+          {trendData.length < 2 ? (
+            <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-4)', fontSize: 13, textAlign: 'center' }}>
+              {dataSource === 'demo' ? 'Trend is built from real scans — switch to live mode.' : 'The trend appears after two completed scans.'}
+            </div>
+          ) : (
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={TREND_DATA} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
+            <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
               <defs>
                 <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%"   stopColor="var(--brand)" stopOpacity={0.3} />
@@ -521,7 +576,7 @@ export default function Dashboard() {
                 tickLine={false}
               />
               <YAxis
-                domain={[40, 100]}
+                domain={[0, 100]}
                 tick={{ fill: 'var(--text-4)', fontSize: 11, fontFamily: 'Plus Jakarta Sans' }}
                 axisLine={false}
                 tickLine={false}
@@ -538,6 +593,7 @@ export default function Dashboard() {
               />
             </AreaChart>
           </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -640,13 +696,11 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {[
-              { svc: 's3',  count: 6,  pct: 25 },
-              { svc: 'iam', count: 8,  pct: 33 },
-              { svc: 'ec2', count: 5,  pct: 21 },
-              { svc: 'rds', count: 5,  pct: 21 },
-            ].map(({ svc, count, pct }) => {
-              const meta = SERVICE_META[svc]
+            {serviceRows.length === 0 && (
+              <div style={{ fontSize: 13, color: 'var(--text-4)' }}>No open findings by service yet.</div>
+            )}
+            {serviceRows.map(({ svc, count, pct }) => {
+              const meta = SERVICE_META[svc] || { name: svc.toUpperCase(), color: 'var(--brand)' }
               return (
                 <div
                   key={svc}
@@ -667,7 +721,7 @@ export default function Dashboard() {
                   <div className="progress-track">
                     <div
                       className="progress-fill"
-                      style={{ width: `${pct * 3}%`, background: meta.color }}
+                      style={{ width: `${pct}%`, background: meta.color }}
                     />
                   </div>
                 </div>
@@ -684,15 +738,22 @@ export default function Dashboard() {
             gap: 12,
           }}>
             <div>
-              <div style={{ fontSize: 10, color: 'var(--text-5)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>Telemetry</div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, color: 'var(--sev-low)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--sev-low)', display: 'inline-block' }} />
-                Connected
-              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-5)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>API</div>
+              {(() => {
+                const color = problem ? 'var(--sev-critical)' : 'var(--sev-low)'
+                return (
+                  <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, color, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
+                    {problem?.kind === 'down' ? 'Unreachable' : problem ? 'Error' : 'Connected'}
+                  </div>
+                )
+              })()}
             </div>
             <div>
               <div style={{ fontSize: 10, color: 'var(--text-5)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>Drift</div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, color: 'var(--text-2)' }}>Zero Drift</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, color: 'var(--text-2)' }}>
+                {driftEvents == null ? '—' : driftEvents === 0 ? 'No change since last scan' : `${driftEvents} change${driftEvents === 1 ? '' : 's'} since last scan`}
+              </div>
             </div>
           </div>
         </div>

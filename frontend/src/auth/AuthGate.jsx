@@ -151,7 +151,7 @@ function OfflineScreen() {
   return (
     <Shell title="Can't reach the Nimbus API" aside={ROLE_STORY}
            lead="The sign-in service did not answer. Start the backend, then try again.">
-      <pre className="auth-code">cd backend && uvicorn app.main:app --reload --port 8000</pre>
+      <pre className="auth-code">cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 8001</pre>
       <button className="auth-submit" onClick={bootstrap}><RefreshCw size={14} /> Try again</button>
     </Shell>
   )

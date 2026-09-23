@@ -49,7 +49,7 @@ export default function Navbar() {
 
   const c = cfg.data
   const schedule = !c ? 'Checking schedule…'
-    : c.scan_executor === 'celery' ? `Scheduled scan every ${c.scan_interval_minutes} min` : 'Manual scans (no scheduler)'
+    : c.scheduled_scans ? `Scheduled scan every ${c.scan_interval_minutes} min` : 'Manual scans (no scheduler)'
 
   return (
     <>

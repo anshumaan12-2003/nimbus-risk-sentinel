@@ -73,7 +73,9 @@ export function useControls() {
 
 export function usePreflight() {
   const on = useLive()
-  return useQuery({ queryKey: qk.preflight, queryFn: () => get('/account/preflight'), staleTime: 5 * 60_000, enabled: on })
+  // While AWS is not connected, re-check every 30s so fixing credentials shows up without a reload.
+  return useQuery({ queryKey: qk.preflight, queryFn: () => get('/account/preflight'), staleTime: 5 * 60_000, enabled: on,
+    refetchInterval: (q) => (q.state.data && !q.state.data.connected ? 30_000 : false) })
 }
 
 export function useConfig() {

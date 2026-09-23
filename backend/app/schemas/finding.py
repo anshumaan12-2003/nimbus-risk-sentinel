@@ -60,3 +60,4 @@ class FindingStats(BaseModel):
     open: int
     resolved: int
     risk_score: int
+    by_service: dict[str, int] = {}   # open findings per service, e.g. {"s3": 4, "iam": 7}

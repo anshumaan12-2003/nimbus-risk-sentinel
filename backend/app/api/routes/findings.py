@@ -48,6 +48,11 @@ def get_finding_stats(scan_id: Optional[UUID] = None, db: Session = Depends(get_
     rows = _scoped(db, scan_id, "latest").all()
     latest = latest_completed_scan(db)
     by = lambda sev: sum(1 for f in rows if f.severity == sev)
+    by_service: dict[str, int] = {}
+    for f in rows:
+        if f.status != FindingStatus.RESOLVED:
+            svc = (f.service or "other").lower()
+            by_service[svc] = by_service.get(svc, 0) + 1
     return FindingStats(
         total=len(rows), critical=by(Severity.CRITICAL), high=by(Severity.HIGH),
         medium=by(Severity.MEDIUM), low=by(Severity.LOW),
@@ -55,6 +60,7 @@ def get_finding_stats(scan_id: Optional[UUID] = None, db: Session = Depends(get_
         resolved=sum(1 for f in rows if f.status == FindingStatus.RESOLVED),
         # account-level score from the scan (not max of one finding)
         risk_score=int(latest.risk_score) if latest and latest.risk_score else 0,
+        by_service=by_service,
     )
 
 

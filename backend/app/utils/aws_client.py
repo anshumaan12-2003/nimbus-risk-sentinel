@@ -39,8 +39,20 @@ def _base_session():
         return boto3.Session(
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            aws_session_token=settings.AWS_SESSION_TOKEN or None,
         )
     return boto3.Session()
+
+
+def credential_mode() -> str:
+    """Which branch of the resolution order above is in effect (never includes secrets)."""
+    if settings.AWS_ROLE_ARN:
+        return "assume-role"
+    if settings.AWS_PROFILE:
+        return "profile"
+    if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+        return "temporary-keys" if settings.AWS_SESSION_TOKEN else "static-keys"
+    return "default-chain"
 
 
 def _assumed_session(role_arn: str, session_name: str):

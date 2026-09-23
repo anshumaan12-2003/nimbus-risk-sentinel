@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     # AWS
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_SESSION_TOKEN: Optional[str] = None    # only for temporary (STS/SSO) keys; they expire
     AWS_DEFAULT_REGION: str = "us-east-1"
     AWS_ROLE_ARN: Optional[str] = None
     AWS_EXTERNAL_ID: Optional[str] = None      # required on the cross-account role trust policy
@@ -81,6 +82,9 @@ class Settings(BaseSettings):
 
     # Scan
     SCAN_INTERVAL_MINUTES: int = 15
+    # Re-scan automatically every SCAN_INTERVAL_MINUTES. With SCAN_EXECUTOR=celery, Celery beat does this
+    # instead; with "background" the API process runs its own scheduler. 0/false disables it.
+    SCHEDULED_SCANS_ENABLED: bool = True
 
     # Slack
     SLACK_WEBHOOK_URL: Optional[str] = None

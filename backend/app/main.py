@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -11,9 +12,12 @@ from app.auth.deps import viewer
 from app.auth.security import check_secret_key
 from app.config import settings
 from app.database import Base, engine
+from app.tasks import scheduler
+from app.utils.aws_client import credential_mode
 from app.utils.events import bus
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("nimbus")
 check_secret_key()   # refuse to start with a guessable JWT key unless DEBUG=true
 
 
@@ -24,7 +28,12 @@ async def lifespan(app: FastAPI):
     if engine.url.get_backend_name() == "sqlite":
         Base.metadata.create_all(bind=engine)
     await bus.start()
+    logger.info("AWS credentials: %s · regions %s · scans via %s", credential_mode(),
+                ",".join(settings.aws_regions_list), settings.SCAN_EXECUTOR)
+    scheduler_task = asyncio.create_task(scheduler.scan_loop()) if scheduler.enabled() else None
     yield
+    if scheduler_task:
+        scheduler_task.cancel()
     await bus.stop()
 
 

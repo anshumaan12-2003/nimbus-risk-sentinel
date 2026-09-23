@@ -69,7 +69,7 @@ python cli/nimbus_cli.py scan iac ./infrastructure/terraform
 - **Frontend:** React 18, Vite, Lucide Icons, Recharts (Modern Glassmorphism UI)
 - **Backend:** Python 3.11, FastAPI, SQLAlchemy, Alembic
 - **Intelligence:** `google-genai` (Gemini Flash Model)
-- **Background Jobs:** Native FastAPI `BackgroundTasks` (with Celery/Redis failover support)
+- **Background Jobs:** In-process scans with a built-in scheduler (every `SCAN_INTERVAL_MINUTES`), or Celery + Redis + beat under Docker
 - **Database:** SQLite (local dev) / PostgreSQL (production)
 
 ---

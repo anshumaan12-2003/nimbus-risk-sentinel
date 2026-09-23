@@ -18,6 +18,7 @@ os.environ.update({
     "DATABASE_URL": "sqlite:///./test_e2e.db",
     "SLACK_ENABLED": "false", "MOTO_IAM_LOAD_MANAGED_POLICIES": "true", "AI_API_KEY": "", "REMEDIATION_ENABLED": "true",
     "SECRET_KEY": "test-secret-key-that-is-at-least-32-chars-long", "REMEDIATION_TWO_PERSON_RULE": "true",
+    "SCHEDULED_SCANS_ENABLED": "false",   # tests trigger scans explicitly
 })
 for _k in ("AWS_PROFILE", "AWS_ROLE_ARN"):
     os.environ.pop(_k, None)
@@ -150,6 +151,9 @@ def test_full_pipeline(client):
 
     stats = client.get("/api/v1/findings/stats").json()
     assert stats["total"] == len(findings) and stats["risk_score"] == int(scan["risk_score"])
+    # per-service breakdown (dashboard) adds up to the open findings
+    assert sum(stats["by_service"].values()) == stats["total"] - stats["resolved"]
+    assert {"iam", "ec2", "rds"} <= set(stats["by_service"])
 
     env = client.get("/api/v1/topology/environment").json()
     ids = {n["id"] for n in env["nodes"]}
@@ -267,3 +271,24 @@ def test_copilot_chat_grounded_fallback(client):
     _scan(client)
     r = client.post("/api/v1/copilot/chat", json={"question": "what should I fix first?"}).json()
     assert r["ai"] is False and "Fix first" in r["answer"] and "123456789012" in r["answer"]
+
+
+def test_temporary_credentials_and_scheduler(client, monkeypatch):
+    # The fake env uses AWS_SESSION_TOKEN, so preflight passing proves temporary keys are honoured
+    pre = client.get("/api/v1/account/preflight").json()
+    assert pre["connected"] and pre["auth_mode"] == "temporary-keys"
+
+    from datetime import timedelta
+    from app.config import settings
+    from app.tasks import scheduler
+    hour = timedelta(minutes=60)
+    assert scheduler._seconds_until_due(hour) == 0          # no scans yet: first one is due now
+    _scan(client)
+    assert 3500 < scheduler._seconds_until_due(hour) <= 3600  # next one an interval after the last start
+
+    assert scheduler.enabled() is False                       # tests turn it off
+    monkeypatch.setattr(settings, "SCHEDULED_SCANS_ENABLED", True)
+    assert scheduler.enabled() is True
+    monkeypatch.setattr(settings, "SCAN_EXECUTOR", "celery")  # beat owns scheduling then
+    assert scheduler.enabled() is False
+    assert client.get("/api/v1/account/config").json()["scheduled_scans"] is True

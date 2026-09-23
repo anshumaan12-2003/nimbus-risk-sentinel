@@ -7,7 +7,8 @@ from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
 from fastapi import APIRouter
 
 from app.config import settings
-from app.utils.aws_client import get_aws_client, reset_sessions
+from app.tasks import scheduler
+from app.utils.aws_client import credential_mode, get_aws_client, reset_sessions
 
 router = APIRouter(prefix="/account", tags=["Account"])
 
@@ -33,7 +34,7 @@ def preflight(refresh: bool = False):
     try:
         ident = get_aws_client("sts").get_caller_identity()
     except (NoCredentialsError, ClientError, BotoCoreError) as e:
-        return {"connected": False, "error": str(e),
+        return {"connected": False, "error": str(e), "auth_mode": credential_mode(),
                 "hint": "Set AWS_PROFILE (recommended) or AWS_ROLE_ARN / keys in backend/.env, then restart."}
 
     checks = []
@@ -55,8 +56,7 @@ def preflight(refresh: bool = False):
         "account_id": ident["Account"],
         "principal_arn": ident["Arn"],
         "regions": settings.aws_regions_list,
-        "auth_mode": "assume-role" if settings.AWS_ROLE_ARN else "profile" if settings.AWS_PROFILE
-                     else "static-keys" if settings.AWS_ACCESS_KEY_ID else "default-chain",
+        "auth_mode": credential_mode(),
         "remediation_enabled": settings.REMEDIATION_ENABLED,
         "checks": checks,
         "ready": not failing,
@@ -71,12 +71,12 @@ def get_config():
         "app_version": settings.APP_VERSION,
         "regions": settings.aws_regions_list,
         "default_region": settings.AWS_DEFAULT_REGION,
-        "auth_mode": "assume-role" if settings.AWS_ROLE_ARN else "profile" if settings.AWS_PROFILE
-                     else "static-keys" if settings.AWS_ACCESS_KEY_ID else "default-chain",
+        "auth_mode": credential_mode(),
         "profile": settings.AWS_PROFILE,
         "role_arn": settings.AWS_ROLE_ARN,
         "scan_executor": settings.SCAN_EXECUTOR,
         "scan_interval_minutes": int(settings.SCAN_INTERVAL_MINUTES),
+        "scheduled_scans": settings.SCAN_EXECUTOR == "celery" or scheduler.enabled(),
         "events_backend": settings.EVENTS_BACKEND,
         "remediation_enabled": settings.REMEDIATION_ENABLED,
         "remediation_role_arn": settings.AWS_REMEDIATION_ROLE_ARN,
