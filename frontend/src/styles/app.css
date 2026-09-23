@@ -1,0 +1,20 @@
+/*
+  The one stylesheet entry point.
+
+  Layer order is the contract: Tailwind utilities always win over the legacy stylesheets,
+  whatever their selector specificity, so rebuilt components can sit inside legacy pages.
+  As each page is rebuilt on the design system, its rules leave the legacy layer.
+*/
+@layer theme, base, legacy, components, utilities;
+
+@import "tailwindcss";
+@import "./tokens.css";
+
+@import "./globals.css" layer(legacy);
+@import "./ui.css" layer(legacy);
+@import "./features.css" layer(legacy);
+@import "./mobile.css" layer(legacy);
+@import "../auth/auth.css" layer(legacy);
+
+/* Theme dark variant follows the stamped attribute (set before paint in index.html). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

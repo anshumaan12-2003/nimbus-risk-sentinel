@@ -6,7 +6,6 @@ import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import { useAuth } from './authStore'
 import { apiError } from '../api/nimbus'
 import { ROLE_INFO } from './permissions'
-import './auth.css'
 
 function Mark() {
   return (

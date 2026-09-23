@@ -14,16 +14,10 @@ import GlobalAICopilotDrawer from './components/GlobalAICopilotDrawer'
 import ExecutiveDossierModal from './components/ExecutiveDossierModal'
 import ErrorBoundary from './components/ErrorBoundary'
 import TableResizer from './components/TableResizer'
-import SpotlightTracker from './components/SpotlightTracker'
-import Confetti from './components/Confetti'
 import AccountHealthBanner from './components/AccountHealthBanner'
 import AuthGate from './auth/AuthGate'
 import { LiveStreamConnector, LiveToasts } from './components/LiveStream'
 import { Drawer, Skeleton } from './components/ui'
-import './styles/globals.css'
-import './styles/ui.css'
-import './styles/features.css'
-import './styles/mobile.css'
 
 /*
   Route-level code splitting: each page is its own chunk, so the first load only
@@ -123,8 +117,6 @@ export default function App() {
           <GlobalAICopilotDrawer />
           <ExecutiveDossierModal />
           <TableResizer />
-          <SpotlightTracker />
-          <Confetti />
           <LiveStreamConnector />
           <LiveToasts />
           <GlobalBehaviours />

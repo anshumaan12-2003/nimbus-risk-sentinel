@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 const API_TARGET = process.env.VITE_API_URL || 'http://127.0.0.1:8001'
 // A browser tab closing mid-socket is normal; don't print a stack trace for it.
@@ -7,7 +8,7 @@ const quietWs = { target: API_TARGET.replace(/^http/, 'ws'), ws: true, changeOri
   configure: (proxy) => proxy.on('error', () => {}) }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   build: {
     rollupOptions: {
       output: {
@@ -15,6 +16,7 @@ export default defineConfig({
         manualChunks: {
           react: ['react', 'react-dom', 'react-router-dom'],
           data: ['@tanstack/react-query', 'axios', 'zustand'],
+          motion: ['motion/react'],
           charts: ['recharts'],
           markdown: ['react-markdown'],
         },

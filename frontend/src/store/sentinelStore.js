@@ -2,31 +2,51 @@ import { create } from 'zustand'
 import { MOCK_ENVIRONMENTS, MOCK_FINDINGS, MOCK_STATS, MOCK_LATEST_SCAN } from '../data/mockData'
 import { listFindings, getFindingStats, getLatestScan } from '../api/nimbus'
 
+const THEME_KEY = 'nimbus-theme'
+
+function readThemePref() {
+  try {
+    const v = localStorage.getItem(THEME_KEY)
+    return v === 'light' || v === 'dark' ? v : 'system'
+  } catch { return 'system' }
+}
+
+function resolveTheme(pref) {
+  if (pref !== 'system') return pref
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function applyTheme(pref, set) {
+  const theme = resolveTheme(pref)
+  try {
+    if (pref === 'system') localStorage.removeItem(THEME_KEY)
+    else localStorage.setItem(THEME_KEY, pref)
+  } catch { /* private mode: preference just isn't remembered */ }
+  document.documentElement.setAttribute('data-theme', theme)
+  set({ themePref: pref, theme })
+}
+
 export const useSentinelStore = create((set, get) => ({
   // Environment
   currentEnv: MOCK_ENVIRONMENTS[0],
   setEnv: (env) => set({ currentEnv: env }),
 
-  // Theme: 'light' or 'dark' with system sync
-  theme: typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+  // Theme preference: 'system' (default, follows the OS live) | 'light' | 'dark'.
+  // `theme` is the resolved value actually on screen. index.html stamps it before first paint.
+  themePref: readThemePref(),
+  theme: resolveTheme(readThemePref()),
   initTheme: () => {
-    const saved = localStorage.getItem('nimbus-theme')
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const initialTheme = saved || (systemDark ? 'dark' : 'light')
-    set({ theme: initialTheme })
-    document.documentElement.setAttribute('data-theme', initialTheme)
+    applyTheme(get().themePref, set)
+    // While following the OS, switch the moment the OS does (e.g. macOS auto dark at sunset).
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (get().themePref === 'system') applyTheme('system', set)
+    })
   },
   toggleTheme: () => {
     const next = get().theme === 'light' ? 'dark' : 'light'
-    set({ theme: next })
-    localStorage.setItem('nimbus-theme', next)
-    document.documentElement.setAttribute('data-theme', next)
+    applyTheme(next, set)
   },
-  setTheme: (theme) => {
-    set({ theme })
-    localStorage.setItem('nimbus-theme', theme)
-    document.documentElement.setAttribute('data-theme', theme)
-  },
+  setTheme: (pref) => applyTheme(pref, set),
 
   // Mode: 'live' (direct backend API & AWS) or 'demo'
   // VITE_DATA_MODE=demo for portfolio demos without AWS; default is real data
