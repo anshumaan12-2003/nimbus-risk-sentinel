@@ -1,12 +1,15 @@
 import { Link, useLocation } from 'react-router-dom'
-import Compass from 'lucide-react/dist/esm/icons/compass'
-import { EmptyState } from '../components/ui'
+import { Page, Card, EmptyState, Button, Kbd } from '@/components/ds'
 
 export default function NotFound() {
   const { pathname } = useLocation()
   return (
-    <EmptyState icon={Compass} title="Page not found"
-      body={<>Nothing lives at <code className="font-mono">{pathname}</code>. Press <kbd className="ui-kbd">?</kbd> for keyboard shortcuts.</>}
-      action={<Link className="btn btn-primary" to="/">Back to dashboard</Link>} />
+    <Page>
+      <Card>
+        <EmptyState mood="thinking" title="There’s nothing here"
+          body={<>No page at <code className="font-mono text-xs">{pathname}</code>. Press <Kbd>⌘</Kbd> <Kbd>K</Kbd> to search, or <Kbd>?</Kbd> for shortcuts.</>}
+          action={<Button variant="primary" asChild><Link to="/">Go to overview</Link></Button>} />
+      </Card>
+    </Page>
   )
 }

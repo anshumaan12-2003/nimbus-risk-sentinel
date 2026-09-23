@@ -1,52 +1,58 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import SettingsIcon from 'lucide-react/dist/esm/icons/settings'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
-import XCircle from 'lucide-react/dist/esm/icons/x-circle'
-import ShieldAlert from 'lucide-react/dist/esm/icons/shield-alert'
-import Cloud from 'lucide-react/dist/esm/icons/cloud'
-import Cpu from 'lucide-react/dist/esm/icons/cpu'
-import Bot from 'lucide-react/dist/esm/icons/bot'
-import Bell from 'lucide-react/dist/esm/icons/bell'
-import SlidersHorizontal from 'lucide-react/dist/esm/icons/sliders-horizontal'
-import Keyboard from 'lucide-react/dist/esm/icons/keyboard'
+import { toast } from 'sonner'
+import { CheckCircle2, Monitor, Moon, RefreshCw, Sun, XCircle } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import {
+  Page, PageHeader, Card, Button, Badge, Input, Kbd, SkeletonRows, ErrorState, Tabs, TabsList, TabsTrigger, ResourceId,
+} from '@/components/ds'
 import { usePreflight, useConfig } from '../hooks/queries'
 import { getPreflight, testSlackWebhook, apiError } from '../api/nimbus'
 import { qk } from '../lib/queryClient'
 import { useSentinelStore } from '../store/sentinelStore'
-import { PageHeader, Skeleton, ErrorState } from '../components/ui'
-import { SHORTCUTS } from '../hooks/useShortcuts'
+import { SHORTCUT_GROUPS } from '../hooks/useShortcuts'
 import { AccountSection, TeamSection } from '../components/TeamSettings'
 import { useCan } from '../auth/authStore'
 
-function Section({ icon: Icon, title, desc, children }) {
+function Section({ id, title, description, children }) {
   return (
-    <section className="card ui-settings-section">
-      <div className="ui-settings-head">
-        <Icon size={16} />
-        <div><h2>{title}</h2>{desc && <p>{desc}</p>}</div>
-      </div>
-      {children}
+    <section id={id} className="scroll-mt-20">
+      <Card>
+        <header className="border-b border-line px-5 py-4">
+          <h2 className="text-md font-semibold text-fg">{title}</h2>
+          {description && <p className="mt-0.5 text-sm text-fg-2">{description}</p>}
+        </header>
+        <div className="p-5">{children}</div>
+      </Card>
     </section>
   )
 }
 
-const Row = ({ k, v, mono }) => (
-  <div className="ui-settings-row"><dt>{k}</dt><dd className={mono ? 'font-mono' : undefined}>{v ?? '—'}</dd></div>
-)
-const OnOff = ({ on, yes = 'Enabled', no = 'Disabled' }) =>
-  <span className={`badge-pill ${on ? 'badge-low' : 'ui-badge-muted'}`}>{on ? yes : no}</span>
+function Rows({ items }) {
+  return (
+    <dl className="divide-y divide-line">
+      {items.filter(Boolean).map(([k, v]) => (
+        <div key={k} className="grid gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[200px_1fr] sm:gap-4">
+          <dt className="text-sm text-fg-2">{k}</dt>
+          <dd className="min-w-0 text-sm text-fg">{v ?? <span className="text-fg-3">—</span>}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+const On = ({ on, yes = 'On', no = 'Off' }) => <Badge size="sm" tone={on ? 'low' : 'neutral'} dot>{on ? yes : no}</Badge>
 
 export default function Settings() {
-  const { dataSource, setDataSource, theme, setTheme, triggerRefresh } = useSentinelStore()
+  const { dataSource, setDataSource, themePref, setTheme, triggerRefresh } = useSentinelStore()
   const qc = useQueryClient()
   const pre = usePreflight()
   const cfg = useConfig()
+  const isAdmin = useCan('users:manage')
   const [rechecking, setRechecking] = useState(false)
   const [slackUrl, setSlackUrl] = useState('')
-  const [slackMsg, setSlackMsg] = useState(null)
-  const isAdmin = useCan('users:manage')
+  const [slackBusy, setSlackBusy] = useState(false)
+  const live = dataSource !== 'demo'
 
   const recheck = async () => {
     setRechecking(true)
@@ -55,128 +61,157 @@ export default function Settings() {
     finally { setRechecking(false) }
   }
   const testSlack = async () => {
-    setSlackMsg(null)
-    try { const r = await testSlackWebhook(slackUrl || undefined); setSlackMsg({ ok: true, text: r.message || 'Test message sent.' }) }
-    catch (e) { setSlackMsg({ ok: false, text: apiError(e) }) }
+    setSlackBusy(true)
+    try { const r = await testSlackWebhook(slackUrl || undefined); toast.success('Test message sent', { description: r.message }) }
+    catch (e) { toast.error('Slack test failed', { description: apiError(e) }) }
+    finally { setSlackBusy(false) }
   }
   const switchMode = (m) => { setDataSource(m); qc.invalidateQueries(); triggerRefresh() }
-
   const c = cfg.data || {}
   const p = pre.data
   const failing = (p?.checks || []).filter(x => !x.ok)
 
+  const nav = [
+    live && ['account', 'Your account'], live && ['team', 'Team'], ['aws', 'AWS connection'], ['scanning', 'Scanning'],
+    ['remediation', 'Remediation'], ['copilot', 'Copilot'], ['notifications', 'Notifications'], ['appearance', 'Appearance'], ['shortcuts', 'Keyboard shortcuts'],
+  ].filter(Boolean)
+
   return (
-    <div className="animate-fade-in">
-      <PageHeader icon={SettingsIcon} tag="Configuration" title="Settings"
-        subtitle="Connection health and runtime configuration. Server settings are read-only here on purpose: credentials and write permissions live in backend/.env, never in the browser." />
+    <Page>
+      <PageHeader title="Settings" description="Server settings are read-only here on purpose: credentials and write access live in backend/.env, never in the browser." />
+      <div className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <nav aria-label="Settings sections" className="hidden lg:block">
+          <ul className="sticky top-20 grid gap-0.5">
+            {nav.map(([id, label]) => (
+              <li key={id}><a href={`#${id}`} className="block rounded-md px-2.5 py-1.5 text-sm text-fg-2 hover:bg-muted hover:text-fg">{label}</a></li>
+            ))}
+          </ul>
+        </nav>
 
-      <div className="ui-settings-grid">
-        {dataSource !== 'demo' && <AccountSection Section={Section} />}
-        {dataSource !== 'demo' && <TeamSection Section={Section} />}
-        <Section icon={Cloud} title="AWS connection" desc="What Nimbus can see, checked against the real AWS APIs the scanners call.">
-          {dataSource === 'demo' ? <p className="ui-subtle">Demo mode — not connected to AWS.</p>
-            : pre.isLoading ? <Skeleton rows={3} />
-            : pre.isError ? <ErrorState error={pre.error} onRetry={pre.refetch} />
-            : (
-              <>
-                <dl className="ui-settings-list">
-                  <Row k="Status" v={p.connected ? (p.ready ? <OnOff on yes="Connected · all checks pass" /> :
-                    <span className="badge-pill badge-high">Connected · {failing.length} denied</span>) :
-                    <span className="badge-pill badge-critical">Not connected</span>} />
-                  {p.connected && <>
-                    <Row k="Account" v={p.account_id} mono />
-                    <Row k="Principal" v={p.principal_arn} mono />
-                    <Row k="Auth mode" v={p.auth_mode} />
-                  </>}
-                  {!p.connected && <Row k="Error" v={p.error || p.hint} />}
-                </dl>
-                {p.checks?.length > 0 && (
-                  <details className="ui-details" open={failing.length > 0}>
-                    <summary>API permission checks ({p.checks.length - failing.length}/{p.checks.length} ok)</summary>
-                    <table className="data-table">
-                      <thead><tr><th /><th>Service</th><th>Call</th><th>Region</th><th>Result</th></tr></thead>
-                      <tbody>{p.checks.map((x, i) => (
-                        <tr key={i}>
-                          <td>{x.ok ? <CheckCircle2 size={13} color="var(--sev-low)" /> : <XCircle size={13} color="var(--sev-critical)" />}</td>
-                          <td>{x.service}</td><td className="font-mono">{x.call}</td><td className="font-mono">{x.region}</td>
-                          <td className="font-mono">{x.ok ? 'ok' : x.error}</td>
-                        </tr>))}
-                      </tbody>
-                    </table>
-                    {p.hint && <p className="ui-subtle">{p.hint}</p>}
-                  </details>
-                )}
-                <button className="btn btn-ghost btn-sm" onClick={recheck} disabled={rechecking}>
-                  <RefreshCw size={12} className={rechecking ? 'spin' : ''} /> {rechecking ? 'Checking…' : 'Re-check (refresh credentials)'}
-                </button>
-              </>
+        <div className="grid min-w-0 gap-6">
+          {live && <Section id="account" title="Your account"><AccountSection /></Section>}
+          {live && <Section id="team" title="Team"><TeamSection /></Section>}
+
+          <Section id="aws" title="AWS connection" description="What Nimbus can see, checked against the same AWS APIs the scanners call.">
+            {!live ? <p className="text-sm text-fg-2">Demo mode — not connected to AWS.</p>
+              : pre.isLoading ? <SkeletonRows rows={3} />
+              : pre.isError ? <ErrorState error={pre.error} onRetry={pre.refetch} compact />
+              : (
+                <div className="grid gap-4">
+                  <Rows items={[
+                    ['Status', p.connected
+                      ? (p.ready ? <On on yes="Connected · every check passes" /> : <Badge size="sm" tone="high" dot>Connected · {failing.length} denied</Badge>)
+                      : <Badge size="sm" tone="critical" dot>Not connected</Badge>],
+                    p.connected && ['Account', <span className="font-mono text-xs">{p.account_id}</span>],
+                    p.connected && ['Signed in as', <ResourceId value={p.principal_arn} />],
+                    p.connected && ['Credentials', p.auth_mode],
+                    p.connected && ['Regions', <span className="font-mono text-xs">{p.regions?.join(', ')}</span>],
+                    !p.connected && ['Error', <span className="font-mono text-xs break-words text-crit-text">{p.error || p.hint}</span>],
+                  ]} />
+                  {p.checks?.length > 0 && (
+                    <details className="group rounded-md border border-line" open={failing.length > 0}>
+                      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-fg">
+                        Permission checks <span className="num font-normal text-fg-3">· {p.checks.length - failing.length} of {p.checks.length} allowed</span>
+                      </summary>
+                      <div className="overflow-x-auto border-t border-line">
+                        <table className="w-full text-sm">
+                          <tbody>{p.checks.map((x, i) => (
+                            <tr key={i} className="border-b border-line last:border-0">
+                              <td className="w-8 py-2 pl-3">{x.ok ? <CheckCircle2 className="size-4 text-low-text" /> : <XCircle className="size-4 text-crit-text" />}</td>
+                              <td className="px-2 text-fg">{x.service}</td>
+                              <td className="px-2 font-mono text-xs text-fg-2">{x.call}</td>
+                              <td className="px-2 font-mono text-xs text-fg-3">{x.region}</td>
+                              <td className={cn('px-3 text-right font-mono text-xs', x.ok ? 'text-fg-3' : 'text-crit-text')}>{x.ok ? 'allowed' : x.error}</td>
+                            </tr>))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {p.hint && <p className="border-t border-line px-3 py-2 text-xs text-fg-2">{p.hint}</p>}
+                    </details>
+                  )}
+                  <Button className="w-fit" onClick={recheck} loading={rechecking}>{!rechecking && <RefreshCw />} Re-check connection</Button>
+                </div>
+              )}
+          </Section>
+
+          <Section id="scanning" title="Scanning" description="Change these in backend/.env, then restart the API.">
+            {cfg.isLoading ? <SkeletonRows rows={4} /> : cfg.isError ? <ErrorState error={cfg.error} onRetry={cfg.refetch} compact /> : (
+              <Rows items={[
+                ['Regions', <span className="font-mono text-xs">{c.regions?.join(', ')}</span>],
+                ['Home region', <span className="font-mono text-xs">{c.default_region}</span>],
+                ['Schedule', c.scheduled_scans ? `Every ${c.scan_interval_minutes} minutes` : 'Manual only'],
+                ['Runs in', c.scan_executor === 'celery' ? 'Celery worker' : 'The API process'],
+                ['Live updates', c.events_backend],
+                ['Crown-jewel tags', <span className="font-mono text-xs">{c.crown_jewel_tag_keys?.join(', ')}</span>],
+                ['Crown-jewel name hints', <span className="font-mono text-xs">{c.crown_jewel_name_hints?.join(', ')}</span>],
+              ]} />
             )}
-        </Section>
+          </Section>
 
-        <Section icon={Cpu} title="Scanning" desc="Change in backend/.env and restart the API.">
-          {cfg.isLoading ? <Skeleton rows={4} /> : cfg.isError ? <ErrorState error={cfg.error} onRetry={cfg.refetch} /> : (
-            <dl className="ui-settings-list">
-              <Row k="Regions" v={c.regions?.join(', ')} mono />
-              <Row k="Home region" v={c.default_region} mono />
-              <Row k="Executor" v={c.scan_executor === 'celery' ? 'Celery worker' : 'In-process background task'} />
-              <Row k="Schedule" v={c.scheduled_scans ? `Every ${c.scan_interval_minutes} min` : 'Manual only (SCHEDULED_SCANS_ENABLED=false)'} />
-              <Row k="Live events" v={c.events_backend} />
-              <Row k="Crown-jewel tags" v={c.crown_jewel_tag_keys?.join(', ')} mono />
-              <Row k="Crown-jewel name hints" v={c.crown_jewel_name_hints?.join(', ')} mono />
-            </dl>
-          )}
-        </Section>
+          <Section id="remediation" title="Remediation" description="Writes to AWS stay off unless explicitly enabled on the server.">
+            {cfg.data && <Rows items={[
+              ['Apply fixes', <On on={c.remediation_enabled} yes="Allowed" no="Preview only" />],
+              ['Write role', c.remediation_role_arn ? <ResourceId value={c.remediation_role_arn} /> : <span className="text-med-text">Same identity as the scanner — use a separate role in production</span>],
+            ]} />}
+          </Section>
 
-        <Section icon={ShieldAlert} title="Remediation" desc="Writes to AWS are off unless explicitly enabled on the server.">
-          {cfg.data && (
-            <dl className="ui-settings-list">
-              <Row k="Apply fixes" v={<OnOff on={c.remediation_enabled} yes="Enabled — writes allowed" no="Dry-run only" />} />
-              <Row k="Write role" v={c.remediation_role_arn || 'Same identity as scanner (not recommended)'} mono={!!c.remediation_role_arn} />
-            </dl>
-          )}
-        </Section>
+          <Section id="copilot" title="Copilot">
+            {cfg.data && <Rows items={[
+              ['Provider', c.ai_provider],
+              ['Model', <span className="font-mono text-xs">{c.ai_model}</span>],
+              ['API key', <On on={c.ai_configured} yes="Configured" no="Missing — explanations use scanner text only" />],
+            ]} />}
+          </Section>
 
-        <Section icon={Bot} title="AI Copilot">
-          {cfg.data && (
-            <dl className="ui-settings-list">
-              <Row k="Provider" v={c.ai_provider} />
-              <Row k="Model" v={c.ai_model} mono />
-              <Row k="API key" v={<OnOff on={c.ai_configured} yes="Configured" no="Missing — Copilot shows scanner text only" />} />
-            </dl>
-          )}
-        </Section>
+          <Section id="notifications" title="Notifications" description="Slack alerts fire for new critical findings.">
+            <div className="grid gap-4">
+              {cfg.data && <Rows items={[['Slack', <On on={c.slack_enabled} />]]} />}
+              <div className="flex flex-wrap gap-2">
+                <div className="min-w-[240px] flex-1"><Input value={slackUrl} onChange={e => setSlackUrl(e.target.value)} placeholder="https://hooks.slack.com/services/… (blank = server default)" aria-label="Slack webhook URL" /></div>
+                <Button onClick={testSlack} loading={slackBusy} disabled={!isAdmin.allowed} title={isAdmin.reason || undefined}>Send test message</Button>
+              </div>
+              {!isAdmin.allowed && <p className="text-xs text-fg-3">{isAdmin.reason}</p>}
+            </div>
+          </Section>
 
-        <Section icon={Bell} title="Notifications" desc="Slack alerts fire only for new critical findings.">
-          {cfg.data && <dl className="ui-settings-list"><Row k="Slack" v={<OnOff on={c.slack_enabled} />} /></dl>}
-          <div className="ui-chip-row">
-            <input className="ui-input" placeholder="Webhook URL (blank = server default)" value={slackUrl} onChange={e => setSlackUrl(e.target.value)} />
-            <button className="btn btn-ghost btn-sm" onClick={testSlack} disabled={!isAdmin.allowed} title={isAdmin.reason || undefined}>Send test</button>
-          </div>
-          {slackMsg && <p style={{ color: slackMsg.ok ? 'var(--sev-low-text)' : 'var(--sev-critical-text)', fontSize: 13 }}>{slackMsg.text}</p>}
-        </Section>
+          <Section id="appearance" title="Appearance" description="Saved in this browser.">
+            <Rows items={[
+              ['Theme', (
+                <Tabs value={themePref} onValueChange={setTheme}>
+                  <TabsList segmented>
+                    <TabsTrigger value="system"><Monitor className="size-3.5" /> System</TabsTrigger>
+                    <TabsTrigger value="light"><Sun className="size-3.5" /> Light</TabsTrigger>
+                    <TabsTrigger value="dark"><Moon className="size-3.5" /> Dark</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )],
+              ['Data', (
+                <Tabs value={dataSource} onValueChange={switchMode}>
+                  <TabsList segmented>
+                    <TabsTrigger value="live">My AWS account</TabsTrigger>
+                    <TabsTrigger value="demo">Sample data</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )],
+            ]} />
+          </Section>
 
-        <Section icon={SlidersHorizontal} title="Preferences" desc="Stored in this browser.">
-          <div className="ui-settings-row">
-            <dt>Data source</dt>
-            <dd className="ui-chip-row">
-              <button className={`filter-chip ${dataSource === 'live' ? 'active' : ''}`} onClick={() => switchMode('live')}>Live AWS</button>
-              <button className={`filter-chip ${dataSource === 'demo' ? 'active' : ''}`} onClick={() => switchMode('demo')}>Demo data</button>
-            </dd>
-          </div>
-          <div className="ui-settings-row">
-            <dt>Theme</dt>
-            <dd className="ui-chip-row">
-              {['light', 'dark'].map(t => <button key={t} className={`filter-chip ${theme === t ? 'active' : ''}`} onClick={() => setTheme(t)}>{t}</button>)}
-            </dd>
-          </div>
-        </Section>
-
-        <Section icon={Keyboard} title="Keyboard shortcuts">
-          <dl className="ui-settings-list">
-            {SHORTCUTS.map(s => <Row key={s.keys} k={<kbd className="ui-kbd">{s.keys}</kbd>} v={s.label} />)}
-          </dl>
-        </Section>
+          <Section id="shortcuts" title="Keyboard shortcuts" description="Press ? anywhere to see these.">
+            <div className="grid gap-6 sm:grid-cols-2">
+              {SHORTCUT_GROUPS.map(g => (
+                <div key={g.title} className="grid content-start gap-2">
+                  <p className="text-xs font-medium tracking-wide text-fg-3 uppercase">{g.title}</p>
+                  {g.items.map(s => (
+                    <div key={s.label} className="flex items-center justify-between gap-3 text-sm text-fg">
+                      <span>{s.label}</span><span className="flex gap-1">{s.keys.map(k => <Kbd key={k}>{k}</Kbd>)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </Section>
+        </div>
       </div>
-    </div>
+    </Page>
   )
 }

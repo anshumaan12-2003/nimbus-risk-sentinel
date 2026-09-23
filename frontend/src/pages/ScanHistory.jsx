@@ -1,172 +1,26 @@
 import { useMemo, useState } from 'react'
-import History from 'lucide-react/dist/esm/icons/history'
-import Zap from 'lucide-react/dist/esm/icons/zap'
-import Download from 'lucide-react/dist/esm/icons/download'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
-import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
-import XCircle from 'lucide-react/dist/esm/icons/x-circle'
-import Clock from 'lucide-react/dist/esm/icons/clock'
-import { formatDistanceToNow } from 'date-fns'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
-import { useScans, useActiveScan, useScanWarnings, useScanProgress } from '../hooks/queries'
-import ScanProgressGrid from '../components/ScanProgressGrid'
-import { useSentinelStore } from '../store/sentinelStore'
-import { PageHeader, QueryState, EmptyState, Drawer, Metric, downloadFile } from '../components/ui'
+import { AlertTriangle, Download, Loader2, Play } from 'lucide-react'
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts'
+import {
+  Page, PageHeader, Card, CardHeader, CardBody, Button, StatTile, StatusBadge, EmptyState, QueryState, SkeletonRows,
+  Sheet, SheetContent, DescriptionList, Tooltip, Badge, CodeBlock,
+} from '@/components/ds'
+import ScanProgressGrid from '@/components/ScanProgressGrid'
+import { downloadFile } from '@/components/ui'
+import { useScans, useActiveScan, useScanWarnings, useScanProgress } from '@/hooks/queries'
+import { useSentinelStore } from '@/store/sentinelStore'
+import { ago, dateTime, parseUtc, shortDate } from '@/lib/time'
 
-// API timestamps are naive UTC; make the browser parse them as UTC
-const utc = (s) => (s ? new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s + 'Z') : null)
-const rel = (s) => { const d = utc(s); return d ? formatDistanceToNow(d, { addSuffix: true }) : '—' }
-const durationSec = (s) => (s.started_at && s.completed_at ? (utc(s.completed_at) - utc(s.started_at)) / 1000 : null)
+const durationSec = (s) => (s.started_at && s.completed_at ? (parseUtc(s.completed_at) - parseUtc(s.started_at)) / 1000 : null)
 const fmtDur = (sec) => (sec == null ? '—' : sec < 60 ? `${sec.toFixed(1)}s` : `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`)
 const n = (v) => Number(v || 0)
 
-const STATUS = {
-  COMPLETED: { cls: 'badge-low', Icon: CheckCircle2 },
-  FAILED: { cls: 'badge-critical', Icon: XCircle },
-  RUNNING: { cls: 'badge-medium', Icon: Loader2 },
-  PENDING: { cls: 'badge-medium', Icon: Clock },
-}
-
-export default function ScanHistory() {
-  const { dataSource, openScanModal } = useSentinelStore()
-  const q = useScans(50)
-  const active = useActiveScan()
-  const [openId, setOpenId] = useState(null)
-
-  const scans = q.data || []
-  const completed = scans.filter(s => s.status === 'COMPLETED')
-  const stats = useMemo(() => {
-    const durs = completed.map(durationSec).filter(x => x != null)
-    const finished = scans.filter(s => s.status === 'COMPLETED' || s.status === 'FAILED')
-    const [latest, prev] = completed
-    return {
-      success: finished.length ? Math.round(100 * completed.length / finished.length) : null,
-      meanDur: durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : null,
-      latest: latest ? n(latest.risk_score) : null,
-      delta: latest && prev ? n(latest.risk_score) - n(prev.risk_score) : null,
-    }
-  }, [scans])
-
-  // oldest -> newest for the trend chart
-  const trend = useMemo(() => [...completed].reverse().map(s => ({
-    t: utc(s.completed_at)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    risk: n(s.risk_score), findings: n(s.total_findings), critical: n(s.critical_count),
-  })), [scans])
-
-  if (dataSource === 'demo') {
-    return <div className="animate-fade-in"><PageHeader icon={History} tag="Audit trail" title="Scan History" />
-      <EmptyState title="Scan history needs live mode" body="Switch to live data in Settings." /></div>
-  }
-
-  const openScan = scans.find(s => s.id === openId)
-
+function Counts({ s }) {
+  const items = [['C', s.critical_count, 'text-crit-text'], ['H', s.high_count, 'text-high-text'], ['M', s.medium_count, 'text-med-text'], ['L', s.low_count, 'text-low-text']]
   return (
-    <div className="animate-fade-in">
-      <PageHeader
-        icon={History} tag="Audit trail" title="Scan History"
-        subtitle="Every scan, its outcome, how long it took and what it could not see."
-        actions={<button className="btn btn-primary" onClick={openScanModal} disabled={!!active.data}>
-          <Zap size={14} /> {active.data ? 'Scan in progress…' : 'Run new scan'}
-        </button>}
-      />
-
-      {active.data && (
-        <div className="card ui-inline-alert" role="status">
-          <Loader2 size={15} className="spin" />
-          <span>Scan <span className="font-mono">{active.data.id.slice(0, 8)}</span> is {active.data.status.toLowerCase()} (started {rel(active.data.started_at)}). This page updates automatically when it finishes.</span>
-        </div>
-      )}
-
-      <QueryState query={q} rows={6}
-        empty={<EmptyState icon={History} title="No scans yet" body="Run your first scan to establish a security baseline."
-          action={<button className="btn btn-primary" onClick={openScanModal}><Zap size={14} /> Run first scan</button>} />}>
-        {() => (
-          <>
-            <div className="grid-4 ui-gap">
-              <Metric label="Scans recorded" value={scans.length} hint={`${completed.length} completed`} />
-              <Metric label="Success rate" value={stats.success == null ? '—' : `${stats.success}%`}
-                      tone={stats.success == null ? null : stats.success < 90 ? 'high' : 'low'} hint="Completed vs failed" />
-              <Metric label="Mean duration" value={fmtDur(stats.meanDur)} hint="Completed scans" />
-              <Metric label="Latest risk score" value={stats.latest == null ? '—' : `${stats.latest}/100`}
-                      tone={stats.latest >= 70 ? 'critical' : stats.latest >= 40 ? 'high' : 'low'}
-                      hint={stats.delta == null ? 'First baseline' : stats.delta === 0 ? 'No change vs previous' :
-                        `${stats.delta > 0 ? '▲ worse by' : '▼ better by'} ${Math.abs(stats.delta)} vs previous`} />
-            </div>
-
-            {trend.length > 1 && (
-              <div className="card ui-gap">
-                <div className="card-kicker">Risk and findings over time</div>
-                <div style={{ height: 240 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trend} margin={{ top: 12, right: 12, left: -12, bottom: 0 }}>
-                      <CartesianGrid stroke="var(--border-xs)" vertical={false} />
-                      <XAxis dataKey="t" tick={{ fontSize: 11, fill: 'var(--text-4)' }} />
-                      <YAxis tick={{ fontSize: 11, fill: 'var(--text-4)' }} allowDecimals={false} />
-                      <Tooltip contentStyle={{ background: 'var(--surface-1)', border: '1px solid var(--border-sm)', borderRadius: 8, fontSize: 12 }} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Line type="monotone" dataKey="risk" name="Risk score" stroke="var(--sev-critical)" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="findings" name="Findings" stroke="var(--brand)" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="critical" name="Critical" stroke="var(--sev-high)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            <div className="card" style={{ padding: 0 }}>
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Scan</th><th>Status</th><th>Started</th><th>Duration</th><th>Trigger</th><th>Regions</th><th>Risk</th><th>Findings</th><th /></tr>
-                  </thead>
-                  <tbody>
-                    {scans.map(s => {
-                      const st = STATUS[s.status] || STATUS.PENDING
-                      return (
-                        <tr key={s.id} className="ui-row-link" tabIndex={0} onClick={() => setOpenId(s.id)}
-                            onKeyDown={e => e.key === 'Enter' && setOpenId(s.id)}>
-                          <td className="font-mono text-cyan">{s.id.slice(0, 8)}</td>
-                          <td>
-                            <span className={`badge-pill ${st.cls}`}><st.Icon size={11} className={s.status === 'RUNNING' ? 'spin' : ''} /> {s.status}</span>
-                            {s.status === 'COMPLETED' && s.error_message && <span className="ui-warn-dot" title={s.error_message}><AlertTriangle size={12} /></span>}
-                          </td>
-                          <td title={utc(s.started_at)?.toLocaleString()}>{rel(s.started_at)}</td>
-                          <td className="font-mono">{fmtDur(durationSec(s))}</td>
-                          <td>{s.triggered_by}</td>
-                          <td className="font-mono ui-subtle">{s.region || '—'}</td>
-                          <td className="font-mono" style={{ fontWeight: 700 }}>{s.status === 'COMPLETED' ? s.risk_score : '—'}</td>
-                          <td>
-                            {s.status === 'COMPLETED' ? (
-                              <div className="ui-chip-row">
-                                <span className="badge-pill badge-critical">{n(s.critical_count)} C</span>
-                                <span className="badge-pill badge-high">{n(s.high_count)} H</span>
-                                <span className="badge-pill badge-medium">{n(s.medium_count)} M</span>
-                                <span className="badge-pill badge-low">{n(s.low_count)} L</span>
-                              </div>
-                            ) : <span className="ui-subtle ui-truncate" title={s.error_message}>{s.error_message || '—'}</span>}
-                          </td>
-                          <td>
-                            <button className="btn btn-ghost btn-sm" aria-label="Download scan JSON"
-                                    onClick={e => { e.stopPropagation(); downloadFile(`scan-${s.id}.json`, JSON.stringify(s, null, 2), 'application/json') }}>
-                              <Download size={12} />
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
-      </QueryState>
-
-      <Drawer open={!!openScan} onClose={() => setOpenId(null)} title={openScan ? `Scan ${openScan.id.slice(0, 8)}` : ''}>
-        {openScan && <ScanDetail scan={openScan} />}
-      </Drawer>
-    </div>
+    <span className="num flex gap-2.5 text-xs">
+      {items.map(([k, v, cls]) => <span key={k} className={n(v) ? cls : 'text-fg-3'} title={{ C: 'Critical', H: 'High', M: 'Medium', L: 'Low' }[k]}>{n(v)}<span className="ml-0.5 opacity-60">{k}</span></span>)}
+    </span>
   )
 }
 
@@ -176,50 +30,178 @@ function ScanDetail({ scan }) {
   const warnings = w.data?.warnings || []
   const prog = useScanProgress(scan.id)
   return (
-    <div className="ui-detail">
-      <dl className="ui-kv">
-        <div><dt>Status</dt><dd>{scan.status}</dd></div>
-        <div><dt>Account</dt><dd className="font-mono">{scan.account_id || '—'}</dd></div>
-        <div><dt>Regions</dt><dd className="font-mono">{scan.region || '—'}</dd></div>
-        <div><dt>Started</dt><dd>{utc(scan.started_at)?.toLocaleString()}</dd></div>
-        <div><dt>Duration</dt><dd>{fmtDur(durationSec(scan))}</dd></div>
-        <div><dt>Triggered by</dt><dd>{scan.triggered_by}</dd></div>
-      </dl>
-
+    <div className="grid gap-6 p-5">
+      <DescriptionList items={[
+        ['Status', <StatusBadge status={scan.status} size="sm" />],
+        ['Account', <span className="font-mono text-xs">{scan.account_id || '—'}</span>],
+        ['Regions', <span className="font-mono text-xs">{scan.region || '—'}</span>],
+        ['Started', dateTime(scan.started_at)],
+        ['Duration', fmtDur(durationSec(scan))],
+        ['Triggered by', scan.triggered_by],
+        scan.status === 'COMPLETED' ? ['Risk score', <span className="num font-semibold">{scan.risk_score}</span>] : null,
+      ]} />
       {scan.status === 'FAILED' && (
-        <section><div className="ui-detail-label">Failure reason</div><pre className="ui-code">{scan.error_message}</pre></section>
+        <section className="grid gap-2"><h3 className="text-xs font-medium tracking-wide text-fg-3 uppercase">Why it failed</h3><CodeBlock code={scan.error_message || 'No reason recorded'} /></section>
       )}
-
       {prog.data && (
-        <section>
-          <div className="ui-detail-label">Coverage by service and region</div>
-          <ScanProgressGrid progress={prog.data} compact />
-        </section>
+        <section className="grid gap-2"><h3 className="text-xs font-medium tracking-wide text-fg-3 uppercase">Coverage by service and region</h3><ScanProgressGrid progress={prog.data} compact /></section>
       )}
-
       {counts.length > 0 && (
-        <section>
-          <div className="ui-detail-label">Assets inventoried</div>
-          <div className="ui-chip-row">{counts.map(([k, v]) => <span key={k} className="badge-pill ui-badge-muted">{k.replace('_', ' ')}: {v}</span>)}</div>
+        <section className="grid gap-2">
+          <h3 className="text-xs font-medium tracking-wide text-fg-3 uppercase">Assets inventoried</h3>
+          <div className="flex flex-wrap gap-1.5">{counts.map(([k, v]) => <Badge key={k} size="sm"><span className="text-fg-3">{k.replace('_', ' ')}</span> <span className="num">{v}</span></Badge>)}</div>
         </section>
       )}
-
       {scan.status === 'COMPLETED' && (
-        <section>
-          <div className="ui-detail-label">Blind spots ({warnings.length})</div>
-          {w.isLoading ? <p className="ui-subtle">Loading…</p> : warnings.length ? (
+        <section className="grid gap-2">
+          <h3 className="text-xs font-medium tracking-wide text-fg-3 uppercase">Blind spots · {warnings.length}</h3>
+          {w.isLoading ? <SkeletonRows rows={2} /> : warnings.length ? (
             <>
-              <p className="ui-subtle">These API calls failed, so anything behind them is missing from this scan. Usually a missing read permission — attach SecurityAudit + ViewOnlyAccess.</p>
-              <table className="data-table">
-                <thead><tr><th>Service</th><th>Region</th><th>Call</th><th>Error</th></tr></thead>
-                <tbody>{warnings.map((x, i) => (
-                  <tr key={i}><td>{x.service}</td><td className="font-mono">{x.region}</td><td className="font-mono">{x.call}</td><td className="font-mono">{x.error}</td></tr>
-                ))}</tbody>
-              </table>
+              <p className="text-sm text-fg-2">These AWS calls failed, so anything behind them is missing from this scan — usually a missing read permission.</p>
+              <div className="overflow-x-auto rounded-md border border-line">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-2 text-left text-xs text-fg-3"><tr><th className="px-3 py-2 font-medium">Service</th><th className="px-3 font-medium">Region</th><th className="px-3 font-medium">Call</th><th className="px-3 font-medium">Error</th></tr></thead>
+                  <tbody>{warnings.map((x, i) => (
+                    <tr key={i} className="border-t border-line"><td className="px-3 py-2">{x.service}</td><td className="px-3 font-mono text-xs">{x.region}</td><td className="px-3 font-mono text-xs">{x.call}</td><td className="px-3 font-mono text-xs text-crit-text">{x.error}</td></tr>
+                  ))}</tbody>
+                </table>
+              </div>
             </>
-          ) : <p className="ui-subtle">None — every API call succeeded.</p>}
+          ) : <p className="text-sm text-low-text">None — every AWS call succeeded.</p>}
         </section>
       )}
     </div>
+  )
+}
+
+export default function ScanHistory() {
+  const { dataSource, openScanModal } = useSentinelStore()
+  const q = useScans(50)
+  const active = useActiveScan()
+  const [openId, setOpenId] = useState(null)
+  const [shownId, setShownId] = useState(null)
+  const scans = q.data || []
+  const completed = scans.filter(s => s.status === 'COMPLETED')
+
+  const stats = useMemo(() => {
+    const durs = completed.map(durationSec).filter(x => x != null)
+    const finished = scans.filter(s => s.status === 'COMPLETED' || s.status === 'FAILED')
+    const [latest, prev] = completed
+    return {
+      success: finished.length ? Math.round((100 * completed.length) / finished.length) : null,
+      meanDur: durs.length ? durs.reduce((a, b) => a + b, 0) / durs.length : null,
+      latest: latest ? n(latest.risk_score) : null,
+      delta: latest && prev ? n(latest.risk_score) - n(prev.risk_score) : null,
+    }
+  }, [scans]) // eslint-disable-line react-hooks/exhaustive-deps
+  const trend = useMemo(() => [...completed].reverse().map(s => ({
+    t: shortDate(s.completed_at), risk: n(s.risk_score), findings: n(s.total_findings), critical: n(s.critical_count),
+  })), [scans]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (dataSource === 'demo') {
+    return <Page><PageHeader title="Scan history" /><Card><EmptyState title="Scan history needs live data" body="Switch to your real AWS data (⌘K → Show my real AWS data)." /></Card></Page>
+  }
+  const shown = scans.find(s => s.id === (openId || shownId))
+
+  return (
+    <Page wide>
+      <PageHeader
+        title="Scan history"
+        description="Every scan, its outcome, how long it took and what it couldn’t see."
+        actions={<Button variant="primary" onClick={openScanModal}>{active.data ? <><Loader2 className="animate-spin" /> Watch running scan</> : <><Play /> Run scan</>}</Button>}
+      />
+      {active.data && (
+        <div role="status" className="mb-4 flex items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3 text-sm text-accent-text">
+          <Loader2 className="size-4 animate-spin" />
+          A scan started {ago(active.data.started_at)} is {active.data.status.toLowerCase()}. This page updates when it finishes.
+        </div>
+      )}
+      <QueryState query={q} loading={<SkeletonRows rows={8} />}
+        empty={<Card><EmptyState title="No scans yet" body="Run your first scan to set a security baseline." action={<Button variant="primary" onClick={openScanModal}><Play /> Run first scan</Button>} /></Card>}>
+        {() => (
+          <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatTile label="Scans recorded" value={scans.length} hint={`${completed.length} completed`} />
+              <StatTile label="Success rate" value={stats.success == null ? '—' : `${stats.success}%`} tone={stats.success == null ? 'neutral' : stats.success < 90 ? 'high' : 'low'} hint="completed vs failed" />
+              <StatTile label="Typical duration" value={fmtDur(stats.meanDur)} hint="mean of completed scans" />
+              <StatTile label="Latest risk score" value={stats.latest ?? '—'} tone={stats.latest >= 70 ? 'critical' : stats.latest >= 40 ? 'high' : 'low'}
+                        delta={stats.delta ?? undefined} hint={stats.delta == null ? 'first baseline' : 'vs previous scan'} />
+            </div>
+
+            {trend.length > 1 && (
+              <Card>
+                <CardHeader title="Risk and findings over time" />
+                <CardBody>
+                  <div className="h-[240px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={trend} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
+                        <CartesianGrid stroke="var(--line)" vertical={false} />
+                        <XAxis dataKey="t" tick={{ fontSize: 11, fill: 'var(--fg-3)' }} axisLine={false} tickLine={false} minTickGap={24} />
+                        <YAxis tick={{ fontSize: 11, fill: 'var(--fg-3)' }} allowDecimals={false} axisLine={false} tickLine={false} />
+                        <ChartTooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 12, boxShadow: 'var(--elev-overlay)' }} labelStyle={{ color: 'var(--fg-3)' }} />
+                        <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, color: 'var(--fg-2)' }} />
+                        <Line type="monotone" dataKey="risk" name="Risk score" stroke="var(--accent)" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="findings" name="Findings" stroke="var(--fg-3)" strokeWidth={1.75} dot={false} />
+                        <Line type="monotone" dataKey="critical" name="Critical" stroke="var(--crit)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardBody>
+              </Card>
+            )}
+
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] border-collapse text-sm">
+                  <thead className="bg-surface-2">
+                    <tr className="border-b border-line text-left text-xs text-fg-3">
+                      <th className="h-9 pr-3 pl-5 font-medium">Started</th><th className="px-3 font-medium">Status</th><th className="px-3 font-medium">Duration</th>
+                      <th className="px-3 font-medium">Triggered by</th><th className="px-3 font-medium">Regions</th><th className="px-3 text-right font-medium">Risk</th>
+                      <th className="px-3 font-medium">Findings</th><th className="pr-5 pl-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scans.map(s => (
+                      <tr key={s.id} tabIndex={0} onClick={() => { setOpenId(s.id); setShownId(s.id) }}
+                          onKeyDown={e => { if (e.key === 'Enter') { setOpenId(s.id); setShownId(s.id) } }}
+                          className="cursor-pointer border-b border-line last:border-0 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none">
+                        <td className="h-12 pr-3 pl-5"><span className="text-fg" title={dateTime(s.started_at)}>{ago(s.started_at)}</span></td>
+                        <td className="px-3">
+                          <span className="flex items-center gap-1.5">
+                            <StatusBadge status={s.status} size="sm" />
+                            {s.status === 'COMPLETED' && s.error_message && <Tooltip content={s.error_message}><AlertTriangle className="size-3.5 text-med-text" /></Tooltip>}
+                          </span>
+                        </td>
+                        <td className="num px-3 text-fg-2">{fmtDur(durationSec(s))}</td>
+                        <td className="max-w-[180px] truncate px-3 text-fg-2">{s.triggered_by}</td>
+                        <td className="px-3 font-mono text-xs text-fg-3">{s.region || '—'}</td>
+                        <td className="num px-3 text-right font-semibold text-fg">{s.status === 'COMPLETED' ? s.risk_score : '—'}</td>
+                        <td className="px-3">{s.status === 'COMPLETED' ? <Counts s={s} /> : <span className="block max-w-[220px] truncate text-xs text-fg-3" title={s.error_message}>{s.error_message || '—'}</span>}</td>
+                        <td className="pr-5 pl-3 text-right">
+                          <Tooltip content="Download scan JSON">
+                            <Button variant="ghost" size="icon-sm" aria-label="Download scan JSON"
+                                    onClick={e => { e.stopPropagation(); downloadFile(`scan-${s.id}.json`, JSON.stringify(s, null, 2), 'application/json') }}>
+                              <Download />
+                            </Button>
+                          </Tooltip>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
+      </QueryState>
+
+      <Sheet open={!!openId} onOpenChange={(o) => { if (!o) setOpenId(null) }}>
+        {shown && (
+          <SheetContent width={600} title={`Scan ${shown.id.slice(0, 8)}`} description={`Started ${dateTime(shown.started_at)} by ${shown.triggered_by}`}>
+            <ScanDetail scan={shown} />
+          </SheetContent>
+        )}
+      </Sheet>
+    </Page>
   )
 }

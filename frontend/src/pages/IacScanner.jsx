@@ -1,466 +1,202 @@
-import { useState, useEffect, useCallback } from 'react'
-import GitPullRequest from 'lucide-react/dist/esm/icons/git-pull-request'
-import Shield from 'lucide-react/dist/esm/icons/shield'
-import Search from 'lucide-react/dist/esm/icons/search'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
-import XCircle from 'lucide-react/dist/esm/icons/x-circle'
-import Code2 from 'lucide-react/dist/esm/icons/code-2'
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
-import X from 'lucide-react/dist/esm/icons/x'
-import Terminal from 'lucide-react/dist/esm/icons/terminal'
-import Copy from 'lucide-react/dist/esm/icons/copy'
-import Check from 'lucide-react/dist/esm/icons/check'
-import Upload from 'lucide-react/dist/esm/icons/upload'
-import Play from 'lucide-react/dist/esm/icons/play'
-import Activity from 'lucide-react/dist/esm/icons/activity'
-import FileCode from 'lucide-react/dist/esm/icons/file-code'
-import Layers from 'lucide-react/dist/esm/icons/layers'
-import Lock from 'lucide-react/dist/esm/icons/lock'
-import Zap from 'lucide-react/dist/esm/icons/zap'
-import HardDrive from 'lucide-react/dist/esm/icons/hard-drive'
-import KeyRound from 'lucide-react/dist/esm/icons/key-round'
-import Server from 'lucide-react/dist/esm/icons/server'
-import Database from 'lucide-react/dist/esm/icons/database'
-import ShieldAlert from 'lucide-react/dist/esm/icons/shield-alert'
-import MessageSquareCode from 'lucide-react/dist/esm/icons/message-square-code'
-import { useSentinelStore } from '../store/sentinelStore'
-import SeverityBadge from '../components/SeverityBadge'
-import EmptyState from '../components/EmptyState'
-import { scanIacDemo, api, apiError } from '../api/nimbus'
+import { useMemo, useRef, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { CheckCircle2, ChevronRight, FileCode2, Play, Upload, XCircle } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import {
+  Page, PageHeader, Card, CardHeader, CardBody, Button, Textarea, SeverityBadge, Badge, EmptyState, SkeletonRows,
+  Tabs, TabsList, TabsTrigger, TabsContent, Sheet, SheetContent, DescriptionList, CodeBlock,
+} from '@/components/ds'
+import { api, apiError, scanIacDemo } from '@/api/nimbus'
+import { useCan } from '@/auth/authStore'
 
-const SEVERITY_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
-const SEVERITY_COLORS = {
-  CRITICAL: { bg: 'var(--sev-critical-bg)', border: 'var(--sev-critical-border)', text: 'var(--sev-critical)', dot: 'var(--sev-critical)' },
-  HIGH:     { bg: 'var(--sev-high-bg)',     border: 'var(--sev-high-border)',     text: 'var(--sev-high)',     dot: 'var(--sev-high)' },
-  MEDIUM:   { bg: 'var(--sev-medium-bg)',   border: 'var(--sev-medium-border)',   text: 'var(--sev-medium)',   dot: 'var(--sev-medium)' },
-  LOW:      { bg: 'var(--sev-low-bg)',      border: 'var(--sev-low-border)',      text: 'var(--sev-low)',      dot: 'var(--sev-low)' },
-}
-const SERVICE_ICONS = {
-  s3: HardDrive,
-  iam: KeyRound,
-  ec2: Server,
-  rds: Database
+const SEV = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+const SEV_STRIPE = { CRITICAL: 'bg-crit', HIGH: 'bg-high', MEDIUM: 'bg-med', LOW: 'bg-low' }
+const SAMPLE = `resource "aws_s3_bucket" "logs" {
+  bucket = "acme-app-logs"
 }
 
+resource "aws_s3_bucket_public_access_block" "logs" {
+  bucket                  = aws_s3_bucket.logs.id
+  block_public_acls       = false
+  ignore_public_acls      = false
+  block_public_policy     = true
+  restrict_public_buckets = true
+}
 
-
-export default function IacScanner() {
-  const [results, setResults] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState(null)
-  const [copied, setCopied] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterSev, setFilterSev] = useState('')
-  const [filterSvc, setFilterSvc] = useState('')
-  const [hclInput, setHclInput] = useState('')
-  const [mode, setMode] = useState('demo') // 'demo' | 'paste'
-  const [toast, setToast] = useState(null)
-  const { dataSource } = useSentinelStore()
-
-  const runScan = useCallback(async () => {
-    setLoading(true)
-    setResults(null)
-    setSelected(null)
-    try {
-      let data
-      if (mode === 'paste' && hclInput.trim()) {
-        // through the shared client: correct base URL + the signed-in user's token
-        data = (await api.post('/iac/scan/content', { hcl_content: hclInput, filename: 'user-input.tf' })).data
-      } else {
-        data = await scanIacDemo()
-      }
-      setResults(data)
-    } catch (e) {
-      showToast(`Scan failed: ${apiError(e)}`)
-    } finally {
-      setLoading(false)
-    }
-  }, [mode, hclInput])
-
-  // Auto-run demo scan on mount
-  useEffect(() => { runScan() }, [])
-
-  const showToast = (msg) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+resource "aws_security_group" "web" {
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
+}`
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-    showToast('Copied to clipboard')
-  }
+const CI_SNIPPET = `# .github/workflows/iac.yml — fail the PR on critical misconfigurations
+- name: Nimbus IaC scan
+  run: python cli/nimbus_cli.py scan iac ./infrastructure/terraform`
 
-  const filtered = (results?.findings || []).filter(f =>
-    (!filterSev || f.severity === filterSev) &&
-    (!filterSvc || f.service === filterSvc) &&
-    (!search || f.title.toLowerCase().includes(search.toLowerCase()) || f.rule_id.toLowerCase().includes(search.toLowerCase()) || f.file_path.toLowerCase().includes(search.toLowerCase()))
-  )
-
-  const summary = results?.severity_summary || {}
-  const criticalCount = summary.CRITICAL || 0
-  const passed = results?.passed
+function Results({ data }) {
+  const [sev, setSev] = useState('')
+  const [open, setOpen] = useState(null)
+  const [shown, setShown] = useState(null)
+  const summary = data.severity_summary || {}
+  const rows = useMemo(() => (data.findings || []).filter(f => !sev || f.severity === sev).sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0)), [data, sev])
+  const crit = summary.CRITICAL || 0
+  const f = open || shown
 
   return (
-    <div className="findings-container animate-fade-in">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <div className="page-tag">
-            <GitPullRequest size={12} />
-            <span>Shift-Left Security · Pre-Commit & CI/CD</span>
-          </div>
-          <h1 className="page-title">IaC Security Scanner</h1>
-          <p className="page-subtitle">
-            Static analysis of Terraform infrastructure-as-code. Detects misconfigurations before deployment via GitHub Actions PR integration.
+    <div className="grid gap-4">
+      <div role="status" className={cn('flex flex-wrap items-center gap-4 rounded-lg border p-4',
+        data.passed ? 'border-low-line bg-low-soft' : 'border-crit-line bg-crit-soft')}>
+        {data.passed ? <CheckCircle2 className="size-6 text-low-text" /> : <XCircle className="size-6 text-crit-text" />}
+        <div className="min-w-0 flex-1">
+          <p className={cn('font-semibold', data.passed ? 'text-low-text' : 'text-crit-text')}>
+            {data.passed ? 'Passed — no critical misconfigurations' : `Would block the merge — ${crit} critical misconfiguration${crit === 1 ? '' : 's'}`}
           </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            className={`filter-chip ${mode === 'demo' ? 'active' : ''}`}
-            onClick={() => setMode('demo')}
-          >
-            <Play size={12} /> Demo Scan
-          </button>
-          <button
-            className={`filter-chip ${mode === 'paste' ? 'active' : ''}`}
-            onClick={() => setMode('paste')}
-          >
-            <Code2 size={12} /> Paste HCL
-          </button>
-          <button className="btn btn-primary" onClick={runScan} disabled={loading}>
-            <Zap size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
-            {loading ? 'Scanning...' : 'Run Scan'}
-          </button>
+          <p className="num text-sm text-fg-2">{data.resources_scanned || 0} resources checked · {data.total_findings || 0} findings</p>
         </div>
       </div>
 
-      {/* HCL Paste Mode */}
-      {mode === 'paste' && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <FileCode size={13} /> Paste Terraform HCL Configuration
-          </div>
-          <textarea
-            value={hclInput}
-            onChange={e => setHclInput(e.target.value)}
-            placeholder={`# Paste your Terraform resource blocks here\nresource "aws_s3_bucket" "example" {\n  bucket = "my-bucket"\n}\n\nresource "aws_s3_bucket_public_access_block" "example" {\n  bucket               = aws_s3_bucket.example.id\n  block_public_acls    = false  # Flagged by Sentinel!\n  ignore_public_acls   = false\n  block_public_policy  = true\n  restrict_public_buckets = true\n}`}
-            style={{
-              width: '100%', minHeight: 200, fontFamily: "var(--font-mono)",
-              fontSize: 12, lineHeight: 1.7, padding: '14px 16px', resize: 'vertical',
-              background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-              borderRadius: 10, color: 'var(--text-primary)', outline: 'none',
-            }}
-          />
-        </div>
-      )}
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Severity">
+        {['', ...SEV].map(s => (
+          <button key={s || 'all'} type="button" onClick={() => setSev(s)} aria-pressed={sev === s}
+                  className={cn('inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
+                    sev === s ? 'border-fg bg-fg text-bg' : 'border-line bg-surface text-fg-2 hover:border-line-strong hover:text-fg')}>
+            {s && <span className={cn('size-1.5 rounded-[2px]', SEV_STRIPE[s])} />}
+            {s ? s[0] + s.slice(1).toLowerCase() : 'All'}
+            <span className="num opacity-70">{s ? summary[s] || 0 : data.total_findings || 0}</span>
+          </button>
+        ))}
+      </div>
 
-      {/* Scan Status Banner */}
-      {results && (
-        <div style={{
-          padding: '16px 20px',
-          background: passed ? 'var(--sev-low-bg)' : 'var(--sev-critical-bg)',
-          border: `1px solid ${passed ? 'var(--sev-low-border)' : 'var(--sev-critical-border)'}`,
-          borderRadius: 14,
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-        }}>
-          {passed
-            ? <CheckCircle2 size={22} color="var(--sev-low)" />
-            : <XCircle size={22} color="var(--sev-critical)" />
-          }
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: passed ? 'var(--sev-low)' : 'var(--sev-critical)' }}>
-              {passed ? 'IaC Scan Passed — Zero Critical Violations' : `PR Merge Blocked — ${criticalCount} Critical Misconfiguration${criticalCount > 1 ? 's' : ''} Detected`}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Scanned {results.resources_scanned || 0} Terraform resources · {results.total_findings || 0} total findings
-            </div>
-          </div>
-          {!passed && (
-            <div style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--sev-critical)', background: 'var(--sev-critical-bg)', border: '1px solid var(--sev-critical-border)', padding: '4px 10px', borderRadius: 6, letterSpacing: '0.02em' }}>
-              BLOCKS GITHUB MERGE
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Stats Grid */}
-      {results && (
-        <div className="grid-4" style={{ marginBottom: 24 }}>
-          {SEVERITY_ORDER.map(sev => {
-            const col = SEVERITY_COLORS[sev]
-            const count = summary[sev] || 0
-            const isSelected = filterSev === sev
-            return (
-              <div
-                key={sev}
-                className="card hover-lift"
-                onClick={() => setFilterSev(isSelected ? '' : sev)}
-                style={{
-                  padding: '16px 20px', cursor: 'pointer',
-                  borderColor: isSelected ? col.dot : undefined,
-                  background: isSelected ? col.bg : undefined,
-                }}
-              >
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: col.text, marginBottom: 6 }}>
-                  {sev}
-                </div>
-                <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1.5px', color: col.dot }}>
-                  {count}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Filters Bar */}
-      {results && (
-        <div className="card filters-card" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', alignItems: 'center' }}>
-            <div className="search-input-wrap" style={{ flex: 1, minWidth: 220 }}>
-              <Search size={14} className="search-icon" />
-              <input type="text" placeholder="Search by rule ID, title, or file path..." value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-            <select className="filter-select" value={filterSev} onChange={e => setFilterSev(e.target.value)}>
-              <option value="">All Severities</option>
-              {SEVERITY_ORDER.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select className="filter-select" value={filterSvc} onChange={e => setFilterSvc(e.target.value)}>
-              <option value="">All Services</option>
-              {['s3', 'iam', 'ec2', 'rds'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-            </select>
-            {(filterSev || filterSvc || search) && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setFilterSev(''); setFilterSvc(''); setSearch('') }}>
-                Reset Filters
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && (
-        <div className="card" style={{ padding: '60px 40px', textAlign: 'center' }}>
-          <div style={{
-            width: 54, height: 54, borderRadius: '50%', margin: '0 auto 16px',
-            background: 'var(--accent-glow)', border: '1px solid var(--accent-subtle)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)'
-          }}>
-            <Activity size={26} className="spin" />
-          </div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Executing Shift-Left Policy Verification...</div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            Analyzing Terraform resources for misconfigurations against CIS AWS Benchmark rules
-          </div>
-          <div style={{ marginTop: 20, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none' }}>
-            {['Parsing HCL AST', 'Checking S3 Policies', 'Validating IAM Permissions', 'Auditing EC2 Ingress', 'RDS Storage Encryption'].map((step, i) => (
-              <span key={step} style={{
-                fontSize: 11, padding: '4px 10px',
-                background: 'var(--bg-elevated)', color: 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)', borderRadius: 6, fontWeight: 600
-              }}>
-                {step}
-              </span>
+      <Card className="overflow-hidden">
+        {rows.length === 0 ? (
+          <EmptyState compact mood="happy" title={sev ? 'Nothing at this severity' : 'No misconfigurations found'} body={sev ? undefined : 'Every resource passed the Nimbus rules.'} />
+        ) : (
+          <ul className="divide-y divide-line">
+            {rows.map((r, i) => (
+              <li key={`${r.rule_id}-${r.file_path}-${r.line_number}-${i}`}>
+                <button type="button" onClick={() => { setOpen(r); setShown(r) }}
+                        className="group relative flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-surface-2">
+                  <span aria-hidden className={cn('absolute inset-y-2 left-0 w-[3px] rounded-r-full opacity-0 group-hover:opacity-70', SEV_STRIPE[r.severity])} />
+                  <SeverityBadge severity={r.severity} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-fg">{r.title}</span>
+                    <span className="block truncate font-mono text-xs text-fg-3">{r.rule_id} · {r.file_path}:{r.line_number}</span>
+                  </span>
+                  <span className="hidden truncate text-xs text-fg-2 md:block">{r.resource_type}.{r.resource_name}</span>
+                  <ChevronRight className="size-4 shrink-0 text-fg-3" />
+                </button>
+              </li>
             ))}
-          </div>
-        </div>
-      )}
+          </ul>
+        )}
+      </Card>
 
-      {/* Findings Table */}
-      {!loading && results && (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Severity</th>
-                  <th>Service</th>
-                  <th>Rule ID</th>
-                  <th>Title & Resource</th>
-                  <th>File Location</th>
-                  <th>Compliance</th>
-                  <th>Risk</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={8}>
-                      <EmptyState compact mood="thinking" title="Nothing matches those filters" description="Loosen a filter or scan another template." />
-                    </td>
-                  </tr>
-                ) : filtered.map((f, i) => {
-                  const SvcIcon = SERVICE_ICONS[f.service] || Layers
-                  return (
-                    <tr key={i} onClick={() => setSelected(f)} style={{ cursor: 'pointer' }} className={selected?.rule_id === f.rule_id && selected?.resource_name === f.resource_name ? 'row-selected' : ''}>
-                      <td><SeverityBadge severity={f.severity} /></td>
-                      <td>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
-                          <SvcIcon size={13} style={{ color: 'var(--accent-primary)' }} />
-                          {f.service}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="font-mono text-cyan" style={{ fontSize: 12, fontWeight: 600 }}>{f.rule_id}</span>
-                      </td>
-                      <td style={{ maxWidth: 320 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }} className="truncate">{f.title}</div>
-                        <div className="font-mono text-secondary truncate" style={{ fontSize: 11 }}>{f.resource_type}.{f.resource_name}</div>
-                      </td>
-                      <td>
-                        <div className="font-mono" style={{ fontSize: 11, color: 'var(--accent-primary)' }}>{f.file_path}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>line {f.line_number}</div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none' }}>
-                          {(f.compliance || []).slice(0, 2).map(c => (
-                            <span key={c} className="compliance-pill" style={{ fontSize: 10 }}>{c}</span>
-                          ))}
-                        </div>
-                      </td>
-                      <td>
-                        <span style={{
-                          fontWeight: 800, fontSize: 13,
-                          color: f.risk_score >= 90 ? 'var(--sev-critical)' : f.risk_score >= 70 ? 'var(--sev-high)' : f.risk_score >= 50 ? 'var(--sev-medium)' : 'var(--sev-low)'
-                        }}>{f.risk_score}</span>
-                      </td>
-                      <td>
-                        <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); setSelected(f) }}>
-                          Inspect <ChevronRight size={12} />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Detail Drawer */}
-      {selected && (
-        <div className="drawer-overlay" onClick={() => setSelected(null)}>
-          <div className="drawer-card" onClick={e => e.stopPropagation()} style={{ width: '560px' }}>
-            <div className="drawer-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <SeverityBadge severity={selected.severity} />
-                <span className="font-mono text-cyan" style={{ fontWeight: 700 }}>{selected.rule_id}</span>
-              </div>
-              <button className="drawer-close-btn" onClick={() => setSelected(null)}><X size={16} /></button>
+      <Sheet open={!!open} onOpenChange={(o) => { if (!o) setOpen(null) }}>
+        {f && (
+          <SheetContent width={600} title={f.title} description={<span className="font-mono text-xs">{f.rule_id} · {f.file_path}:{f.line_number}</span>}
+                        headerExtra={<div className="mt-3 flex gap-2"><SeverityBadge severity={f.severity} /><Badge className="num">Risk {f.risk_score}</Badge></div>}>
+            <div className="grid gap-6 p-5">
+              <p className="text-sm leading-6 text-fg">{f.description}</p>
+              <DescriptionList items={[
+                ['Resource', <span className="font-mono text-xs">{f.resource_type}.{f.resource_name}</span>],
+                ['File', <span className="font-mono text-xs">{f.file_path}, line {f.line_number}</span>],
+                ['Service', f.service],
+              ]} />
+              {f.compliance?.length > 0 && (
+                <section className="grid gap-2">
+                  <h3 className="text-xs font-medium tracking-wide text-fg-3 uppercase">Compliance</h3>
+                  <div className="flex flex-wrap gap-1.5">{f.compliance.map(c => <Badge key={c} size="sm">{c}</Badge>)}</div>
+                </section>
+              )}
+              {f.remediation_hcl && (
+                <section className="grid gap-2">
+                  <h3 className="text-xs font-medium tracking-wide text-fg-3 uppercase">Fixed Terraform</h3>
+                  <CodeBlock language="hcl" code={f.remediation_hcl} />
+                </section>
+              )}
             </div>
-
-            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
-              <div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{selected.title}</h3>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65 }}>{selected.description}</p>
-              </div>
-
-              {/* File Location */}
-              <div className="card" style={{ padding: '12px 14px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>File Location</div>
-                <div className="font-mono" style={{ fontSize: 12, color: 'var(--accent-primary)' }}>
-                  {selected.file_path}:{selected.line_number}
-                </div>
-              </div>
-
-              {/* Compliance Tags */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Lock size={11} /> Compliance Frameworks
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', gap: 6 }}>
-                  {(selected.compliance || []).map(c => (
-                    <span key={c} className="compliance-pill">{c}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Terraform Fix */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Terminal size={11} /> Terraform Fix (HCL)
-                  </div>
-                  <button className="btn-copy-code" onClick={() => handleCopy(selected.remediation_hcl)}>
-                    {copied ? <Check size={12} color="var(--sev-low)" /> : <Copy size={12} />}
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                </div>
-                <pre className="inspector-code-block" style={{ maxHeight: '160px' }}>
-                  <code>{selected.remediation_hcl}</code>
-                </pre>
-              </div>
-
-              {/* Risk Score */}
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div className="card" style={{ flex: 1, padding: '12px 14px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Risk Score</div>
-                  <div style={{
-                    fontSize: 28, fontWeight: 900,
-                    color: selected.risk_score >= 90 ? 'var(--sev-critical)' : selected.risk_score >= 70 ? 'var(--sev-high)' : 'var(--sev-medium)'
-                  }}>{selected.risk_score}</div>
-                </div>
-                <div className="card" style={{ flex: 2, padding: '12px 14px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Resource</div>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{selected.resource_type}</div>
-                  <div className="font-mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>"{selected.resource_name}"</div>
-                </div>
-              </div>
-
-              <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setSelected(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CI/CD Pipeline Info Panel */}
-      {!loading && results && (
-        <div className="card" style={{ marginTop: 20, padding: '20px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <GitPullRequest size={16} color="var(--accent-primary)" />
-            <div style={{ fontWeight: 700, fontSize: 14 }}>GitHub Actions PR Integration</div>
-            <span style={{ fontSize: 11, padding: '2px 8px', background: 'var(--sev-low-bg)', color: 'var(--sev-low)', borderRadius: 4, fontWeight: 700 }}>ACTIVE</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: 12 }}>
-            {[
-              { Icon: Search, label: 'Scan Trigger', value: 'Every PR modifying **.tf files', color: 'var(--accent-primary)' },
-              { Icon: ShieldAlert, label: 'Block Condition', value: 'Any CRITICAL finding → PR blocked', color: 'var(--sev-critical)' },
-              { Icon: MessageSquareCode, label: 'PR Comments', value: 'Auto-posts findings as review comments', color: 'var(--cyan)' },
-            ].map(({ Icon, label, value, color }) => (
-              <div key={label} style={{ padding: '14px 16px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border-subtle)' }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8, marginBottom: 10,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'var(--bg-surface)', color
-                }}>
-                  <Icon size={16} />
-                </div>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color }}>{value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="dynamic-island-wrapper">
-          <div className="dynamic-island expanded">
-            <span>{toast}</span>
-          </div>
-        </div>
-      )}
+          </SheetContent>
+        )}
+      </Sheet>
     </div>
+  )
+}
+
+export default function IacScanner() {
+  const can = useCan('iac:scan')
+  const [mode, setMode] = useState('sample')
+  const [hcl, setHcl] = useState('')
+  const [file, setFile] = useState(null)
+  const fileRef = useRef(null)
+  const scan = useMutation({
+    mutationFn: async () => {
+      if (mode === 'paste') return (await api.post('/iac/scan/content', { hcl_content: hcl, filename: 'pasted.tf' })).data
+      if (mode === 'upload') {
+        const body = new FormData(); body.append('file', file)
+        return (await api.post('/iac/scan/upload', body, { headers: { 'Content-Type': 'multipart/form-data' } })).data
+      }
+      return scanIacDemo()
+    },
+    onError: (e) => toast.error('Scan failed', { description: apiError(e) }),
+  })
+  const ready = mode === 'sample' || (mode === 'paste' ? hcl.trim().length > 0 : !!file)
+
+  return (
+    <Page>
+      <PageHeader
+        title="IaC scanner"
+        description="Check Terraform for misconfigurations before it’s deployed — the same rules run in CI to block risky pull requests."
+      />
+      <div className="grid gap-5">
+        <Card>
+          <Tabs value={mode} onValueChange={(m) => { setMode(m); scan.reset() }}>
+            <div className="px-5 pt-3"><TabsList>
+              <TabsTrigger value="sample">Sample repo</TabsTrigger>
+              <TabsTrigger value="paste">Paste Terraform</TabsTrigger>
+              <TabsTrigger value="upload">Upload file</TabsTrigger>
+            </TabsList></div>
+            <CardBody className="pt-4">
+              <TabsContent value="sample" className="text-sm text-fg-2">Scans the Terraform bundled with Nimbus (<span className="font-mono text-xs">infrastructure/terraform</span>) — a quick way to see the rules at work.</TabsContent>
+              <TabsContent value="paste" className="grid gap-2">
+                <Textarea value={hcl} onChange={e => setHcl(e.target.value)} spellCheck={false} aria-label="Terraform code"
+                          placeholder={SAMPLE} className="min-h-64 font-mono text-xs leading-5" />
+                <Button variant="link" size="sm" className="w-fit" onClick={() => setHcl(SAMPLE)}>Use an example</Button>
+              </TabsContent>
+              <TabsContent value="upload">
+                <input ref={fileRef} type="file" accept=".tf,.zip" className="sr-only" onChange={e => setFile(e.target.files?.[0] || null)} />
+                <button type="button" onClick={() => fileRef.current?.click()}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setFile(f) }}
+                        className="grid w-full place-items-center gap-2 rounded-lg border border-dashed border-line-strong bg-surface-2 px-4 py-10 text-center hover:border-accent">
+                  <Upload className="size-5 text-fg-3" />
+                  <span className="text-sm font-medium text-fg">{file ? file.name : 'Drop a .tf file or a .zip of a Terraform folder'}</span>
+                  <span className="text-xs text-fg-3">{file ? `${(file.size / 1024).toFixed(1)} KB · click to change` : 'or click to choose'}</span>
+                </button>
+              </TabsContent>
+              <div className="mt-4 flex items-center gap-3">
+                <Button variant="primary" onClick={() => scan.mutate()} loading={scan.isPending} disabled={!ready || (mode !== 'sample' && !can.allowed)}
+                        title={mode !== 'sample' && !can.allowed ? can.reason : undefined}>
+                  {!scan.isPending && <Play />} {scan.isPending ? 'Scanning' : 'Scan'}
+                </Button>
+                {mode !== 'sample' && !can.allowed && <span className="text-xs text-fg-3">{can.reason}</span>}
+              </div>
+            </CardBody>
+          </Tabs>
+        </Card>
+
+        {scan.isPending ? <SkeletonRows rows={6} /> : scan.data ? <Results data={scan.data} /> : (
+          <Card><EmptyState icon={FileCode2} title="No scan yet" body="Choose a source above and press Scan." compact /></Card>
+        )}
+
+        <Card>
+          <CardHeader title="Run it in CI" description="Fail pull requests that introduce a critical misconfiguration." />
+          <CardBody><CodeBlock language="yaml" code={CI_SNIPPET} /></CardBody>
+        </Card>
+      </div>
+    </Page>
   )
 }

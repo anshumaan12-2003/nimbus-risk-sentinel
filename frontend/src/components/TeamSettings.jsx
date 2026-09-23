@@ -1,127 +1,158 @@
 /* Settings → Your account + Team (people and roles). Admin-only changes; everyone can see who's who. */
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import KeyRound from 'lucide-react/dist/esm/icons/key-round'
-import UserPlus from 'lucide-react/dist/esm/icons/user-plus'
-import Users from 'lucide-react/dist/esm/icons/users'
+import { toast } from 'sonner'
+import { UserPlus } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import {
+  Badge, Button, CopyButton, Dialog, DialogClose, DialogContent, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger,
+  SkeletonRows, ErrorState,
+} from '@/components/ds'
 import { useUsers } from '../hooks/queries'
 import { createUser, updateUser, resetUserPassword, apiError } from '../api/nimbus'
 import { useAuth, useCan } from '../auth/authStore'
 import { ROLES, ROLE_INFO } from '../auth/permissions'
-import { Skeleton, ErrorState } from './ui'
 import { qk } from '../lib/queryClient'
+import { ago } from '@/lib/time'
+import { MoreHorizontal } from 'lucide-react'
 
+const ROLE_TONE = { admin: 'accent', approver: 'medium', engineer: 'info', viewer: 'neutral' }
 export function RoleBadge({ role }) {
-  return <span className={`ui-role ui-role-${role}`}>{role}</span>
+  return <Badge size="sm" tone={ROLE_TONE[role] || 'neutral'} className="capitalize">{role}</Badge>
 }
 
-function Secret({ label, value, onDone }) {
+const selectCls = 'h-8 rounded-md border border-line-strong bg-surface px-2 text-sm text-fg capitalize focus:border-accent focus:outline-none'
+
+/* Temporary password, shown once. */
+function SecretDialog({ secret, onClose }) {
   return (
-    <div className="team-secret" role="status">
-      {label}<br /><code>{value}</code><br />
-      <span className="appr-meta">Shown once. Share it privately; they should change it after signing in.</span>{' '}
-      <button className="btn btn-ghost btn-sm" onClick={onDone}>Done</button>
-    </div>
+    <Dialog open={!!secret} onOpenChange={(o) => { if (!o) onClose() }}>
+      {secret && (
+        <DialogContent title="Temporary password" description={secret.label}
+                       footer={<DialogClose asChild><Button variant="primary">Done</Button></DialogClose>}>
+          <div className="flex items-center gap-2 rounded-md border border-line bg-surface-2 px-3 py-2.5">
+            <code className="min-w-0 flex-1 font-mono text-sm break-all text-fg">{secret.value}</code>
+            <CopyButton value={secret.value} label="Copy password" />
+          </div>
+          <p className="mt-3 text-xs text-fg-3">Shown once. Share it privately — they should change it after signing in.</p>
+        </DialogContent>
+      )}
+    </Dialog>
   )
 }
 
-export function AccountSection({ Section }) {
+export function AccountSection() {
   const { user, changePassword, info } = useAuth()
   const [form, setForm] = useState({ current: '', next: '', confirm: '' })
-  const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const submit = async (e) => {
     e.preventDefault()
-    if (form.next !== form.confirm) return setMsg({ ok: false, text: 'The new passwords do not match.' })
-    setBusy(true); setMsg(null)
+    if (form.next !== form.confirm) return setError('The new passwords don’t match.')
+    setBusy(true); setError(null)
     try {
       await changePassword(form.current, form.next)
       setForm({ current: '', next: '', confirm: '' })
-      setMsg({ ok: true, text: 'Password changed. Every other signed-in browser has been signed out.' })
-    } catch (err) { setMsg({ ok: false, text: apiError(err) }) } finally { setBusy(false) }
+      toast.success('Password changed', { description: 'Every other signed-in browser has been signed out.' })
+    } catch (err) { setError(apiError(err)) } finally { setBusy(false) }
   }
 
   if (!user) return null
   return (
-    <Section icon={KeyRound} title="Your account" desc={`${user.name} · ${user.email}`}>
-      <dl className="ui-settings-list">
-        <div className="ui-settings-row"><dt>Role</dt><dd><RoleBadge role={user.role} /> <span className="appr-meta">{ROLE_INFO[user.role]}</span></dd></div>
-      </dl>
-      <form className="pw-form" onSubmit={submit}>
-        <label className="ui-field">Current password
-          <input className="ui-input" type="password" autoComplete="current-password" value={form.current} onChange={set('current')} required /></label>
-        <label className="ui-field">New password
-          <input className="ui-input" type="password" autoComplete="new-password" minLength={info?.password_min_length || 12} value={form.next} onChange={set('next')} required /></label>
-        <label className="ui-field">Confirm
-          <input className="ui-input" type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} required /></label>
-        <button className="btn btn-ghost btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</button>
+    <div className="grid gap-5">
+      <div className="flex items-center gap-3">
+        <span className="grid size-10 place-items-center rounded-full bg-muted-2 text-sm font-semibold text-fg-2">
+          {user.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <p className="font-medium text-fg">{user.name}</p>
+          <p className="truncate text-sm text-fg-2">{user.email}</p>
+        </div>
+        <div className="ml-auto text-right"><RoleBadge role={user.role} /><p className="mt-1 text-xs text-fg-3">{ROLE_INFO[user.role]}</p></div>
+      </div>
+      <form onSubmit={submit} className="grid gap-3 border-t border-line pt-5 sm:grid-cols-3">
+        <Field label="Current password">{(p) => <Input {...p} type="password" autoComplete="current-password" value={form.current} onChange={set('current')} required />}</Field>
+        <Field label="New password" hint={`At least ${info?.password_min_length || 12} characters`}>{(p) => <Input {...p} type="password" autoComplete="new-password" minLength={info?.password_min_length || 12} value={form.next} onChange={set('next')} required />}</Field>
+        <Field label="Confirm new password">{(p) => <Input {...p} type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} required />}</Field>
+        <div className="flex items-center gap-3 sm:col-span-3">
+          <Button type="submit" loading={busy}>Change password</Button>
+          {error && <p role="alert" className="text-sm text-crit-text">{error}</p>}
+        </div>
       </form>
-      {msg && <p style={{ fontSize: 13, margin: 0, color: msg.ok ? 'var(--sev-low-text)' : 'var(--sev-critical-text)' }}>{msg.text}</p>}
-    </Section>
+    </div>
   )
 }
 
-export function TeamSection({ Section }) {
+export function TeamSection() {
   const users = useUsers()
   const me = useAuth(s => s.user)
   const manage = useCan('users:manage')
   const qc = useQueryClient()
   const [form, setForm] = useState({ name: '', email: '', role: 'viewer' })
   const [secret, setSecret] = useState(null)
-  const [error, setError] = useState(null)
+  const [confirmReset, setConfirmReset] = useState(null)
   const [busy, setBusy] = useState(false)
   const refresh = () => qc.invalidateQueries({ queryKey: qk.users })
 
-  const run = async (fn) => {
-    setError(null)
-    try { await fn(); refresh() } catch (err) { setError(apiError(err)) }
+  const run = async (fn, ok) => {
+    try { await fn(); refresh(); if (ok) toast.success(ok) } catch (err) { toast.error('Not changed', { description: apiError(err) }) }
   }
   const add = async (e) => {
     e.preventDefault(); setBusy(true)
     await run(async () => {
       const r = await createUser(form)
-      setSecret({ label: `${r.user.email} can sign in with this temporary password:`, value: r.temporary_password })
+      setSecret({ label: `${r.user.email} can sign in with this password.`, value: r.temporary_password })
       setForm({ name: '', email: '', role: 'viewer' })
     })
     setBusy(false)
   }
-  const reset = (u) => run(async () => {
-    if (!window.confirm(`Reset the password for ${u.email}? They will be signed out everywhere.`)) return
+  const doReset = (u) => run(async () => {
     const r = await resetUserPassword(u.id)
-    setSecret({ label: `New temporary password for ${u.email}:`, value: r.temporary_password })
+    setSecret({ label: `New password for ${u.email}. They’ve been signed out everywhere.`, value: r.temporary_password })
   })
 
   return (
-    <Section icon={Users} title="Team" desc={manage.allowed
-      ? 'Add people and set what they can do. Role changes apply on their next click; they do not need to sign in again.'
-      : 'Who has access and what they can do. Only admins can change this.'}>
-      {users.isLoading ? <Skeleton rows={3} /> : users.isError ? <ErrorState error={users.error} onRetry={users.refetch} /> : (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="team-table">
-            <thead><tr><th>Person</th><th>Role</th><th>Last sign-in</th>{manage.allowed && <th><span className="sr-only">Actions</span></th>}</tr></thead>
+    <div className="grid gap-5">
+      <p className="text-sm text-fg-2">{manage.allowed
+        ? 'Add people and set what they can do. Role changes apply on their next click — no need to sign in again.'
+        : 'Who has access and what they can do. Only admins can change this.'}</p>
+      {users.isLoading ? <SkeletonRows rows={3} /> : users.isError ? <ErrorState error={users.error} onRetry={users.refetch} compact /> : (
+        <div className="overflow-x-auto rounded-md border border-line">
+          <table className="team-table w-full min-w-[560px] text-sm">
+            <thead className="bg-surface-2 text-left text-xs text-fg-3">
+              <tr><th className="py-2 pr-3 pl-4 font-medium">Person</th><th className="px-3 font-medium">Role</th><th className="px-3 font-medium">Last sign-in</th>{manage.allowed && <th className="pr-4"><span className="sr-only">Actions</span></th>}</tr>
+            </thead>
             <tbody>
               {(users.data || []).map(u => (
-                <tr key={u.id} className={u.is_active ? '' : 'team-off'}>
-                  <td className="team-name"><strong>{u.name}{u.id === me?.id ? ' (you)' : ''}</strong><span>{u.email}</span></td>
-                  <td>
+                <tr key={u.id} className={cn('border-t border-line', !u.is_active && 'opacity-50')}>
+                  <td className="py-2.5 pr-3 pl-4">
+                    <p className="font-medium text-fg">{u.name}{u.id === me?.id && <span className="font-normal text-fg-3"> (you)</span>}</p>
+                    <p className="text-xs text-fg-3">{u.email}</p>
+                  </td>
+                  <td className="px-3">
                     {manage.allowed && u.id !== me?.id ? (
-                      <select className="ui-select" value={u.role} aria-label={`Role for ${u.email}`}
-                              onChange={e => run(() => updateUser(u.id, { role: e.target.value }))}>
+                      <select className={selectCls} value={u.role} aria-label={`Role for ${u.email}`}
+                              onChange={e => run(() => updateUser(u.id, { role: e.target.value }), `${u.name} is now ${e.target.value}`)}>
                         {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     ) : <RoleBadge role={u.role} />}
                   </td>
-                  <td className="appr-meta">{u.is_active ? (u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'Never') : 'Deactivated'}</td>
+                  <td className="px-3 text-fg-2">{u.is_active ? (u.last_login_at ? ago(u.last_login_at) : 'Never') : 'Deactivated'}</td>
                   {manage.allowed && (
-                    <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                      {u.id !== me?.id && <>
-                        <button className="btn btn-ghost btn-sm" onClick={() => reset(u)}>Reset password</button>{' '}
-                        <button className="btn btn-ghost btn-sm" onClick={() => run(() => updateUser(u.id, { is_active: !u.is_active }))}>
-                          {u.is_active ? 'Deactivate' : 'Reactivate'}
-                        </button>
-                      </>}
+                    <td className="pr-4 text-right">
+                      {u.id !== me?.id && (
+                        <Menu>
+                          <MenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.email}`}><MoreHorizontal /></Button></MenuTrigger>
+                          <MenuContent>
+                            <MenuItem onSelect={() => setConfirmReset(u)}>Reset password…</MenuItem>
+                            <MenuItem danger={u.is_active} onSelect={() => run(() => updateUser(u.id, { is_active: !u.is_active }), u.is_active ? `${u.name} deactivated` : `${u.name} reactivated`)}>
+                              {u.is_active ? 'Deactivate' : 'Reactivate'}
+                            </MenuItem>
+                          </MenuContent>
+                        </Menu>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -131,19 +162,28 @@ export function TeamSection({ Section }) {
         </div>
       )}
       {manage.allowed && (
-        <form className="team-form" onSubmit={add}>
-          <label className="ui-field">Name<input className="ui-input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required /></label>
-          <label className="ui-field">Email<input className="ui-input" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required /></label>
-          <label className="ui-field">Role
-            <select className="ui-select" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
+        <form onSubmit={add} className="grid items-end gap-3 border-t border-line pt-5 sm:grid-cols-[1fr_1fr_140px_auto]">
+          <Field label="Name">{(p) => <Input {...p} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />}</Field>
+          <Field label="Email">{(p) => <Input {...p} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />}</Field>
+          <Field label="Role">{(p) => (
+            <select {...p} className={cn(selectCls, 'w-full')} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
-          </label>
-          <button className="btn btn-primary btn-sm" disabled={busy}><UserPlus size={13} /> {busy ? 'Adding…' : 'Add person'}</button>
+          )}</Field>
+          <Button type="submit" variant="primary" loading={busy}>{!busy && <UserPlus />} Add person</Button>
         </form>
       )}
-      {secret && <Secret {...secret} onDone={() => setSecret(null)} />}
-      {error && <p role="alert" style={{ fontSize: 13, margin: 0, color: 'var(--sev-critical-text)' }}>{error}</p>}
-    </Section>
+
+      <Dialog open={!!confirmReset} onOpenChange={(o) => { if (!o) setConfirmReset(null) }}>
+        {confirmReset && (
+          <DialogContent title={`Reset ${confirmReset.name}’s password?`} description="They’ll be signed out everywhere and get a new temporary password to sign in with."
+                         footer={<><DialogClose asChild><Button>Cancel</Button></DialogClose>
+                           <Button variant="danger" onClick={() => { doReset(confirmReset); setConfirmReset(null) }}>Reset password</Button></>}>
+            <p className="text-sm text-fg-2">{confirmReset.email}</p>
+          </DialogContent>
+        )}
+      </Dialog>
+      <SecretDialog secret={secret} onClose={() => setSecret(null)} />
+    </div>
   )
 }

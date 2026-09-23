@@ -38,3 +38,14 @@
 @keyframes edge-flow { to { stroke-dashoffset: -20; } }
 .nimbus-edge-flow { stroke-dasharray: 6 4; animation: edge-flow 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .nimbus-edge-flow { animation: none; } }
+
+/* Printing the executive report: only the report, in light colours, on plain paper. */
+@media print {
+  :root { color-scheme: light; }
+  #root, [data-sonner-toaster] { display: none !important; }
+  [data-report] {
+    position: static !important; transform: none !important; width: auto !important; max-height: none !important;
+    overflow: visible !important; border: 0 !important; box-shadow: none !important; animation: none !important;
+  }
+  @page { margin: 16mm; }
+}

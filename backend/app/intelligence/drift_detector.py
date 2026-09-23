@@ -114,7 +114,7 @@ class DriftDetector:
             finding_dict = finding if isinstance(finding, dict) else {
                 "rule_id": finding.rule_id,
                 "title": finding.title,
-                "severity": str(finding.severity),
+                "severity": getattr(finding.severity, "value", str(finding.severity)),
                 "service": finding.service,
                 "resource_name": finding.resource_name,
                 "risk_score": finding.risk_score,
@@ -130,7 +130,7 @@ class DriftDetector:
             finding_dict = finding if isinstance(finding, dict) else {
                 "rule_id": finding.rule_id,
                 "title": finding.title,
-                "severity": str(finding.severity),
+                "severity": getattr(finding.severity, "value", str(finding.severity)),
                 "service": finding.service,
                 "resource_name": finding.resource_name,
                 "risk_score": finding.risk_score,
@@ -141,7 +141,7 @@ class DriftDetector:
             curr_map[k] if isinstance(curr_map[k], dict) else {
                 "rule_id": curr_map[k].rule_id,
                 "title": curr_map[k].title,
-                "severity": str(curr_map[k].severity),
+                "severity": getattr(curr_map[k].severity, "value", str(curr_map[k].severity)),
                 "service": curr_map[k].service,
             }
             for k in persisting_keys

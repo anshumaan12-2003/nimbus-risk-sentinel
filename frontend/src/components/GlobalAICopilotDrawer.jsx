@@ -1,234 +1,123 @@
-import { useState, useEffect, useRef } from 'react'
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
-import X from 'lucide-react/dist/esm/icons/x'
-import Send from 'lucide-react/dist/esm/icons/send'
-import Bot from 'lucide-react/dist/esm/icons/bot'
-import User from 'lucide-react/dist/esm/icons/user'
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right'
-import Shield from 'lucide-react/dist/esm/icons/shield'
-import Terminal from 'lucide-react/dist/esm/icons/terminal'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import Zap from 'lucide-react/dist/esm/icons/zap'
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
-import CornerDownLeft from 'lucide-react/dist/esm/icons/corner-down-left'
+import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { useSentinelStore } from '../store/sentinelStore'
-import { api, apiError } from '../api/nimbus'
+import { ArrowUp, RotateCcw, Sparkles } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { Sheet, SheetContent, Button, Kbd } from '@/components/ds'
+import { useSentinelStore } from '@/store/sentinelStore'
+import { api, apiError } from '@/api/nimbus'
 
 const SUGGESTIONS = [
-  'Summarize my cloud risk posture',
-  'What are my critical vulnerabilities in AWS?',
-  'How do I fix Root Account MFA?',
-  'Generate Terraform zero-trust hardening script'
+  'What should I fix first?',
+  'Summarise my risk for a manager',
+  'How do I turn on MFA for the root account?',
+  'Which crown jewels are reachable from the internet?',
 ]
+
+const MARKDOWN = 'text-sm leading-6 text-fg [&_a]:text-accent-text [&_a]:underline [&_code]:rounded-xs [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_h1]:text-md [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:font-semibold [&_li]:ml-4 [&_ol]:list-decimal [&_p]:my-1.5 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:border-line [&_pre]:bg-surface-2 [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_ul]:list-disc'
 
 export default function GlobalAICopilotDrawer() {
   const { globalCopilotOpen, closeGlobalCopilot, toggleGlobalCopilot } = useSentinelStore()
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      text: "Hi! I'm the **Nimbus Security Copilot**. I answer from your latest scan: findings, risk score and fixes. Ask what to fix first, how to fix a rule, or for a Terraform / CLI patch.",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ])
+  const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const messagesEndRef = useRef(null)
+  const endRef = useRef(null)
+  const inputRef = useRef(null)
 
-  // Listen for ⌘J / Ctrl+J
+  // ⌘J / Ctrl+J toggles Copilot from anywhere.
   useEffect(() => {
-    function handleKeyDown(e) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
-        e.preventDefault()
-        toggleGlobalCopilot()
-      }
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); toggleGlobalCopilot() }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [toggleGlobalCopilot])
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [messages, loading])
 
-  useEffect(() => {
-    if (globalCopilotOpen) {
-      document.body.classList.add('modal-open')
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    } else {
-      document.body.classList.remove('modal-open')
-    }
-    return () => document.body.classList.remove('modal-open')
-  }, [messages, globalCopilotOpen])
-
-  const handleSend = async (userText = input) => {
-    const query = userText.trim()
-    if (!query || loading) return
-
-    const userMsg = {
-      role: 'user',
-      text: query,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-
-    setMessages(prev => [...prev, userMsg])
+  const send = async (text = input) => {
+    const question = text.trim()
+    if (!question || loading) return
+    setMessages(m => [...m, { role: 'user', text: question }])
     setInput('')
     setLoading(true)
-
     try {
-      // Server builds context from the latest scan and keeps the model grounded in it
-      const history = messages.slice(1).map(m => ({ role: m.role, text: m.text }))
-      const res = await api.post('/copilot/chat', { question: query, history })
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: res.data.answer,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ])
+      // The server grounds the answer in the latest scan (findings, score, attack paths).
+      const history = messages.map(m => ({ role: m.role, text: m.text }))
+      const res = await api.post('/copilot/chat', { question, history })
+      setMessages(m => [...m, { role: 'assistant', text: res.data.answer, ai: res.data.ai }])
     } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: `Could not reach the backend: ${apiError(err)}`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ])
+      setMessages(m => [...m, { role: 'assistant', text: apiError(err), error: true }])
     } finally {
       setLoading(false)
+      requestAnimationFrame(() => inputRef.current?.focus())
     }
   }
 
   return (
-    <>
-      {/* Slide-out Conversational Drawer */}
-      {globalCopilotOpen && (
-        <div className="drawer-overlay" onClick={closeGlobalCopilot} style={{ zIndex: 2200 }}>
-          <div
-            className="drawer-card global-copilot-drawer"
-            onClick={e => e.stopPropagation()}
-            style={{ width: '520px', maxWidth: '92vw' }}
-          >
-            {/* Header */}
-            <div className="copilot-drawer-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="copilot-avatar-box">
-                  <Sparkles size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    Nimbus AI Copilot
-                    <span className="copilot-model-pill">GEMINI-FLASH</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                    SecOps Copilot · grounded in latest scan
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button
-                  className="copilot-header-btn"
-                  onClick={() => setMessages(messages.slice(0, 1))}
-                  title="Clear Chat History"
-                >
-                  <RefreshCw size={13} />
-                </button>
-                <button className="copilot-header-btn" onClick={closeGlobalCopilot} title="Close (Esc)">
-                  <X size={15} />
-                </button>
-              </div>
+    <Sheet open={globalCopilotOpen} onOpenChange={(o) => { if (!o) closeGlobalCopilot() }}>
+      <SheetContent
+        width={520}
+        title={<span className="flex items-center gap-2"><Sparkles className="size-4 text-accent-text" /> Copilot</span>}
+        description="Answers from your latest scan. It explains and suggests — it never changes AWS."
+        headerExtra={messages.length > 0 && (
+          <Button variant="ghost" size="sm" className="mt-2 -ml-2" onClick={() => setMessages([])}><RotateCcw /> New conversation</Button>
+        )}
+        footer={
+          <form className="w-full" onSubmit={(e) => { e.preventDefault(); send() }}>
+            <div className="flex items-end gap-2 rounded-lg border border-line-strong bg-surface p-1.5 focus-within:border-accent focus-within:shadow-[var(--ring)]">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                rows={1}
+                placeholder="Ask about your findings, a rule, or a fix…"
+                aria-label="Message Copilot"
+                className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-fg placeholder:text-fg-3 focus:outline-none"
+              />
+              <Button type="submit" variant="primary" size="icon" disabled={!input.trim() || loading} aria-label="Send"><ArrowUp /></Button>
             </div>
-
-            {/* Suggestions Bar */}
-            <div className="copilot-suggestions-bar">
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', marginBottom: 8, letterSpacing: '0.05em' }}>
-                Suggested Inquiries
+            <p className="mt-1.5 px-1 text-2xs text-fg-3"><Kbd>Enter</Kbd> to send · <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> for a new line</p>
+          </form>
+        }
+      >
+        <div className="grid gap-5 p-5">
+          {messages.length === 0 && (
+            <div className="grid gap-4 py-4">
+              <div className="grid size-10 place-items-center rounded-xl bg-accent-soft text-accent-text"><Sparkles className="size-5" /></div>
+              <div>
+                <p className="text-lg font-semibold text-fg">What do you want to know?</p>
+                <p className="mt-1 text-sm text-fg-2">Copilot reads your latest scan — findings, risk score and attack paths — and answers in plain language.</p>
               </div>
-              <div className="suggestions-scroll">
-                {SUGGESTIONS.map((sug, i) => (
-                  <button
-                    key={i}
-                    className="suggestion-pill"
-                    onClick={() => handleSend(sug)}
-                    disabled={loading}
-                  >
-                    <ChevronRight size={11} color="#38bdf8" />
-                    <span>{sug}</span>
+              <div className="grid gap-2">
+                {SUGGESTIONS.map(s => (
+                  <button key={s} type="button" onClick={() => send(s)}
+                          className="rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-sm text-fg transition-colors hover:border-line-strong hover:bg-surface-2">
+                    {s}
                   </button>
                 ))}
               </div>
             </div>
+          )}
 
-            {/* Conversation Thread */}
-            <div className="copilot-messages-container">
-              {messages.map((m, idx) => (
-                <div key={idx} className={`copilot-message-row ${m.role === 'user' ? 'user-row' : 'bot-row'}`}>
-                  <div className={`message-avatar ${m.role === 'user' ? 'user-avatar' : 'bot-avatar'}`}>
-                    {m.role === 'user' ? <User size={13} /> : <Bot size={14} />}
-                  </div>
-
-                  <div className={`message-bubble ${m.role === 'user' ? 'user-bubble' : 'bot-bubble'}`}>
-                    <div className="message-text markdown-body">
-                      <ReactMarkdown>{m.text}</ReactMarkdown>
-                    </div>
-                    <div className="message-meta">
-                      {m.role === 'assistant' ? 'Nimbus AI' : 'You'} · {m.time}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {loading && (
-                <div className="copilot-message-row bot-row">
-                  <div className="message-avatar bot-avatar">
-                    <Bot size={14} />
-                  </div>
-                  <div className="message-bubble bot-bubble" style={{ padding: '14px 18px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#38bdf8', fontSize: 13 }}>
-                      <Sparkles className="animate-spin" size={15} />
-                      <span>Synthesizing cloud telemetry with Gemini...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Bar */}
-            <div className="copilot-input-bar">
-              <form
-                onSubmit={e => {
-                  e.preventDefault()
-                  handleSend()
-                }}
-                className="copilot-input-form"
-              >
-                <input
-                  type="text"
-                  placeholder="Ask anything about risks, IAM policies, or zero-trust patches..."
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  disabled={loading}
-                  className="copilot-text-input"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || loading}
-                  className="copilot-send-btn"
-                  title="Send message (Enter)"
-                >
-                  <Send size={14} />
-                </button>
-              </form>
-              <div style={{ fontSize: 10, color: '#64748b', textAlign: 'center', marginTop: 6 }}>
-                Press <strong>Enter</strong> to send · <strong>⌘J</strong> to toggle
+          {messages.map((m, i) => m.role === 'user' ? (
+            <div key={i} className="ml-10 justify-self-end rounded-2xl rounded-br-md bg-accent px-3.5 py-2 text-sm text-accent-fg">{m.text}</div>
+          ) : (
+            <div key={i} className="grid animate-rise-in gap-1.5">
+              <div className={cn(MARKDOWN, m.error && 'rounded-md border border-crit-line bg-crit-soft px-3 py-2 text-crit-text')}>
+                {m.error ? `Copilot couldn’t answer: ${m.text}` : <ReactMarkdown>{m.text}</ReactMarkdown>}
               </div>
+              {m.ai === false && <p className="text-2xs text-fg-3">Built from scan data only — add AI_API_KEY in backend/.env for fuller answers.</p>}
             </div>
-          </div>
+          ))}
+
+          {loading && (
+            <div className="flex items-center gap-1.5 py-1" aria-label="Copilot is thinking">
+              {[0, 1, 2].map(i => <span key={i} className="size-1.5 animate-pulse rounded-full bg-fg-3" style={{ animationDelay: `${i * 150}ms` }} />)}
+            </div>
+          )}
+          <div ref={endRef} />
         </div>
-      )}
-    </>
+      </SheetContent>
+    </Sheet>
   )
 }

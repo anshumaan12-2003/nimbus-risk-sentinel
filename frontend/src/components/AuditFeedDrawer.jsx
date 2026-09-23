@@ -1,173 +1,119 @@
-import { useState, useEffect } from 'react'
-import Radio from 'lucide-react/dist/esm/icons/radio'
-import X from 'lucide-react/dist/esm/icons/x'
-import Pause from 'lucide-react/dist/esm/icons/pause'
-import Play from 'lucide-react/dist/esm/icons/play'
-import Shield from 'lucide-react/dist/esm/icons/shield'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import Clock from 'lucide-react/dist/esm/icons/clock'
-import Filter from 'lucide-react/dist/esm/icons/filter'
-import User from 'lucide-react/dist/esm/icons/user'
-import Globe from 'lucide-react/dist/esm/icons/globe'
-import Activity from 'lucide-react/dist/esm/icons/activity'
-import { useSentinelStore } from '../store/sentinelStore'
-import { getRemediationAudit } from '../api/nimbus'
-import { useEventStore } from '../store/eventStore'
+/*
+  Activity log: what Nimbus has been doing (live events) and every change it made to AWS
+  (the remediation audit trail, with who requested and who approved each one).
+*/
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Bell, Pause, Play } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import {
+  Sheet, SheetContent, Tabs, TabsList, TabsTrigger, TabsContent, Button, Badge, EmptyState, SkeletonRows, ErrorState, CodeBlock,
+} from '@/components/ds'
+import { useSentinelStore } from '@/store/sentinelStore'
+import { useEventStore, timeAgo } from '@/store/eventStore'
+import { useAuditTrail } from '@/hooks/queries'
+import { EVENT_META, toneFor } from '@/components/LiveStream'
+import { ago, dateTime } from '@/lib/time'
 
-export default function AuditFeedDrawer() {
-  const { auditDrawerOpen, closeAuditDrawer, dataSource } = useSentinelStore()
-  const [events, setEvents] = useState([])
-  const [isLive, setIsLive] = useState(true)
-  const [filterService, setFilterService] = useState('ALL')
+const TONE_DOT = { critical: 'bg-crit', high: 'bg-high', medium: 'bg-med', low: 'bg-low', brand: 'bg-accent', info: 'bg-accent' }
 
-  // Load initial audit log
-  useEffect(() => {
-    if (dataSource !== 'demo') {
-      getRemediationAudit().then(data => {
-        if (data && data.length) {
-          // Reformat to match the UI expected structure
-          const formatted = data.map(evt => ({
-            id: evt.id || `evt-${Date.now()}-${Math.random()}`,
-            time: new Date(evt.timestamp).toLocaleTimeString(),
-            service: (evt.rule_id || 'SYSTEM').split('-')[0],
-            event: evt.action_executed || 'Remediation',
-            actor: evt.requested_by ? `${evt.executed_by} (approved) · ${evt.requested_by} (requested)` : (evt.executed_by || 'System'),
-            status: evt.status === 'VERIFIED_RESOLVED' ? 'INFO' : 'WARN',
-            detail: `${evt.resource_id} — ${evt.result_message || evt.status}`
-          }))
-          setEvents(formatted)
-        }
-      }).catch(console.error)
-    } else {
-      // Import dynamically or define basic mock to avoid needing MOCK_AUDIT_STREAM static import
-      setEvents([
-        { id: 'evt-1', time: '10s ago', service: 'IAM', event: 'AssumeRoleWithSAML', actor: 'pipeline-runner@sentinel.cloud', status: 'WARN', detail: 'Role policy session elevated to AdminAccess' },
-        { id: 'evt-2', time: '45s ago', service: 'S3', event: 'PutBucketAcl', actor: 'deploy-bot@ci-cd', status: 'CRITICAL', detail: 'PublicReadWrite granted on customer-finance-records' },
-      ])
-    }
-  }, [dataSource])
-
-  // Connect to actual WebSocket for LIVE events, else simulate
-  useEffect(() => {
-    if (!isLive) return
-
-    if (dataSource === 'live') {
-      // Reuse the app's single authenticated socket instead of opening a second, unauthenticated one
-      return useEventStore.subscribe((state, prev) => {
-        const data = state.events[0]
-        if (!data || data === prev.events[0] || data.source !== 'live') return
-        const newEvent = {
-          id: data.id,
-          time: new Date(data.ts || Date.now()).toLocaleTimeString(),
-          service: (data.type || 'system').split('.')[0].toUpperCase(),
-          event: data.title || data.type,
-          actor: 'Nimbus',
-          status: ['CRITICAL', 'HIGH'].includes(data.severity) ? 'WARN' : 'INFO',
-          detail: data.detail || ''
-        }
-        setEvents((prev) => [newEvent, ...prev.slice(0, 49)])
-      })
-    } else {
-      // Demo mode: Simulate periodic incoming CloudTrail events
-      const interval = setInterval(() => {
-        const sampleEvents = [
-          { id: `evt-${Date.now()}`, time: 'just now', service: 'IAM', event: 'CreateAccessKey', actor: 'ci-runner@prod', status: 'WARN', detail: 'New programmatic credential generated for role/Deployer' },
-          { id: `evt-${Date.now()}`, time: 'just now', service: 'S3', event: 'PutBucketPolicy', actor: 'admin@sentinel.cloud', status: 'ALERT', detail: 'Bucket policy amended on prod-customer-documents' },
-          { id: `evt-${Date.now()}`, time: 'just now', service: 'EC2', event: 'RunInstances', actor: 'autoscale-group@prod', status: 'INFO', detail: 'Launched 2x t3.large instances in subnet-091a' },
-        ]
-        const chosen = sampleEvents[Math.floor(Math.random() * sampleEvents.length)]
-        setEvents((prev) => [chosen, ...prev.slice(0, 19)])
-      }, 9000)
-
-      return () => clearInterval(interval)
-    }
-  }, [isLive, dataSource])
-
-  if (!auditDrawerOpen) return null
-
-  const filtered = filterService === 'ALL'
-    ? events
-    : events.filter(e => e.service.toUpperCase() === filterService)
-
+function LiveEvents() {
+  const { events, mode, paused, togglePause } = useEventStore()
+  const list = events.filter(e => e.source !== 'you').slice(0, 50)
   return (
-    <div className="drawer-overlay" onClick={closeAuditDrawer}>
-      <div className="drawer-card" onClick={(e) => e.stopPropagation()}>
-        {/* Drawer Header */}
-        <div className="drawer-header">
-          <div className="drawer-header-left">
-            <Radio size={16} className="text-cyan animate-pulse" />
-            <div>
-              <h3 className="drawer-title">Real-Time CloudTrail Telemetry</h3>
-              <p className="drawer-subtitle">Live audit stream across AWS and GCP infrastructure</p>
-            </div>
-          </div>
-
-          <div className="drawer-header-right">
-            <button
-              className={`drawer-pause-btn ${isLive ? 'live' : 'paused'}`}
-              onClick={() => setIsLive(!isLive)}
-              title={isLive ? 'Pause live stream' : 'Resume live stream'}
-            >
-              {isLive ? <Pause size={12} /> : <Play size={12} />}
-              <span>{isLive ? 'LIVE' : 'PAUSED'}</span>
-            </button>
-            <button className="drawer-close-btn" onClick={closeAuditDrawer}>
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div className="drawer-filter-bar">
-          {['ALL', 'IAM', 'S3', 'EC2', 'RDS', 'GUARDDUTY'].map((svc) => (
-            <button
-              key={svc}
-              className={`drawer-filter-pill ${filterService === svc ? 'active' : ''}`}
-              onClick={() => setFilterService(svc)}
-            >
-              {svc}
-            </button>
-          ))}
-        </div>
-
-        {/* Events Feed List */}
-        <div className="drawer-events-list">
-          {filtered.map((evt) => {
-            const isCrit = evt.status === 'CRITICAL'
-            const isAlert = evt.status === 'ALERT'
-            const isWarn = evt.status === 'WARN'
-            const pillClass = isCrit ? 'critical' : isAlert ? 'high' : isWarn ? 'medium' : 'low'
-
+    <div className="grid">
+      <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-2.5 text-xs text-fg-2">
+        <span className="flex items-center gap-2">
+          <span className={cn('size-2 rounded-full', paused ? 'bg-fg-3' : mode === 'live' ? 'bg-low' : 'bg-med')} />
+          {paused ? 'Paused' : mode === 'live' ? 'Connected — updates arrive as they happen' : mode === 'simulated' ? 'Live connection unavailable — showing sample events' : 'Connecting…'}
+        </span>
+        <Button variant="ghost" size="sm" onClick={togglePause}>{paused ? <><Play /> Resume</> : <><Pause /> Pause</>}</Button>
+      </div>
+      {list.length === 0 ? (
+        <EmptyState compact icon={Bell} title="Nothing yet" body="Scans, new findings and fixes appear here as they happen." />
+      ) : (
+        <ul className="divide-y divide-line">
+          {list.map(e => {
+            const Icon = EVENT_META[e.type]?.icon || Bell
+            const body = (
+              <>
+                <span className="relative mt-0.5 grid size-7 shrink-0 place-items-center rounded-md border border-line bg-surface-2 text-fg-2">
+                  <Icon className="size-3.5" />
+                  <span className={cn('absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2 ring-surface', TONE_DOT[toneFor(e)] || 'bg-fg-3')} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm text-fg">{e.title}</span>
+                  {e.detail && <span className="block truncate text-xs text-fg-3">{e.detail}</span>}
+                </span>
+                <span className="num shrink-0 text-2xs text-fg-3">{timeAgo(e.ts)}{e.source === 'simulated' ? ' · sample' : ''}</span>
+              </>
+            )
             return (
-              <div key={evt.id} className="drawer-event-item">
-                <div className="event-top-row">
-                  <span className={`event-status-tag ${pillClass}`}>
-                    {evt.status}
-                  </span>
-                  <span className="event-service-tag">{evt.service}</span>
-                  <span className="event-name-tag">{evt.event}</span>
-                  <span className="event-time-tag">{evt.time}</span>
-                </div>
-
-                <div className="event-detail-text">{evt.detail}</div>
-
-                <div className="event-meta-row">
-                  <User size={11} className="text-secondary" />
-                  <span className="event-actor-text">{evt.actor}</span>
-                </div>
-              </div>
+              <li key={e.id}>
+                {e.link
+                  ? <Link to={e.link} className="flex items-start gap-3 px-5 py-3 hover:bg-surface-2">{body}</Link>
+                  : <div className="flex items-start gap-3 px-5 py-3">{body}</div>}
+              </li>
             )
           })}
-        </div>
-
-        {/* Drawer Footer */}
-        <div className="drawer-footer">
-          <div className="drawer-stream-status">
-            <span className="live-dot-green" />
-            <span>Streaming via AWS CloudWatch Logs Kinesis Subscription</span>
-          </div>
-        </div>
-      </div>
+        </ul>
+      )}
     </div>
+  )
+}
+
+function AwsChanges() {
+  const demo = useSentinelStore(s => s.dataSource) === 'demo'
+  const q = useAuditTrail()
+  const [open, setOpen] = useState(null)
+  if (demo) return <EmptyState compact title="Needs live data" body="The audit trail records real changes Nimbus made to your AWS account." />
+  if (q.isLoading) return <div className="p-5"><SkeletonRows rows={5} /></div>
+  if (q.isError) return <ErrorState compact error={q.error} onRetry={q.refetch} />
+  if (!q.data?.length) return <EmptyState compact mood="calm" title="No changes to AWS yet" body="When an approver applies a fix, it’s recorded here with both names." />
+  return (
+    <ul className="divide-y divide-line">
+      {q.data.map(r => {
+        const ok = r.status === 'VERIFIED_RESOLVED' || r.status === 'SUCCESS'
+        return (
+          <li key={r.id} className="grid gap-1.5 px-5 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium text-fg">{r.action_executed}</p>
+              <Badge size="sm" tone={ok ? 'low' : 'critical'}>{ok ? 'Verified' : r.status.replace(/_/g, ' ').toLowerCase()}</Badge>
+            </div>
+            <p className="truncate font-mono text-xs text-fg-3" title={r.resource_id}>{r.rule_id} · {r.resource_id}</p>
+            <p className="text-xs text-fg-2">
+              Approved by <span className="text-fg">{r.executed_by}</span>
+              {r.requested_by && <> · requested by <span className="text-fg">{r.requested_by}</span></>}
+              <span className="text-fg-3" title={dateTime(r.timestamp)}> · {ago(r.timestamp)}</span>
+            </p>
+            {r.result_message && <p className="text-xs text-fg-2">{r.result_message}</p>}
+            {r.rollback_command && (
+              <button type="button" className="w-fit text-xs font-medium text-accent-text hover:underline" onClick={() => setOpen(open === r.id ? null : r.id)}>
+                {open === r.id ? 'Hide rollback' : 'Show rollback'}
+              </button>
+            )}
+            {open === r.id && <CodeBlock code={typeof r.rollback_command === 'string' ? r.rollback_command : JSON.stringify(r.rollback_command, null, 2)} />}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+export default function AuditFeedDrawer() {
+  const { auditDrawerOpen, closeAuditDrawer } = useSentinelStore()
+  return (
+    <Sheet open={auditDrawerOpen} onOpenChange={(o) => { if (!o) closeAuditDrawer() }}>
+      <SheetContent width={520} title="Activity log" description="What Nimbus is doing, and every change it has made to AWS.">
+        <Tabs defaultValue="live">
+          <TabsList className="sticky top-0 z-10 bg-surface px-5">
+            <TabsTrigger value="live">Live</TabsTrigger>
+            <TabsTrigger value="aws">Changes to AWS</TabsTrigger>
+          </TabsList>
+          <TabsContent value="live"><LiveEvents /></TabsContent>
+          <TabsContent value="aws"><AwsChanges /></TabsContent>
+        </Tabs>
+      </SheetContent>
+    </Sheet>
   )
 }

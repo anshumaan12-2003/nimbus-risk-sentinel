@@ -1,267 +1,178 @@
-import { useState, useEffect } from 'react'
-import Shield from 'lucide-react/dist/esm/icons/shield'
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import Download from 'lucide-react/dist/esm/icons/download'
-import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
-import Search from 'lucide-react/dist/esm/icons/search'
-import Check from 'lucide-react/dist/esm/icons/check'
-import Filter from 'lucide-react/dist/esm/icons/filter'
-import FileCheck from 'lucide-react/dist/esm/icons/file-check'
-import CreditCard from 'lucide-react/dist/esm/icons/credit-card'
-import Activity from 'lucide-react/dist/esm/icons/activity'
-import Layers from 'lucide-react/dist/esm/icons/layers'
-import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right'
-import { getComplianceBenchmarks } from '../api/nimbus'
-import { useSentinelStore } from '../store/sentinelStore'
-import { useControls } from '../hooks/queries'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { CheckCircle2, CircleDashed, Download, Search, XCircle } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import {
+  Page, PageHeader, Card, Button, Input, Badge, EmptyState, ErrorState, SkeletonRows, Skeleton, Tabs, TabsList, TabsTrigger,
+} from '@/components/ds'
+import { downloadFile } from '@/components/ui'
+import { useCompliance, useControls } from '@/hooks/queries'
+import { useSentinelStore } from '@/store/sentinelStore'
+import { SERVICE_NAMES } from '@/lib/aws'
 
-const BENCHMARK_ICONS = {
-  'cis-aws-1.4': Shield,
-  'cis-aws-3.0': Shield,
-  'soc2-type2': FileCheck,
-  'pci-dss-4.0': CreditCard,
-  'hipaa-sec': Activity
+const FW = [
+  { key: 'cis', match: /^cis/, short: 'CIS AWS' },
+  { key: 'soc2', match: /^soc2/, short: 'SOC 2' },
+  { key: 'pci', match: /^pci/, short: 'PCI DSS' },
+  { key: 'hipaa', match: /^hipaa/, short: 'HIPAA' },
+]
+const fwFor = (b) => FW.find(f => f.match.test(b.id || '')) || { key: b.id, short: b.name }
+const STATUS = {
+  PASS: { label: 'Passing', icon: CheckCircle2, cls: 'text-low-text' },
+  FAIL: { label: 'Failing', icon: XCircle, cls: 'text-crit-text' },
+  NOT_EVALUATED: { label: 'Not checked', icon: CircleDashed, cls: 'text-fg-3' },
 }
 
-const DEMO_RULES = [
-  { id: 'cis-1.4', framework: 'CIS AWS 1.4', section: '1.4', title: 'Ensure root user has no active programmatic access keys', status: 'FAIL', severity: 'CRITICAL', service: 'IAM', recommendation: 'Delete active access keys for the root account.' },
-  { id: 'cis-2.1.5', framework: 'CIS AWS 1.4', section: '2.1.5', title: 'Ensure S3 Buckets enforce S3 Block Public Access', status: 'FAIL', severity: 'CRITICAL', service: 'S3', recommendation: 'Enable all four S3 Block Public Access settings.' },
-  { id: 'cis-4.1', framework: 'CIS AWS 1.4', section: '4.1', title: 'Ensure no security groups allow ingress from 0.0.0.0/0 to port 22', status: 'FAIL', severity: 'HIGH', service: 'EC2', recommendation: 'Restrict SSH ingress to authorized corporate IP CIDR ranges.' },
-  { id: 'cis-2.3.1', framework: 'CIS AWS 1.4', section: '2.3.1', title: 'Ensure RDS instances are not publicly accessible', status: 'FAIL', severity: 'CRITICAL', service: 'RDS', recommendation: 'Modify RDS instance to disable public accessibility.' },
-  { id: 'cis-1.1', framework: 'CIS AWS 1.4', section: '1.1', title: 'Avoid the use of the root account for everyday administrative tasks', status: 'PASS', severity: 'LOW', service: 'IAM', recommendation: 'Root account has not executed console logins in 90 days.' },
-  { id: 'cis-2.1.1', framework: 'CIS AWS 1.4', section: '2.1.1', title: 'Ensure S3 bucket server-side encryption is enabled', status: 'FAIL', severity: 'MEDIUM', service: 'S3', recommendation: 'Enable AWS KMS default encryption.' },
-  { id: 'cis-3.1', framework: 'CIS AWS 1.4', section: '3.1', title: 'Ensure CloudTrail is enabled in all regions', status: 'PASS', severity: 'LOW', service: 'CloudTrail', recommendation: 'Multi-region CloudTrail trail is active.' },
-  { id: 'soc2-cc6.1', framework: 'SOC 2 Type II', section: 'CC6.1', title: 'Logical access security perimeter & encryption controls', status: 'FAIL', severity: 'CRITICAL', service: 'S3', recommendation: 'Enforce transport-layer encryption (HTTPS) & KMS.' },
-  { id: 'soc2-cc6.3', framework: 'SOC 2 Type II', section: 'CC6.3', title: 'Role-based authorization and multi-factor authentication', status: 'FAIL', severity: 'CRITICAL', service: 'IAM', recommendation: 'Require MFA for all administrative identities.' },
-]
-
+// Demo mode: a small sample shaped like the live API.
 const DEMO_BENCHMARKS = [
-        { id: 'cis-aws-1.4', name: 'CIS AWS Foundations Benchmark v1.4', score: 82, passingRules: 41, failingRules: 9, category: 'Foundational Baseline', status: 'ACTION_REQUIRED', icon: 'shield', color: '#8b5cf6' },
-        { id: 'soc2-type2', name: 'SOC 2 Type II (Security & Confidentiality)', score: 89, passingRules: 34, failingRules: 4, category: 'Trust Services Criteria', status: 'NEAR_COMPLIANT', icon: 'file-check', color: '#06b6d4' },
-        { id: 'pci-dss-4.0', name: 'PCI-DSS v4.0 (Cardholder Data Protection)', score: 74, passingRules: 29, failingRules: 10, category: 'Payment Card Security', status: 'HIGH_RISK', icon: 'credit-card', color: '#f97316' },
-        { id: 'hipaa-sec', name: 'HIPAA Security Rule (ePHI Safeguards)', score: 86, passingRules: 31, failingRules: 5, category: 'Healthcare Data Privacy', status: 'NEAR_COMPLIANT', icon: 'activity', color: '#10b981' }
+  { id: 'cis-aws-3.0', name: 'CIS AWS Foundations Benchmark v3.0', score: 82, passingRules: 41, failingRules: 9, category: 'Foundational Baseline' },
+  { id: 'soc2-type2', name: 'SOC 2 Type II', score: 89, passingRules: 34, failingRules: 4, category: 'Trust Services Criteria' },
+  { id: 'pci-dss-4.0', name: 'PCI DSS v4.0', score: 74, passingRules: 29, failingRules: 10, category: 'Payment Card Security' },
+  { id: 'hipaa-sec', name: 'HIPAA Security Rule', score: 86, passingRules: 31, failingRules: 5, category: 'Healthcare Data Privacy' },
+]
+const DEMO_CONTROLS = [
+  { id: '1.5', title: 'Root account has MFA', service: 'iam', status: 'FAIL', frameworks: { cis: '1.5', soc2: 'CC6.1', pci: '8.4.1', hipaa: '164.312(d)' }, failing_finding_ids: ['find-iam-001'] },
+  { id: '2.1.4', title: 'S3 Block Public Access enabled', service: 's3', status: 'FAIL', frameworks: { cis: '2.1.4', soc2: 'CC6.6', pci: '1.3.1' }, failing_finding_ids: ['find-s3-001'] },
+  { id: '5.2', title: 'No security group allows SSH from 0.0.0.0/0', service: 'ec2', status: 'FAIL', frameworks: { cis: '5.2', pci: '1.3.1' }, failing_finding_ids: ['find-ec2-001'] },
+  { id: '2.3.3', title: 'RDS instances not publicly accessible', service: 'rds', status: 'PASS', frameworks: { cis: '2.3.3', hipaa: '164.312(e)(1)' }, failing_finding_ids: [] },
+  { id: '3.1', title: 'CloudTrail enabled in all regions', service: 'cloudtrail', status: 'NOT_EVALUATED', frameworks: { cis: '3.1', soc2: 'CC7.2' }, failing_finding_ids: [] },
 ]
 
 export default function Compliance() {
-  const [selectedFramework, setSelectedFramework] = useState('ALL')
-  const [statusFilter, setStatusFilter] = useState('ALL')
-  const [search, setSearch] = useState('')
-  const [benchmarks, setBenchmarks] = useState([])
-  const { dataSource } = useSentinelStore()
-
-  useEffect(() => {
-    if (dataSource !== 'demo') {
-      getComplianceBenchmarks().then(setBenchmarks).catch(err => {
-        console.warn('[compliance] live data unavailable:', err?.message)
-        setBenchmarks([])
-      })
-    } else {
-      // Inline mock fallback for demo mode
-      setBenchmarks(DEMO_BENCHMARKS)
-    }
-  }, [dataSource])
-
-  // Live: real per-control results from the latest scan (GET /compliance/controls)
+  const demo = useSentinelStore(s => s.dataSource) === 'demo'
+  const benchQ = useCompliance()
   const controlsQ = useControls()
-  const FW_LABEL = { cis: 'CIS', soc2: 'SOC 2', pci: 'PCI', hipaa: 'HIPAA' }
-  const rules = dataSource === 'demo' ? DEMO_RULES : (controlsQ.data?.controls || []).map(c => ({
-    id: c.id,
-    section: c.id,
-    framework: Object.entries(c.frameworks).map(([k, v]) => `${FW_LABEL[k]} ${v}`).join(' · '),
-    title: c.title,
-    status: c.status,
-    service: c.service,
-    rules: c.rules,
-    failing: c.failing_finding_ids,
-  }))
+  const benchmarks = demo ? DEMO_BENCHMARKS : (benchQ.data || [])
+  const controls = demo ? DEMO_CONTROLS : (controlsQ.data?.controls || [])
+  const [fw, setFw] = useState('all')
+  const [status, setStatus] = useState('FAIL')
+  const [q, setQ] = useState('')
 
-  const filteredRules = rules.filter((r) => {
-    if (selectedFramework !== 'ALL' && !r.framework.includes(selectedFramework)) return false
-    if (statusFilter !== 'ALL' && r.status !== statusFilter) return false
-    if (search && !r.title.toLowerCase().includes(search.toLowerCase()) && !r.section.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  })
+  const rows = useMemo(() => controls.filter(c =>
+    (fw === 'all' || c.frameworks?.[fw]) &&
+    (status === 'all' || c.status === status) &&
+    (!q || `${c.id} ${c.title} ${c.service}`.toLowerCase().includes(q.toLowerCase())),
+  ), [controls, fw, status, q])
+  const counts = useMemo(() => {
+    const inFw = controls.filter(c => fw === 'all' || c.frameworks?.[fw])
+    return { all: inFw.length, FAIL: inFw.filter(c => c.status === 'FAIL').length, PASS: inFw.filter(c => c.status === 'PASS').length, NOT_EVALUATED: inFw.filter(c => c.status === 'NOT_EVALUATED').length }
+  }, [controls, fw])
 
-  const totalPassing = benchmarks.reduce((acc, b) => acc + b.passingRules, 0)
-  const totalFailing = benchmarks.reduce((acc, b) => acc + b.failingRules, 0)
-  const averagePassingScore = benchmarks.length ? Math.round(
-    benchmarks.reduce((acc, b) => acc + b.score, 0) / benchmarks.length
-  ) : 0
+  const exportPack = () => downloadFile(
+    `nimbus-compliance-${new Date().toISOString().slice(0, 10)}.json`,
+    JSON.stringify({ generated_at: new Date().toISOString(), benchmarks, controls }, null, 2),
+    'application/json',
+  )
+  const loading = !demo && (benchQ.isLoading || controlsQ.isLoading)
+  const error = !demo && (benchQ.error || controlsQ.error)
 
   return (
-    <div className="compliance-page animate-fade-in">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <div className="page-tag">
-            <Shield size={12} />
-            <span>Compliance & Regulatory Auditing</span>
-          </div>
-          <h1 className="page-title">Security Compliance Matrix</h1>
-          <p className="page-subtitle">
-            Automated continuous mapping against CIS AWS Foundations v1.4, SOC 2 Type II, PCI-DSS v4.0, and HIPAA.
-          </p>
-        </div>
+    <Page wide>
+      <PageHeader
+        title="Compliance"
+        description="Automated controls checked on every scan, mapped to CIS AWS, SOC 2, PCI DSS and HIPAA. These cover the technical controls Nimbus can verify — not a full audit."
+        actions={<Button onClick={exportPack} disabled={!controls.length}><Download /> Export evidence (JSON)</Button>}
+      />
 
-        <button
-          className="btn btn-ghost"
-          onClick={() => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(benchmarks, null, 2))
-            const dlAnchor = document.createElement('a')
-            dlAnchor.setAttribute("href", dataStr)
-            dlAnchor.setAttribute("download", `compliance-matrix-${Date.now()}.json`)
-            document.body.appendChild(dlAnchor)
-            dlAnchor.click()
-            dlAnchor.remove()
-          }}
-        >
-          <Download size={14} />
-          Export Audit Pack (JSON)
-        </button>
-      </div>
-
-      {/* 4 Benchmark Dials */}
-      <div className="grid-4" style={{ marginBottom: 28 }}>
-        {benchmarks.map((bench) => {
-          const IconComp = BENCHMARK_ICONS[bench.id] || Shield
-          return (
-            <div key={bench.id} className="card hover-lift" style={{ position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: 10,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: `${bench.color}18`, color: bench.color,
-                  border: `1px solid ${bench.color}30`
-                }}>
-                  <IconComp size={18} />
-                </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
-                  background: `${bench.color}15`, color: bench.color, border: `1px solid ${bench.color}30`,
-                  letterSpacing: '0.02em'
-                }}>
-                  {bench.score}% Passing
-                </span>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>{bench.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>{bench.category}</div>
-
-              {/* Progress */}
-              <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-elevated)', overflow: 'hidden', marginBottom: 12 }}>
-                <div style={{
-                  height: '100%', width: `${bench.score}%`,
-                  background: bench.color,
-                  borderRadius: 3,
-                  transition: 'width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                }} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
-                <span>{bench.passingRules} Controls Met</span>
-                <span style={{ color: 'var(--sev-critical)', fontWeight: 600 }}>{bench.failingRules} Violations</span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Rules Table Filter */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {['ALL', 'CIS', 'SOC 2', 'PCI', 'HIPAA'].map((f) => (
-              <button
-                key={f}
-                className={`filter-chip ${selectedFramework === f ? 'active' : ''}`}
-                onClick={() => setSelectedFramework(f)}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {['ALL', 'FAIL', 'PASS', 'NOT_EVALUATED'].map((s) => (
-                <button
-                  key={s}
-                  className={`filter-chip ${statusFilter === s ? 'active' : ''}`}
-                  onClick={() => setStatusFilter(s)}
-                >
-                  {s === 'NOT_EVALUATED' ? 'NOT EVALUATED' : s}
+      {error ? <Card><ErrorState error={error} onRetry={() => { benchQ.refetch(); controlsQ.refetch() }} /></Card>
+        : loading ? <div className="grid gap-4"><div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-lg" />)}</div><SkeletonRows rows={8} /></div>
+        : benchmarks.length === 0 ? <Card><EmptyState title="No compliance data yet" body="Scores are computed from the latest scan." /></Card>
+        : (
+        <div className="grid gap-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {benchmarks.map(b => {
+              const f = fwFor(b)
+              const score = Number(b.score) || 0
+              const active = fw === f.key
+              return (
+                <button key={b.id} type="button" onClick={() => setFw(active ? 'all' : f.key)} aria-pressed={active}
+                        className={cn('grid gap-3 rounded-lg border bg-surface p-4 text-left shadow-raised transition-colors hover:border-line-strong',
+                          active ? 'border-accent ring-2 ring-accent-soft-2' : 'border-line')}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-fg">{f.short}</p>
+                      <p className="truncate text-xs text-fg-3" title={b.name}>{b.category || b.name}</p>
+                    </div>
+                    <span className="num text-xl font-semibold text-fg">{score}%</span>
+                  </div>
+                  <span className="block h-1.5 overflow-hidden rounded-full bg-muted-2">
+                    <span className={cn('block h-full rounded-full', score >= 85 ? 'bg-low' : score >= 60 ? 'bg-med' : 'bg-crit')} style={{ width: `${score}%` }} />
+                  </span>
+                  <p className="num text-xs text-fg-2">
+                    <span className="text-fg">{b.passingRules}</span> passing · <span className={b.failingRules ? 'text-crit-text' : ''}>{b.failingRules} failing</span>
+                    {b.notEvaluated ? <> · {b.notEvaluated} not checked</> : null}
+                  </p>
                 </button>
-              ))}
-            </div>
-
-            <div className="search-input-wrap" style={{ width: 240 }}>
-              <Search size={14} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search rule or section..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+              )
+            })}
           </div>
-        </div>
 
-        {/* Table */}
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Section</th>
-                <th>Framework</th>
-                <th>Security Control Title</th>
-                <th>Service</th>
-                <th>Remediation Recommendation</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dataSource !== 'demo' && controlsQ.isLoading && (
-                <tr><td colSpan={6} style={{ color: 'var(--text-muted)' }}>Loading controls…</td></tr>
-              )}
-              {dataSource !== 'demo' && !controlsQ.isLoading && filteredRules.length === 0 && (
-                <tr><td colSpan={6} style={{ color: 'var(--text-muted)' }}>
-                  {controlsQ.data?.scan_id ? 'No controls match these filters.' : 'No completed scan yet — run a scan to evaluate controls.'}
-                </td></tr>
-              )}
-              {filteredRules.map((rule) => {
-                const isFail = rule.status === 'FAIL'
-                const notEval = rule.status === 'NOT_EVALUATED'
-                return (
-                  <tr key={rule.id}>
-                    <td>
-                      <span className={`badge-pill ${isFail ? 'badge-critical' : notEval ? 'badge-medium' : 'badge-low'}`}
-                            title={notEval ? 'Scanner could not read this service (permission/API warning)' : undefined}>
-                        {notEval ? 'N/E' : rule.status}
-                      </span>
-                    </td>
-                    <td className="font-mono text-cyan" style={{ fontWeight: 600 }}>{rule.section}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{rule.framework}</td>
-                    <td style={{ fontWeight: 600, maxWidth: 300 }}>{rule.title}</td>
-                    <td>
-                      <span className="font-mono" style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--accent-primary)' }}>
-                        {rule.service}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                      {rule.recommendation ?? (
-                        rule.failing?.length
-                          ? <Link to={`/findings?search=${rule.rules[0]}`}>{rule.failing.length} failing finding{rule.failing.length > 1 ? 's' : ''} → fix</Link>
-                          : <span className="font-mono">{rule.rules?.join(', ')}</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="flex flex-wrap items-center gap-2">
+            <Tabs value={status} onValueChange={setStatus}>
+              <TabsList segmented>
+                <TabsTrigger value="FAIL">Failing <span className="num text-fg-3">{counts.FAIL}</span></TabsTrigger>
+                <TabsTrigger value="PASS">Passing <span className="num text-fg-3">{counts.PASS}</span></TabsTrigger>
+                <TabsTrigger value="NOT_EVALUATED">Not checked <span className="num text-fg-3">{counts.NOT_EVALUATED}</span></TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {fw !== 'all' && <Badge tone="accent" className="cursor-pointer" onClick={() => setFw('all')}>{FW.find(f => f.key === fw)?.short} only ✕</Badge>}
+            <div className="ml-auto w-full sm:w-64"><Input icon={Search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search controls" aria-label="Search controls" /></div>
+          </div>
+
+          <Card className="overflow-hidden">
+            {rows.length === 0 ? (
+              <EmptyState compact mood={status === 'FAIL' ? 'happy' : 'thinking'}
+                          title={status === 'FAIL' ? 'No failing controls' : 'No controls match'}
+                          body={status === 'FAIL' ? 'Every automated control in this view is passing.' : 'Try another framework or clear the search.'} />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-sm">
+                  <thead className="bg-surface-2">
+                    <tr className="border-b border-line text-left text-xs text-fg-3">
+                      <th className="h-9 pr-3 pl-5 font-medium">Control</th>
+                      <th className="px-3 font-medium">Frameworks</th>
+                      <th className="px-3 font-medium">Service</th>
+                      <th className="px-3 font-medium">Status</th>
+                      <th className="pr-5 pl-3 text-right font-medium">Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(c => {
+                      const s = STATUS[c.status] || STATUS.NOT_EVALUATED
+                      const failing = c.failing_finding_ids || []
+                      return (
+                        <tr key={c.id} className="border-b border-line last:border-0">
+                          <td className="py-3 pr-3 pl-5 align-top">
+                            <p className="font-medium text-fg">{c.title}</p>
+                            <p className="font-mono text-xs text-fg-3">{c.id}</p>
+                          </td>
+                          <td className="px-3 py-3 align-top">
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(c.frameworks || {}).map(([k, ref]) => (
+                                <Badge key={k} size="sm" className="font-mono">{FW.find(f => f.key === k)?.short || k} {ref}</Badge>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 align-top text-fg-2">{SERVICE_NAMES[c.service] || c.service}</td>
+                          <td className="px-3 py-3 align-top">
+                            <span className={cn('inline-flex items-center gap-1.5 font-medium', s.cls)}><s.icon className="size-4" />{s.label}</span>
+                          </td>
+                          <td className="py-3 pr-5 pl-3 text-right align-top whitespace-nowrap">
+                            {failing.length === 0 ? <span className="text-fg-3">—</span>
+                              : failing.length === 1 ? <Link to={`/findings/${failing[0]}`} className="text-accent-text hover:underline">1 finding</Link>
+                              : <Link to={`/findings?service=${c.service}`} className="num text-accent-text hover:underline">{failing.length} findings</Link>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </div>
-      </div>
-    </div>
+      )}
+    </Page>
   )
 }
