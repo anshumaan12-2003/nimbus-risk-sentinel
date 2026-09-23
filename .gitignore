@@ -1,0 +1,27 @@
+# secrets
+.env
+.env.*
+!.env.example
+# local data
+*.db
+*.sqlite3
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# node
+node_modules/
+dist/
+# logs / debug
+*.log
+*.out
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+backend/e2e_fake_aws.db
+
+# old snapshots / exports (kept locally, not versioned)
+*.zip
+scratch/
+.DS_Store

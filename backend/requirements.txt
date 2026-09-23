@@ -1,0 +1,32 @@
+# Python 3.12 (3.9 is end-of-life). Pinned to known-good versions tested with this codebase.
+# ─── API ──────────────────────────────────────────────────────────────────
+fastapi==0.115.14
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+
+# ─── Database ─────────────────────────────────────────────────────────────
+sqlalchemy==2.0.36
+alembic==1.13.3
+psycopg2-binary==2.9.10
+
+# ─── Background jobs / events ─────────────────────────────────────────────
+celery==5.4.0
+redis==5.0.8
+
+# ─── AWS ──────────────────────────────────────────────────────────────────
+boto3>=1.35,<2
+
+# ─── Config / validation ─────────────────────────────────────────────────
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
+
+# ─── Integrations ────────────────────────────────────────────────────────
+requests==2.32.3          # Slack webhook (was imported but missing)
+google-genai>=1.0         # Gemini Copilot (was imported but missing)
+httpx==0.27.2
+python-dateutil==2.9.0
+
+# ─── Auth ─────────────────────────────────────────────────────────────────
+PyJWT==2.9.0              # signed access tokens
+pwdlib[argon2]==0.2.1     # Argon2id password hashing (FastAPI's current recommendation; passlib is unmaintained)

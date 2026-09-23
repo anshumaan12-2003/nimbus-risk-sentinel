@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest==8.3.3
+moto[all]>=5.0,<6     # fake AWS for tests — no real calls, no cost
+ruff==0.6.9

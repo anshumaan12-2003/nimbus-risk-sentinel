@@ -1,0 +1,53 @@
+# Full stack: Postgres + Redis + API + Celery worker + Celery beat + frontend
+#   docker compose up --build
+# AWS creds: mounts your ~/.aws read-only so AWS_PROFILE / SSO works inside containers.
+x-backend: &backend
+  build: ./backend
+  env_file: ./backend/.env
+  environment:
+    DATABASE_URL: postgresql+psycopg2://nimbus:nimbus@postgres:5432/nimbus
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_RESULT_BACKEND: redis://redis:6379/0
+    SCAN_EXECUTOR: celery
+    EVENTS_BACKEND: redis
+  volumes:
+    - ~/.aws:/root/.aws:ro
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: nimbus, POSTGRES_PASSWORD: nimbus, POSTGRES_DB: nimbus }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U nimbus"], interval: 5s, retries: 10 }
+    ports: ["5432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, retries: 10 }
+    ports: ["6379:6379"]
+
+  api:
+    <<: *backend
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports: ["8000:8000"]
+
+  worker:
+    <<: *backend
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+
+  beat:
+    <<: *backend
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+
+  frontend:
+    build: ./frontend
+    environment: { VITE_API_URL: "", API_PROXY_TARGET: "http://api:8000", VITE_DATA_MODE: live }
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:

@@ -1,0 +1,157 @@
+name: 🔍 IaC Security Scan — Nimbus Sentinel
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/**"
+      - "**.tf"
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      scan_directory:
+        description: "Terraform directory to scan"
+        required: false
+        default: "infrastructure/terraform"
+
+permissions:
+  contents: read
+  pull-requests: write        # Required to post PR review comments
+  checks: write               # Required to create check runs
+
+jobs:
+  nimbus-iac-scan:
+    name: 🌩️ Nimbus IaC Security Scan
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: "sqlite:///./ci.db"
+      SECRET_KEY: "ci-iac-scan-secret"
+      PYTHON_VERSION: "3.11"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for diff analysis
+
+      # ─── Setup Nimbus Backend ───────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ─── Run Nimbus IaC Scanner ─────────────────────────────────────────────
+      - name: Run Nimbus IaC Scanner
+        id: nimbus_scan
+        working-directory: backend
+        run: |
+          python - <<'EOF'
+          import json, sys, os
+          sys.path.insert(0, ".")
+          from app.scanner.iac.terraform_scanner import TerraformScanner
+
+          scan_dir = os.path.abspath("../infrastructure/terraform")
+          scanner = TerraformScanner()
+
+          if os.path.isdir(scan_dir):
+              result = scanner.scan_directory(scan_dir)
+          else:
+              print("⚠️ No Terraform directory found — skipping scan.")
+              result = {"total_findings": 0, "severity_summary": {}, "findings": [], "passed": True}
+
+          # Write results to file for next steps
+          with open("/tmp/nimbus_iac_results.json", "w") as f:
+              json.dump(result, f, indent=2)
+
+          # Output summary
+          print(f"\n{'='*60}")
+          print(f"🌩️  NIMBUS IaC SECURITY SCAN RESULTS")
+          print(f"{'='*60}")
+          print(f"Total Findings:  {result['total_findings']}")
+          for sev, count in result.get('severity_summary', {}).items():
+              emoji = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}.get(sev, "⚪")
+              print(f"  {emoji} {sev}: {count}")
+          print(f"{'='*60}\n")
+
+          # Fail the pipeline if CRITICAL findings are found
+          critical_count = result.get("severity_summary", {}).get("CRITICAL", 0)
+          if critical_count > 0:
+              print(f"❌ BUILD BLOCKED: {critical_count} CRITICAL security misconfiguration(s) found in IaC!")
+              sys.exit(1)
+          else:
+              print("✅ No CRITICAL findings. IaC scan passed.")
+          EOF
+
+      # ─── Post PR Comment with Findings ──────────────────────────────────────
+      - name: Post PR Security Report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let results;
+            try {
+              results = JSON.parse(fs.readFileSync('/tmp/nimbus_iac_results.json', 'utf8'));
+            } catch (e) {
+              console.log('No scan results to post.');
+              return;
+            }
+
+            const severityEmoji = { CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '🟢' };
+            const total = results.total_findings;
+            const summary = results.severity_summary || {};
+            const passed = results.passed;
+
+            const statusIcon = passed ? '✅' : '❌';
+            const statusText = passed ? 'PASSED — No CRITICAL findings' : 'BLOCKED — CRITICAL misconfigurations found';
+
+            let body = `## 🌩️ Nimbus Risk Sentinel — IaC Security Scan Report\n\n`;
+            body += `**Status**: ${statusIcon} ${statusText}\n\n`;
+            body += `| Severity | Count |\n|---|---|\n`;
+
+            for (const [sev, count] of Object.entries(summary)) {
+              if (count > 0) {
+                body += `| ${severityEmoji[sev] || '⚪'} ${sev} | ${count} |\n`;
+              }
+            }
+
+            if (total === 0) {
+              body += `\n✨ **No security misconfigurations detected** in your Terraform changes.\n`;
+            } else {
+              body += `\n### Top Findings\n\n`;
+              const topFindings = (results.findings || []).slice(0, 5);
+              for (const f of topFindings) {
+                body += `- **${severityEmoji[f.severity]} [${f.rule_id}]** ${f.title}\n`;
+                body += `  - File: \`${f.file_path}:${f.line_number}\`\n`;
+                body += `  - Compliance: ${(f.compliance || []).join(', ')}\n\n`;
+              }
+
+              if (total > 5) {
+                body += `\n> *...and ${total - 5} more findings. Check the Nimbus dashboard for full details.*\n`;
+              }
+            }
+
+            body += `\n---\n*Powered by [Nimbus Risk Sentinel](http://localhost:3000) — Automated IaC Security Analysis*`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      # ─── Upload Scan Artifact ───────────────────────────────────────────────
+      - name: Upload scan results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nimbus-iac-scan-${{ github.run_number }}
+          path: /tmp/nimbus_iac_results.json
+          retention-days: 30

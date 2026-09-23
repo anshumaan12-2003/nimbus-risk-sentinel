@@ -1,0 +1,12 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowNimbusToAssumeWithExternalId",
+      "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::<NIMBUS_HOST_ACCOUNT_ID>:root" },
+      "Action": "sts:AssumeRole",
+      "Condition": { "StringEquals": { "sts:ExternalId": "<AWS_EXTERNAL_ID>" } }
+    }
+  ]
+}

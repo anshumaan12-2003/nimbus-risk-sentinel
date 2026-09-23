@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OnlyTheWritesNimbusAutomates",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucketVersioning",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:ModifyInstanceMetadataOptions",
+        "rds:ModifyDBInstance",
+        "iam:UpdateAccessKey"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

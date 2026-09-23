@@ -1,0 +1,107 @@
+/* Behaviour tests: the things that must never regress in a security tool. */
+import { test, expect } from '@playwright/test'
+import { signIn, useTheme, USERS } from './helpers'
+
+test.beforeEach(async ({ page }) => { await useTheme(page, 'dark') })
+
+test('wrong password is rejected with one generic message', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Email').fill(USERS.viewer)
+  await page.getByLabel('Password', { exact: true }).fill('definitely-wrong-pass')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('alert')).toHaveText(/Email or password is incorrect/)
+})
+
+test('a reload keeps you signed in (refresh cookie) and sign-out ends the session', async ({ page }) => {
+  await signIn(page, 'viewer')
+  await page.reload()
+  await expect(page.getByText('Security Command Center')).toBeVisible()
+  expect(await page.evaluate(() => Object.keys(localStorage).some(k => /token/i.test(k)))).toBe(false)
+  await page.getByRole('button', { name: /^Account:/ }).click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+})
+
+test('viewer sees everything but cannot act', async ({ page }) => {
+  await signIn(page, 'viewer')
+  await expect(page.getByRole('button', { name: 'Run scan' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Run scan' })).toHaveAttribute('title', /engineer role/)
+  await page.goto('/settings')
+  await expect(page.getByRole('button', { name: 'Add person' })).toHaveCount(0)
+})
+
+test('live scan grid fills in per service and region', async ({ page }) => {
+  await signIn(page, 'engineer')
+  await page.getByRole('button', { name: 'Run scan' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('columnheader', { name: 'ap-south-1' })).toBeVisible()
+  await expect(dialog.getByRole('cell', { name: /EC2 in us-east-1: Scanning|EC2 in us-east-1: Done/ })).toBeVisible()
+  await expect(dialog.getByRole('heading', { name: 'Scan complete' })).toBeVisible({ timeout: 30_000 })
+  await expect(dialog.getByRole('cell', { name: /RDS in ap-south-1: Done/ })).toBeVisible()
+  await expect(dialog.getByRole('cell', { name: /IAM \(account-wide\): Done · \d+ finding/ })).toBeVisible()
+  await expect(dialog.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  await dialog.getByRole('link', { name: 'View findings' }).click()
+  await expect(page).toHaveURL(/\/findings$/)
+})
+
+test('four-eyes: engineer requests, approver cannot self-approve, a second approver applies', async ({ browser }) => {
+  // engineer asks
+  const eng = await (await browser.newContext()).newPage()
+  await signIn(eng, 'engineer')
+  await eng.goto('/findings')
+  await eng.getByText('EC2-005').first().click()
+  await eng.locator('.inspector-nav-tab').nth(2).click()
+  await eng.getByRole('button', { name: /Request approval to auto-fix/ }).click()
+  await expect(eng.getByText('Sent for approval')).toBeVisible()
+  // engineers have no approve power
+  await eng.goto('/approvals')
+  await expect(eng.getByRole('button', { name: 'Approve and apply' })).toBeDisabled()
+
+  // approver approves it; the audit shows both names
+  const appr = await (await browser.newContext()).newPage()
+  await signIn(appr, 'approver')
+  await expect(appr.getByRole('link', { name: /Approvals/ }).locator('.nav-count')).toHaveText('1')
+  await appr.goto('/approvals')
+  const card = appr.getByRole('article').filter({ hasText: 'EC2-005' })
+  await expect(card.getByText(USERS.engineer)).toBeVisible()
+  await card.getByRole('button', { name: 'Approve and apply' }).click()
+  await appr.getByRole('tab', { name: 'History' }).click()
+  const done = appr.getByRole('article').filter({ hasText: 'EC2-005' })
+  await expect(done.getByText('applied', { exact: true })).toBeVisible()
+  await expect(done.getByText(USERS.approver)).toBeVisible()
+})
+
+test('approvers cannot approve their own request', async ({ page }) => {
+  await signIn(page, 'approver')
+  await page.goto('/findings')
+  await page.getByText('RDS-001').first().click()
+  await page.locator('.inspector-nav-tab').nth(2).click()
+  const req = page.getByRole('button', { name: /Request approval to auto-fix/ })
+  if (await req.isDisabled()) test.skip(true, 'RDS-001 has no automated fix in this build')
+  await req.click()
+  await page.goto('/approvals')
+  const card = page.getByRole('article').filter({ hasText: 'RDS-001' })
+  await expect(card.getByRole('button', { name: 'Approve and apply' })).toBeDisabled()
+  await expect(card.getByText(/someone else has to approve it/)).toBeVisible()
+})
+
+test.describe('phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  test('navigation drawer opens, navigates and closes; no sideways scrolling', async ({ page }) => {
+    await signIn(page, 'engineer')
+    const nav = page.getByRole('complementary', { name: 'Main navigation' })
+    await expect(nav).toBeHidden()
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    await nav.getByRole('link', { name: 'Assets' }).click()
+    await expect(page).toHaveURL(/\/assets/)
+    await expect(nav).toBeHidden()
+    for (const path of ['/', '/findings', '/assets', '/approvals', '/scans', '/settings']) {
+      await page.goto(path)
+      await page.waitForLoadState('networkidle')
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+      expect(overflow, `${path} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(1)
+    }
+  })
+})

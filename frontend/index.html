@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script>
+      // Last-resort handler for errors that happen before React mounts
+      // (module load failures, etc.) — React's own ErrorBoundary catches
+      // everything after mount. No alert(); a quiet, on-brand fallback.
+      window.onerror = function(msg, url, line, col, error) {
+        console.error('[nimbus] fatal boot error:', msg, error && error.stack);
+        var root = document.getElementById('root');
+        if (root && !root.hasChildNodes()) {
+          root.innerHTML =
+            '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#060807;color:#eef7f4;font-family:\'IBM Plex Sans\',sans-serif;text-align:center;padding:24px;">' +
+            '<div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;letter-spacing:0.08em;color:#2de2c8;text-transform:uppercase;">// boot failure</div>' +
+            '<div style="font-size:15px;font-weight:600;">Nimbus failed to start</div>' +
+            '<div style="font-size:13px;color:#8b9c97;max-width:420px;">Reloading usually fixes this. If it keeps happening, check the console for details.</div>' +
+            '<button onclick="location.reload()" style="margin-top:8px;padding:8px 16px;background:#2de2c8;color:#04211c;border:none;border-radius:4px;font-weight:600;font-family:inherit;cursor:pointer;">Reload</button>' +
+            '</div>';
+        }
+      };
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Nimbus Risk Sentinel — Cloud Security Posture Management Platform. Real-time AWS misconfiguration detection, blast radius visualization, and one-click remediation." />
+    <meta name="theme-color" content="#060807" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232de2c8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E" />
+    <title>Nimbus Risk Sentinel</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
