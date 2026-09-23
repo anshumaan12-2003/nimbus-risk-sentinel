@@ -27,6 +27,7 @@ test('sign-in screen', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop)
     await page.goto('/')
     await page.getByLabel('Email').waitFor()
+    await page.waitForTimeout(500)             // let the entrance motion settle
     await page.screenshot({ path: `test-results/tour/${theme}-desktop-signin.png` })
   }
 })
