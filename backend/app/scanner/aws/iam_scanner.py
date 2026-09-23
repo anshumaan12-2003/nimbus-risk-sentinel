@@ -1,4 +1,6 @@
+import csv
 import logging
+import time
 from datetime import datetime, timezone, timedelta
 from botocore.exceptions import ClientError
 from app.scanner.base_scanner import BaseScanner, ScanFinding
@@ -23,6 +25,23 @@ class IAMScanner(BaseScanner):
     def __init__(self, region: str = "us-east-1"):
         super().__init__(region)
         self.iam = get_aws_client("iam", region)
+        self._password_enabled: dict[str, bool] | None = None   # from the credential report, lazily
+
+    def _console_access_from_report(self, username: str) -> bool | None:
+        """password_enabled from the IAM credential report; None if the report can't be read."""
+        if self._password_enabled is None:
+            self._password_enabled = {}
+            try:
+                for _ in range(10):  # report generation is async; usually ready within a few seconds
+                    if self.iam.generate_credential_report().get("State") == "COMPLETE":
+                        break
+                    time.sleep(1)
+                rows = self.iam.get_credential_report()["Content"].decode().splitlines()
+                for rec in csv.DictReader(rows):
+                    self._password_enabled[rec["user"]] = rec.get("password_enabled") == "true"
+            except ClientError as e:
+                logger.warning(f"Credential report unavailable: {e}")
+        return self._password_enabled.get(username)
 
     def scan(self) -> list[ScanFinding]:
         logger.info("Starting IAM scan...")
@@ -88,7 +107,14 @@ class IAMScanner(BaseScanner):
                     self.iam.get_login_profile(UserName=username)
                     has_console = True
                 except ClientError as e:
-                    has_console = e.response["Error"]["Code"] != "NoSuchEntity"
+                    if e.response["Error"]["Code"] == "NoSuchEntity":
+                        has_console = False
+                    else:
+                        # e.g. an Organizations SCP denies GetLoginProfile: ask the credential report
+                        # instead of assuming a password exists (which flagged key-only users).
+                        has_console = self._console_access_from_report(username)
+                        if has_console is None:
+                            logger.warning(f"Could not tell whether {username} has console access; skipping IAM-002")
 
                 if has_console:
                     self.add_finding(ScanFinding(
