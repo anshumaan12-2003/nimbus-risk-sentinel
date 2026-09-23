@@ -15,7 +15,7 @@ export async function signIn(page, role) {
   await page.getByLabel('Email').fill(USERS[role])
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByText('Security Command Center')).toBeVisible()
+  await expect(page.getByText('Security posture')).toBeVisible()
 }
 
 /* Things that legitimately differ between runs: random AWS ids from the fake account, timestamps,

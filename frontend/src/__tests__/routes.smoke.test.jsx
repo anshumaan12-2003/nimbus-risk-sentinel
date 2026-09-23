@@ -8,7 +8,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import App from '../App'
 
 const ROUTES = [
-  ['/', /Security Command Center/i],
+  ['/', /Security posture/i],
   ['/findings', /IAM-00|EC2-00/],
   ['/assets', /prod-customer-data/],
   ['/scans', /Scan History/],

@@ -1,764 +1,485 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Area, AreaChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { ArrowUpRight, ChevronRight, FileText, Play } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { ago, shortDate } from '@/lib/time'
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
-  Tooltip, ResponsiveContainer, Cell
-} from 'recharts'
-import Zap from 'lucide-react/dist/esm/icons/zap'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import Shield from 'lucide-react/dist/esm/icons/shield'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
-import TrendingUp from 'lucide-react/dist/esm/icons/trending-up'
-import Clock from 'lucide-react/dist/esm/icons/clock'
-import Activity from 'lucide-react/dist/esm/icons/activity'
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
-import Compass from 'lucide-react/dist/esm/icons/compass'
-import Layers from 'lucide-react/dist/esm/icons/layers'
-import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right'
-import Database from 'lucide-react/dist/esm/icons/database'
-import HardDrive from 'lucide-react/dist/esm/icons/hard-drive'
-import KeyRound from 'lucide-react/dist/esm/icons/key-round'
-import Server from 'lucide-react/dist/esm/icons/server'
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
-import FileCheck from 'lucide-react/dist/esm/icons/file-check'
+  Page, Card, CardHeader, CardBody, Button, SeverityBadge, StatTile, EmptyState, Skeleton, ErrorState,
+} from '@/components/ds'
+import GettingStarted from '@/components/GettingStarted'
+import { useSentinelStore } from '@/store/sentinelStore'
+import { useCan, useUser } from '@/auth/authStore'
 import {
-  getFindingStats, getLatestScan, listFindings, getTopologyGraph, listScans, getLatestDrift,
-  getScanWarnings, getFindingBlastRadius, apiError,
-} from '../api/nimbus'
-import RiskScoreGauge from '../components/RiskScoreGauge'
-import StatsCard from '../components/StatsCard'
-import SeverityBadge from '../components/SeverityBadge'
-import AttackPathGraph from '../components/AttackPathGraph'
-import Mascot from '../components/Mascot'
-import ActivityFeed from '../components/ActivityFeed'
-import { useEventStore } from '../store/eventStore'
-import { MOCK_STATS, MOCK_LATEST_SCAN, MOCK_FINDINGS, MOCK_ATTACK_GRAPH } from '../data/mockData'
-import { useUser } from '../auth/authStore'
-import GettingStarted from '../components/GettingStarted'
-import { EMPTY_STATS, EMPTY_GRAPH } from '../data/empty'
-import ComplianceMatrix from '../components/ComplianceMatrix'
-import { formatDistanceToNow } from 'date-fns'
-import { useNavigate } from 'react-router-dom'
-import { useSentinelStore } from '../store/sentinelStore'
-import { useCountUp } from '../hooks/useCountUp'
+  useBlastRadius, useCompliance, useConfig, useFindingStats, useFindings, useLatestDrift, usePreflight, useScans, useScanWarnings,
+} from '@/hooks/queries'
+import {
+  MOCK_STATS, MOCK_LATEST_SCAN, MOCK_FINDINGS, MOCK_COMPLIANCE_BENCHMARKS, MOCK_DRIFT_REPORT,
+} from '@/data/mockData'
 
-/* ── Tooltip ─────────────────────────────────────────────────────── */
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="custom-tooltip">
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>
-        {payload[0].value}
-        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-4)', marginLeft: 4 }}>findings</span>
-      </div>
-    </div>
-  )
-}
-
-const TrendTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="custom-tooltip">
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em' }}>
-        {payload[0].value}
-        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-4)', marginLeft: 4 }}>risk pts</span>
-      </div>
-    </div>
-  )
-}
-
-/* ── Service icon helper ─────────────────────────────────────────── */
-function ServiceIcon({ service, size = 13 }) {
-  const s = (service || '').toLowerCase()
-  if (s === 's3')  return <HardDrive size={size} />
-  if (s === 'iam') return <KeyRound size={size} />
-  if (s === 'ec2') return <Server size={size} />
-  if (s === 'rds') return <Database size={size} />
-  return <Layers size={size} />
-}
-
-const SERVICE_META = {
-  s3:  { name: 'Amazon S3',  color: '#7c71ff', bg: 'rgba(124,113,255,0.1)' },
-  iam: { name: 'AWS IAM',    color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
-  ec2: { name: 'Amazon EC2', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
-  rds: { name: 'Amazon RDS', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
-}
-
-/* ── Real trends from scan history ───────────────────────────────── */
-// Scan counts arrive as strings from the API.
+/* ─── helpers ──────────────────────────────────────────────────────────────── */
 const num = (v) => Number(v) || 0
+const SEVERITIES = [
+  { key: 'critical', label: 'Critical', tone: 'critical', bar: 'bg-crit', scanKey: 'critical_count' },
+  { key: 'high', label: 'High', tone: 'high', bar: 'bg-high', scanKey: 'high_count' },
+  { key: 'medium', label: 'Medium', tone: 'medium', bar: 'bg-med', scanKey: 'medium_count' },
+  { key: 'low', label: 'Low', tone: 'low', bar: 'bg-low', scanKey: 'low_count' },
+]
+const SEV_STRIPE = { CRITICAL: 'bg-crit', HIGH: 'bg-high', MEDIUM: 'bg-med', LOW: 'bg-low' }
+const SERVICE_NAMES = { s3: 'Amazon S3', iam: 'AWS IAM', ec2: 'Amazon EC2', rds: 'Amazon RDS', lambda: 'AWS Lambda' }
 
-// Change since the previous completed scan, in StatsCard's shape. No previous scan -> no arrow.
-function delta(curr, prev) {
-  if (curr == null || prev == null) return {}
-  const d = num(curr) - num(prev)
-  return { trend: d > 0 ? 'up' : d < 0 ? 'down' : 'neutral', trendValue: d > 0 ? `+${d}` : d < 0 ? `${d}` : '0' }
+// Risk score is 0–100 where higher is worse.
+function grade(score) {
+  if (score >= 85) return { label: 'Critical risk', tone: 'text-crit-text' }
+  if (score >= 70) return { label: 'High risk', tone: 'text-high-text' }
+  if (score >= 50) return { label: 'Elevated risk', tone: 'text-med-text' }
+  if (score >= 30) return { label: 'Moderate risk', tone: 'text-fg-2' }
+  return { label: 'Low risk', tone: 'text-low-text' }
 }
 
-// Resolve every request even when some fail, remembering why.
-const settle = (p) => p.then(data => ({ data }), error => ({ error }))
+const FRAMEWORK_SHORT = [[/^cis/, 'CIS AWS'], [/^soc2/, 'SOC 2'], [/^pci/, 'PCI DSS'], [/^hipaa/, 'HIPAA']]
+const frameworkName = (f) => FRAMEWORK_SHORT.find(([re]) => re.test(f.id || ''))?.[1] || f.name
 
-// Network failure (no HTTP response) means the API is down; anything else is the API reporting a problem.
-function describeFailure(error) {
-  if (!error?.response) return { kind: 'down', msg: 'Backend unreachable — is the API running? (uvicorn on :8001, proxied through Vite)' }
-  return { kind: 'error', msg: `The API returned an error (${error.response.status}): ${apiError(error)}` }
+/* All data the page needs — live from the API, or the built-in sample in demo mode. */
+function useOverview() {
+  const demo = useSentinelStore(s => s.dataSource) === 'demo'
+  const stats = useFindingStats()
+  const scans = useScans(30)
+  const findings = useFindings({ limit: 50 })
+  const compliance = useCompliance()
+  const drift = useLatestDrift()
+  const blast = useBlastRadius()
+  const pre = usePreflight()
+  const completed = useMemo(() => (scans.data || []).filter(s => s.status === 'COMPLETED'), [scans.data])
+  const latest = completed[0] || null
+  const warnings = useScanWarnings(latest?.id)
+
+  if (demo) {
+    const bySvc = {}
+    MOCK_FINDINGS.forEach(f => { bySvc[f.service] = (bySvc[f.service] || 0) + 1 })
+    return {
+      loading: false, error: null, demo,
+      stats: { ...MOCK_STATS, by_service: bySvc }, latest: MOCK_LATEST_SCAN, previous: null, history: [],
+      findings: MOCK_FINDINGS, compliance: MOCK_COMPLIANCE_BENCHMARKS, drift: MOCK_DRIFT_REPORT, blast: null,
+      assets: null, gaps: 0, account: { id: MOCK_LATEST_SCAN.account_id, regions: ['us-east-1'] },
+    }
+  }
+  const counts = warnings.data?.asset_counts
+  return {
+    loading: stats.isLoading || scans.isLoading,
+    error: stats.error || scans.error,
+    refetch: () => { stats.refetch(); scans.refetch() },
+    demo,
+    stats: stats.data,
+    latest,
+    previous: completed[1] || null,
+    history: [...completed].reverse().slice(-20),
+    findings: findings.data || [],
+    findingsLoading: findings.isLoading,
+    compliance: compliance.data || [],
+    complianceLoading: compliance.isLoading,
+    drift: drift.data,
+    blast: latest ? blast.data : null,
+    assets: counts ? Object.values(counts).reduce((a, n) => a + num(n), 0) : null,
+    gaps: warnings.data?.warnings?.length || 0,
+    account: pre.data?.connected ? { id: pre.data.account_id, regions: pre.data.regions } : null,
+  }
 }
 
-/* ═════════════════════════════════════════════════════════════════ */
-export default function Dashboard() {
-  const user = useUser()
-  const {
-    currentEnv, openScanModal, refreshDataTrigger, dataSource
-  } = useSentinelStore()
+/* ─── sections ─────────────────────────────────────────────────────────────── */
 
-  const [stats, setStats]         = useState({ total: 0, critical: 0, high: 0, medium: 0, low: 0, open: 0, resolved: 0, risk_score: 0 })
-  const [latestScan, setLatestScan] = useState(null)
-  const [recentFindings, setRecent] = useState([])
-  const [graphData, setGraphData] = useState(null)
-  const [loading, setLoading]     = useState(false)
-  const [problem, setProblem]     = useState(null)   // { kind: 'down' | 'error', msg }
-  const [history, setHistory]     = useState([])     // completed scans, oldest first
-  const [drift, setDrift]         = useState(null)
-  const [assetCount, setAssetCount] = useState(null)
-  const [blast, setBlast]         = useState(null)
-  // Nimbo reacts to fresh stream events for a few seconds, then goes
-  // back to reflecting overall posture.
-  const latestEvent = useEventStore(s => s.events[0])
-  const [reaction, setReaction] = useState(null)
-  useEffect(() => {
-    if (!latestEvent || Date.now() - latestEvent.ts > 3000) return
-    const good = ['finding.resolved', 'remediation.applied', 'simulation.contained'].includes(latestEvent.type)
-    const bad = latestEvent.type === 'finding.new' && ['CRITICAL', 'HIGH'].includes(latestEvent.severity)
-    if (!good && !bad) return
-    setReaction({ mood: good ? 'happy' : 'alarmed', line: <>{good ? 'Nice — ' : 'Heads up: '}<strong>{latestEvent.title}</strong></> })
-    const t = setTimeout(() => setReaction(null), 7000)
-    return () => clearTimeout(t)
-  }, [latestEvent])
+function PostureSummary({ d }) {
   const navigate = useNavigate()
-
-  const load = useCallback(async () => {
-    if (dataSource === 'demo') {
-      setProblem(null)
-      setStats(MOCK_STATS)
-      setLatestScan(MOCK_LATEST_SCAN)
-      setRecent(MOCK_FINDINGS.slice(0, 6))
-      setGraphData(MOCK_ATTACK_GRAPH)
-      setHistory([]); setDrift(null); setAssetCount(null); setBlast(null)
-      return
-    }
-
-    setLoading(true)
-    try {
-      const [s, sc, f, g, h, d, b] = await Promise.all([
-        settle(getFindingStats()),
-        settle(getLatestScan()),
-        settle(listFindings({ limit: 6 })),
-        settle(getTopologyGraph()),
-        settle(listScans(30)),
-        settle(getLatestDrift()),
-        settle(getFindingBlastRadius('internet')),
-      ])
-      // Report the first failure honestly; live mode never substitutes demo data.
-      const firstError = [s, sc, f, g, h].find(r => r.error)?.error
-      setProblem(firstError ? describeFailure(firstError) : null)
-      setStats(s.data || EMPTY_STATS)
-      setLatestScan(sc.data || null)
-      setRecent(f.data || [])
-      setGraphData(g.data?.nodes ? g.data : EMPTY_GRAPH)
-      setHistory((h.data || []).filter(x => x.status === 'COMPLETED').reverse())
-      setDrift(d.data || null)
-      setBlast(sc.data && b.data ? b.data : null)   // no scan yet -> nothing to measure
-      if (sc.data?.id) {
-        const w = await settle(getScanWarnings(sc.data.id))
-        const counts = w.data?.asset_counts || {}
-        setAssetCount(Object.keys(counts).length ? Object.values(counts).reduce((a, n) => a + num(n), 0) : null)
-      } else {
-        setAssetCount(null)
-      }
-    } catch (e) {
-      console.warn('Dashboard data fallback:', e)
-    } finally {
-      setLoading(false)
-    }
-  }, [refreshDataTrigger, dataSource])
-
-  useEffect(() => { load() }, [load])
-
-  /* Animated counters */
-  // A clean account really can score 0 — never fall back to made-up numbers.
-  const scoreNow        = num(latestScan?.risk_score ?? stats?.risk_score)
-  const animatedScore   = useCountUp(scoreNow, 1400)
-  const animatedCrit    = useCountUp(stats?.critical ?? 0, 900)
-  const animatedHigh    = useCountUp(stats?.high     ?? 0, 900)
-  const animatedMedium  = useCountUp(stats?.medium   ?? 0, 900)
-  const animatedLow     = useCountUp(stats?.low      ?? 0, 900)
-  const animatedTotal   = useCountUp(stats?.total    ?? 0, 1100)
-
-  // Trend arrows compare the two most recent completed scans.
-  const prevScan = history.length > 1 ? history[history.length - 2] : null
-  const trendOf = (key) => (prevScan && latestScan ? delta(latestScan[key], prevScan[key]) : {})
-  const trendData = history.slice(-14).map(s => ({
-    day: s.completed_at ? new Date(s.completed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '',
-    score: num(s.risk_score),
-  }))
-  const serviceRows = (() => {
-    const bySvc = stats?.by_service
-      || recentFindings.reduce((acc, f) => { const k = (f.service || 'other').toLowerCase(); acc[k] = (acc[k] || 0) + 1; return acc }, {})
-    const total = Object.values(bySvc).reduce((a, n) => a + n, 0)
-    return Object.entries(bySvc).sort((a, b) => b[1] - a[1])
-      .map(([svc, count]) => ({ svc, count, pct: total ? Math.round((count / total) * 100) : 0 }))
-  })()
-  const driftEvents = drift?.summary?.total_drift_events
-
-  // One derived posture drives the mascot, its message and the grade
-  // badge, so they can never contradict each other.
-  const critCount = stats?.critical ?? 0
-  const openCount = stats?.open ?? stats?.total ?? 0
-  const grade = scoreNow >= 85 ? { label: 'Critical Risk', letter: 'F', tone: 'critical' }
-    : scoreNow >= 70 ? { label: 'High Risk',     letter: 'D', tone: 'high' }
-    : scoreNow >= 50 ? { label: 'Elevated Risk', letter: 'C', tone: 'medium' }
-    : scoreNow >= 30 ? { label: 'Moderate Risk', letter: 'B', tone: 'medium' }
-    :                  { label: 'Low Risk',      letter: 'A', tone: 'low' }
-  const mascotMood = loading ? 'thinking'
-    : (critCount > 0 || scoreNow >= 70) ? 'alarmed'
-    : (openCount > 0 || scoreNow >= 30) ? 'calm'
-    : 'happy'
-  const mascotLine = loading ? <>Crunching the latest scan…</>
-    : critCount > 0 ? <><strong>{critCount} critical</strong> {critCount === 1 ? 'issue needs' : 'issues need'} your eyes first.</>
-    : scoreNow >= 70 ? <>Risk is <strong>{grade.label.toLowerCase()}</strong>. The attack path below is the best place to start.</>
-    : openCount > 0 ? <>No criticals. <strong>{openCount}</strong> smaller {openCount === 1 ? 'thing is' : 'things are'} worth a look.</>
-    : <>All clear. Nothing open right now — nice work.</>
-  const hour = new Date().getHours()
-  const greeting = hour < 5 ? 'Burning the midnight oil' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-
-  const severityBars = [
-    { name: 'Critical', count: stats?.critical ?? 0, color: '#dc2626' },
-    { name: 'High',     count: stats?.high     ?? 0, color: '#ea580c' },
-    { name: 'Medium',   count: stats?.medium   ?? 0, color: '#d97706' },
-    { name: 'Low',      count: stats?.low      ?? 0, color: '#16a34a' },
-  ]
-
-  const lastScanTime = latestScan?.completed_at
-    ? formatDistanceToNow(new Date(latestScan.completed_at), { addSuffix: true })
-    : 'never'
+  const score = num(d.latest?.risk_score ?? d.stats?.risk_score)
+  const prev = d.previous ? num(d.previous.risk_score) : null
+  const delta = prev == null ? null : score - prev
+  const g = grade(score)
+  const open = SEVERITIES.map(s => ({ ...s, count: num(d.stats?.[s.key]) }))
+  const totalOpen = open.reduce((a, s) => a + s.count, 0)
+  const top = d.findings.find(f => f.status !== 'RESOLVED')
+  const spark = d.history.map(s => ({ score: num(s.risk_score) }))
 
   return (
-    <div className="dashboard-container">
-
-      {/* ══════════════════════════════════════════════════════════
-          HERO — Full-width cinematic header
-      ══════════════════════════════════════════════════════════ */}
-      <GettingStarted />
-      <div className="dashboard-hero anim-fade-up">
-        <div className="hero-bg-mesh" />
-        <div className="hero-content">
-          {/* Left copy */}
-          <div className="hero-left">
-            {problem && (
-              <div className="offline-banner" role="status">
-                <span className="offline-dot" />
-                {problem.msg}
-                <button className="offline-retry" onClick={load}>Retry</button>
-              </div>
-            )}
-            <div className="hero-greeting">
-              <span className="wave" aria-hidden="true">👋</span>
-              <span>{greeting}, <strong>{(user?.name || '').split(' ')[0] || 'there'}</strong></span>
-            </div>
-            <div className="hero-eyebrow">
-              <Shield size={10} />
-              Autonomous Risk Posture Management
-            </div>
-            <h1 className="hero-title text-fluid-gradient">Security Command Center</h1>
-            <p className="hero-subtitle">
-              Continuous posture evaluation ·
-              Account <code>{latestScan?.account_id || (dataSource === 'demo' ? 'demo' : 'not scanned yet')}</code> ·
-              Regions <code>{latestScan?.region || '—'}</code>
-            </p>
-
-            <div className="hero-meta-bar">
-              <div className="hero-meta-item">
-                <span className="hero-meta-label">Environment</span>
-                <span className="hero-meta-value">{currentEnv?.name || 'AWS Production'}</span>
-              </div>
-              <div className="hero-meta-divider" />
-              <div className="hero-meta-item">
-                <span className="hero-meta-label">Last Scan</span>
-                <span className="hero-meta-value">{lastScanTime}</span>
-              </div>
-              <div className="hero-meta-divider" />
-              <div className="hero-meta-item">
-                <span className="hero-meta-label">Assets Scanned</span>
-                <span className="hero-meta-value">142</span>
-              </div>
-              <div className="hero-meta-divider" />
-              <div className="hero-meta-item">
-                <span className="hero-meta-label">Active Findings</span>
-                <span className="hero-meta-value" style={{ color: 'var(--sev-critical)' }}>{animatedTotal}</span>
-              </div>
-            </div>
-
-            <div className="hero-actions">
-              <button className="btn btn-primary" onClick={openScanModal}>
-                <Zap size={13} />
-                Run Fleet Scan
-              </button>
-              <button className="btn btn-secondary" onClick={load} disabled={loading}>
-                <RefreshCw size={13} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
-                Refresh
-              </button>
-              <button className="btn btn-ghost" onClick={() => navigate('/compliance')}>
-                <FileCheck size={13} />
-                View Compliance
-              </button>
-            </div>
-          </div>
-
-          {/* Right — Giant risk score */}
-          <div className="hero-right">
-            <div className="mascot-say">
-              <Mascot mood={reaction?.mood || mascotMood} size={92} />
-              <div className="speech-bubble" aria-live="polite" key={reaction ? "r" : "p"}>{reaction?.line || mascotLine}</div>
-            </div>
-            <div className="risk-score-display">
-              <div className="risk-score-label">Risk Score</div>
-              <div className="risk-score-number">{animatedScore}</div>
-              <div className="risk-score-sublabel">out of 100</div>
-            </div>
-            <div className={`risk-grade-badge tone-${grade.tone}`}>
-              <AlertCircle size={12} />
-              {grade.label} · Grade {grade.letter}
-            </div>
-          </div>
+    <Card className="grid gap-6 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:p-6">
+      <div className="grid content-start gap-3">
+        <p className="text-sm text-fg-2">Risk score</p>
+        <div className="flex items-end gap-3">
+          <span className="num text-[56px] leading-none font-semibold tracking-[-0.04em] text-fg">{score}</span>
+          <span className="pb-1.5 text-sm text-fg-3">/ 100</span>
         </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════
-          BENTO BOX LAYOUT: Row 1
-      ══════════════════════════════════════════════════════════ */}
-      <div className="bento-grid" style={{ marginBottom: 20 }}>
-        <div className="bento-col-3 reveal-on-scroll" onClick={() => navigate('/findings?severity=CRITICAL')}>
-          <div className="card-spotlight" style={{ height: '100%' }}>
-          <StatsCard
-            title="Critical"
-            value={animatedCrit}
-            icon={AlertTriangle}
-            variant="critical"
-            subtitle="Immediate action required"
-            {...trendOf('critical_count')}
-          />
-          </div>
-        </div>
-        <div className="bento-col-3 reveal-on-scroll" style={{ animationDelay: '0.1s' }} onClick={() => navigate('/findings?severity=HIGH')}>
-          <div className="card-spotlight" style={{ height: '100%' }}>
-          <StatsCard
-            title="High"
-            value={animatedHigh}
-            icon={AlertCircle}
-            variant="high"
-            subtitle="Fix within 24 hours"
-            {...trendOf('high_count')}
-          />
-          </div>
-        </div>
-        <div className="bento-col-3 reveal-on-scroll" style={{ animationDelay: '0.2s' }} onClick={() => navigate('/findings?severity=MEDIUM')}>
-          <div className="card-spotlight" style={{ height: '100%' }}>
-          <StatsCard
-            title="Medium"
-            value={animatedMedium}
-            icon={Layers}
-            variant="medium"
-            subtitle="Fix within 7 days"
-            {...trendOf('medium_count')}
-          />
-          </div>
-        </div>
-        <div className="bento-col-3 reveal-on-scroll" style={{ animationDelay: '0.3s' }} onClick={() => navigate('/findings?severity=LOW')}>
-          <div className="card-spotlight" style={{ height: '100%' }}>
-          <StatsCard
-            title="Low"
-            value={animatedLow}
-            icon={CheckCircle2}
-            variant="low"
-            subtitle="Best practice guidance"
-            {...trendOf('low_count')}
-          />
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════
-          BENTO BOX LAYOUT: Row 2
-      ══════════════════════════════════════════════════════════ */}
-      <div className="bento-grid" style={{ marginBottom: 28 }}>
-        <div className="bento-col-4 reveal-on-scroll">
-          <div className="card-spotlight" style={{ height: '100%' }}>
-          <StatsCard
-            title="Total Findings"
-            value={animatedTotal}
-            icon={Activity}
-            variant="brand"
-            subtitle={serviceRows.length ? `Across ${serviceRows.length} AWS service${serviceRows.length === 1 ? '' : 's'}` : 'Run a scan to populate'}
-            {...trendOf('total_findings')}
-          />
-          </div>
-        </div>
-        <div className="bento-col-4 reveal-on-scroll" style={{ animationDelay: '0.1s' }}>
-          <div className="card-spotlight" style={{ height: '100%' }}>
-          <StatsCard
-            title="Open Issues"
-            value={stats?.open ?? 0}
-            icon={AlertTriangle}
-            variant="high"
-            subtitle="Unresolved vulnerabilities"
-          />
-          </div>
-        </div>
-        <div className="bento-col-4 reveal-on-scroll" style={{ animationDelay: '0.2s' }}>
-          <div className="card-spotlight" style={{ height: '100%' }}>
-          <StatsCard
-            title="Resolved"
-            value={stats?.resolved ?? 0}
-            icon={CheckCircle2}
-            variant="low"
-            subtitle="Fixed or marked resolved"
-            {...(drift?.summary?.resolved_count ? { trend: 'up', trendValue: `+${drift.summary.resolved_count}` } : {})}
-          />
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════
-          BENTO BOX LAYOUT: Attack Path + Gauge
-      ══════════════════════════════════════════════════════════ */}
-      <div className="bento-grid" style={{ marginBottom: 28 }}>
-        {/* Attack Path */}
-        <div className="bento-col-8 card card-container glass-tactile card-spotlight reveal-on-scroll">
-          <div className="card-header">
-            <div>
-              <div className="card-kicker">
-                <Compass size={10} />
-                Threat Intelligence
-              </div>
-              <div className="card-title-text">
-                Attack Path Graph
-              </div>
-            </div>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => navigate('/topology')}
-            >
-              Full view <ChevronRight size={11} />
-            </button>
-          </div>
-          {graphData && <AttackPathGraph graphData={graphData} allFindings={recentFindings} />}
-        </div>
-
-        {/* Risk Gauge */}
-        <div className="bento-col-4 card card-container glass-tactile card-spotlight posture-gauge-card reveal-on-scroll" style={{ animationDelay: '0.1s' }}>
-          <div className="card-kicker" style={{ justifyContent: 'space-between', marginBottom: 16 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Shield size={10} />
-              Posture Score
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span className={cn('font-medium', g.tone)}>{g.label}</span>
+          {delta != null && (
+            <span className={cn('num', delta < 0 ? 'text-low-text' : delta > 0 ? 'text-crit-text' : 'text-fg-3')}>
+              {delta > 0 ? `+${delta}` : delta === 0 ? 'No change' : delta} since last scan
             </span>
-            {dataSource !== 'demo' && latestScan && !problem && (
-              <span className="live-badge">
-                <span className="live-badge-dot" />
-                Live
-              </span>
-            )}
-          </div>
-          <RiskScoreGauge score={animatedScore} />
-          <div className="posture-meta-box">
-            <div className="posture-meta-item">
-              <span className="meta-label">Last scan</span>
-              <span className="meta-val text-cyan">{lastScanTime}</span>
-            </div>
-            <div className="posture-meta-item">
-              <span className="meta-label">Assets</span>
-              <span className="meta-val">{assetCount ?? '—'}</span>
-            </div>
-            <div className="posture-meta-item">
-              <span className="meta-label">Blast Radius</span>
-              <span className={`meta-val ${num(blast?.blast_radius_score) >= 70 ? 'text-critical' : ''}`}>
-                {blast ? `${num(blast.blast_radius_score)}/100` : '—'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════
-          BENTO BOX LAYOUT: Charts
-      ══════════════════════════════════════════════════════════ */}
-      {/* Live activity stream */}
-      <div className="bento-grid" style={{ marginBottom: 28 }}>
-        <div className="bento-col-12 card">
-          <ActivityFeed limit={6} />
-        </div>
-      </div>
-
-      <div className="bento-grid" style={{ marginBottom: 28 }}>
-        {/* Severity bar chart */}
-        <div className="bento-col-6 card card-container glass-tactile card-spotlight reveal-on-scroll">
-          <div className="card-header" style={{ marginBottom: 16 }}>
-            <div>
-              <div className="card-kicker">
-                <AlertTriangle size={10} />
-                Distribution
-              </div>
-              <div className="card-title-text">Findings by Severity</div>
-            </div>
-            <span className="badge badge-neutral" style={{ fontSize: 10 }}>Click to filter</span>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={severityBars} margin={{ top: 4, right: 4, bottom: 0, left: -28 }} barCategoryGap="32%">
-              <XAxis
-                dataKey="name"
-                tick={{ fill: 'var(--text-4)', fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: 'var(--text-4)', fontSize: 11, fontFamily: 'Plus Jakarta Sans' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--surface-2)', radius: 6 }} />
-              <Bar
-                dataKey="count"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={48}
-                onClick={(e) => navigate(`/findings?severity=${e.name.toUpperCase()}`)}
-                style={{ cursor: 'pointer' }}
-              >
-                {severityBars.map((e, i) => (
-                  <Cell key={i} fill={e.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Risk trend across recent scans */}
-        <div className="bento-col-6 card card-container glass-tactile card-spotlight reveal-on-scroll" style={{ animationDelay: '0.1s' }}>
-          <div className="card-header" style={{ marginBottom: 16 }}>
-            <div>
-              <div className="card-kicker">
-                <TrendingUp size={10} />
-                Scan History
-              </div>
-              <div className="card-title-text">Risk Score Trend</div>
-            </div>
-            <span style={{ fontSize: 11, color: 'var(--text-4)', fontWeight: 500 }}>
-              Last {trendData.length} scan{trendData.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          {trendData.length < 2 ? (
-            <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-4)', fontSize: 13, textAlign: 'center' }}>
-              {dataSource === 'demo' ? 'Trend is built from real scans — switch to live mode.' : 'The trend appears after two completed scans.'}
-            </div>
-          ) : (
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
-              <defs>
-                <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="var(--brand)" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="var(--brand)" stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="day"
-                tick={{ fill: 'var(--text-4)', fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fill: 'var(--text-4)', fontSize: 11, fontFamily: 'Plus Jakarta Sans' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<TrendTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="score"
-                stroke="var(--brand)"
-                strokeWidth={2.5}
-                fill="url(#riskGrad)"
-                dot={false}
-                activeDot={{ r: 4, fill: 'var(--brand)', stroke: 'var(--surface-1)', strokeWidth: 2 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
           )}
         </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════
-          BENTO BOX LAYOUT: Compliance Matrix
-      ══════════════════════════════════════════════════════════ */}
-      <div className="bento-grid" style={{ marginBottom: 28 }}>
-        <div className="bento-col-12 card card-container glass-tactile card-spotlight reveal-on-scroll">
-        <div className="card-header">
-          <div>
-            <div className="card-kicker">
-              <Shield size={10} />
-              Continuous Compliance
-            </div>
-            <div className="card-title-text">
-              CIS AWS 1.4 · SOC 2 · PCI-DSS · HIPAA
-            </div>
+        {spark.length > 1 && (
+          <div className="h-12 w-full max-w-[260px]" aria-hidden>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={spark} margin={{ top: 4, right: 2, bottom: 2, left: 2 }}>
+                <defs>
+                  <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.22} />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <YAxis hide domain={[0, 100]} />
+                <Area type="monotone" dataKey="score" stroke="var(--accent)" strokeWidth={1.75} fill="url(#spark)" dot={false} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => navigate('/compliance')}
-          >
-            Full breakdown <ChevronRight size={11} />
-          </button>
-        </div>
-        <ComplianceMatrix compact={true} />
-        </div>
+        )}
       </div>
 
-      {/* ══════════════════════════════════════════════════════════
-          BENTO BOX LAYOUT: Recent findings + Service breakdown
-      ══════════════════════════════════════════════════════════ */}
-      <div className="bento-grid" style={{ marginBottom: 28 }}>
-        {/* Recent findings list */}
-        <div className="bento-col-8 card card-container glass-tactile card-spotlight reveal-on-scroll">
-          <div className="card-header">
-            <div>
-              <div className="card-kicker">
-                <Clock size={10} />
-                Active
-              </div>
-              <div className="card-title-text">High-Priority Findings</div>
-            </div>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => navigate('/findings')}
-            >
-              View all <ChevronRight size={11} />
+      <div className="grid content-start gap-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-sm text-fg-2">Open findings</p>
+          <p className="num text-sm text-fg"><span className="font-semibold">{totalOpen}</span> <span className="text-fg-3">across {Object.keys(d.stats?.by_service || {}).length || '—'} services</span></p>
+        </div>
+        {/* composition bar: severity share of open findings */}
+        <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-muted-2" role="img"
+             aria-label={open.map(s => `${s.count} ${s.label.toLowerCase()}`).join(', ')}>
+          {totalOpen > 0 && open.filter(s => s.count).map(s => (
+            <span key={s.key} className={cn('h-full first:rounded-l-full last:rounded-r-full', s.bar)} style={{ width: `${(s.count / totalOpen) * 100}%` }} />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+          {open.map(s => (
+            <button key={s.key} type="button" onClick={() => navigate(`/findings?severity=${s.key.toUpperCase()}`)}
+                    className="flex items-center justify-between gap-2 rounded-md py-0.5 text-left text-sm hover:text-fg">
+              <span className="flex items-center gap-2 text-fg-2"><span className={cn('size-2 rounded-[2px]', s.bar)} />{s.label}</span>
+              <span className="num font-medium text-fg">{s.count}</span>
             </button>
-          </div>
-
-          <div>
-            {recentFindings.map((f, idx) => {
-              const svc = (f.service || '').toLowerCase()
-              const meta = SERVICE_META[svc] || { name: f.service, color: 'var(--brand)', bg: 'var(--brand-subtle)' }
-              return (
-                <div
-                  key={f.id || idx}
-                  className="finding-row"
-                  onClick={() => navigate(`/findings?service=${f.service}`)}
-                >
-                  <div
-                    style={{
-                      width: 32, height: 32,
-                      borderRadius: 6,
-                      background: meta.bg,
-                      color: meta.color,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                      border: `1px solid ${meta.color}22`,
-                    }}
-                  >
-                    <ServiceIcon service={svc} size={13} />
-                  </div>
-                  <div className="flex-min-0" style={{ flex: 1, minWidth: 0 }}>
-                    <div className="finding-title-primary line-clamp-1">{f.title}</div>
-                    <div className="finding-title-secondary line-clamp-1">
-                      <span style={{ color: meta.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{f.service}</span>
-                      {' · '}{f.rule_id}
-                      {' · '}Risk: <strong style={{ color: 'var(--text-1)' }}>{f.risk_score}</strong>
-                    </div>
-                  </div>
-                  <SeverityBadge severity={f.severity} />
-                </div>
-              )
-            })}
-          </div>
+          ))}
         </div>
-
-        {/* Service breakdown */}
-        <div className="bento-col-4 card card-container glass-tactile card-spotlight reveal-on-scroll" style={{ animationDelay: '0.1s' }}>
-          <div className="card-header">
-            <div>
-              <div className="card-kicker">
-                <Activity size={10} />
-                Coverage
-              </div>
-              <div className="card-title-text">By AWS Service</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {serviceRows.length === 0 && (
-              <div style={{ fontSize: 13, color: 'var(--text-4)' }}>No open findings by service yet.</div>
-            )}
-            {serviceRows.map(({ svc, count, pct }) => {
-              const meta = SERVICE_META[svc] || { name: svc.toUpperCase(), color: 'var(--brand)' }
-              return (
-                <div
-                  key={svc}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/findings?service=${svc}`)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
-                      <span style={{ color: meta.color, display: 'flex' }}>
-                        <ServiceIcon service={svc} size={13} />
-                      </span>
-                      {meta.name}
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: meta.color }}>
-                      {count} issues
-                    </span>
-                  </div>
-                  <div className="progress-track">
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${pct}%`, background: meta.color }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          <div style={{
-            marginTop: 20,
-            paddingTop: 16,
-            borderTop: '1px solid var(--border-xs)',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))',
-            gap: 12,
-          }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--text-5)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>API</div>
-              {(() => {
-                const color = problem ? 'var(--sev-critical)' : 'var(--sev-low)'
-                return (
-                  <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, color, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
-                    {problem?.kind === 'down' ? 'Unreachable' : problem ? 'Error' : 'Connected'}
-                  </div>
-                )
-              })()}
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--text-5)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>Drift</div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, color: 'var(--text-2)' }}>
-                {driftEvents == null ? '—' : driftEvents === 0 ? 'No change since last scan' : `${driftEvents} change${driftEvents === 1 ? '' : 's'} since last scan`}
-              </div>
-            </div>
-          </div>
-        </div>
+        {top ? (
+          <Link to={`/findings/${top.id}`}
+                className="group mt-1 flex items-center gap-3 rounded-md border border-line bg-surface-2 px-3 py-2.5 transition-colors hover:border-line-strong">
+            <span className={cn('h-8 w-1 shrink-0 rounded-full', SEV_STRIPE[top.severity] || 'bg-fg-3')} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-fg-3">Fix this first</span>
+              <span className="block truncate text-sm font-medium text-fg">{top.title}</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-fg-3 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        ) : totalOpen === 0 && d.latest ? (
+          <p className="mt-1 rounded-md border border-low-line bg-low-soft px-3 py-2.5 text-sm text-low-text">Nothing open. Every check Nimbus runs is passing.</p>
+        ) : null}
       </div>
+    </Card>
+  )
+}
 
+function SeverityTiles({ d }) {
+  const navigate = useNavigate()
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {SEVERITIES.map(s => {
+        const cur = num(d.stats?.[s.key])
+        const delta = d.previous && d.latest ? num(d.latest[s.scanKey]) - num(d.previous[s.scanKey]) : undefined
+        return (
+          <StatTile key={s.key} label={s.label} value={cur} tone={s.tone} delta={delta}
+                    hint={delta !== undefined ? 'since last scan' : 'open'}
+                    onClick={() => navigate(`/findings?severity=${s.key.toUpperCase()}`)} />
+        )
+      })}
     </div>
+  )
+}
+
+function FixFirst({ d }) {
+  const rows = d.findings.filter(f => f.status !== 'RESOLVED').slice(0, 7)
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader title="Fix first" description="Open findings ranked by risk — exposure, severity and what they can reach."
+                  actions={<Button variant="ghost" size="sm" asChild><Link to="/findings">View all <ChevronRight /></Link></Button>} />
+      {d.findingsLoading ? (
+        <CardBody className="grid gap-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</CardBody>
+      ) : rows.length === 0 ? (
+        <EmptyState compact mood="happy" title="Nothing to fix" body={d.latest ? 'No open findings in the latest scan.' : 'Run a scan to see what needs attention.'} />
+      ) : (
+        <ul className="divide-y divide-line border-t border-line">
+          {rows.map(f => (
+            <li key={f.id}>
+              <Link to={`/findings/${f.id}`} className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-2">
+                <span className={cn('h-8 w-1 shrink-0 rounded-full', SEV_STRIPE[f.severity] || 'bg-fg-3')} aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-fg">{f.title}</span>
+                  <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-fg-3">
+                    <span className="font-mono">{f.rule_id}</span>
+                    <span aria-hidden>·</span>
+                    <span className="uppercase">{f.service}</span>
+                    {f.resource_name && <><span aria-hidden>·</span><span className="truncate">{f.resource_name}</span></>}
+                  </span>
+                </span>
+                <SeverityBadge severity={f.severity} size="sm" className="hidden sm:inline-flex" />
+                <span className="num w-8 text-right text-sm font-semibold text-fg" title="Risk score">{num(f.risk_score)}</span>
+                <ChevronRight className="size-4 shrink-0 text-fg-3 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+function Meter({ value, className }) {
+  const v = Math.max(0, Math.min(100, num(value)))
+  const color = v >= 70 ? 'bg-crit' : v >= 40 ? 'bg-high' : 'bg-low'
+  return (
+    <span className={cn('block h-1.5 overflow-hidden rounded-full bg-muted-2', className)}>
+      <span className={cn('block h-full rounded-full', color)} style={{ width: `${v}%` }} />
+    </span>
+  )
+}
+
+function Exposure({ d }) {
+  const b = d.blast
+  return (
+    <Card>
+      <CardHeader title="Exposure from the internet"
+                  actions={<Button variant="ghost" size="icon-sm" asChild aria-label="Open attack paths"><Link to="/topology"><ArrowUpRight /></Link></Button>} />
+      <CardBody className="grid gap-4">
+        {!b ? (
+          <p className="text-sm text-fg-2">Appears after the first scan builds the attack graph.</p>
+        ) : (
+          <>
+            <div className="grid gap-2">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-fg-2">Blast radius</span>
+                <span className="num text-sm"><span className="text-lg font-semibold text-fg">{num(b.blast_radius_score)}</span><span className="text-fg-3"> / 100</span></span>
+              </div>
+              <Meter value={b.blast_radius_score} />
+            </div>
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-md bg-surface-2 p-3">
+                <dt className="text-xs text-fg-3">Crown jewels reachable</dt>
+                <dd className={cn('num mt-0.5 text-lg font-semibold', num(b.crown_jewels_at_risk) ? 'text-crit-text' : 'text-fg')}>{num(b.crown_jewels_at_risk)}</dd>
+              </div>
+              <div className="rounded-md bg-surface-2 p-3">
+                <dt className="text-xs text-fg-3">Assets reachable</dt>
+                <dd className="num mt-0.5 text-lg font-semibold text-fg">{num(b.reachable_nodes_count)}</dd>
+              </div>
+            </dl>
+          </>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function SinceLastScan({ d }) {
+  const s = d.drift?.summary
+  const items = [
+    ['New', s?.new_count, 'text-crit-text'],
+    ['Fixed', s?.resolved_count, 'text-low-text'],
+    ['Came back', s?.regressed_count, 'text-high-text'],
+  ]
+  return (
+    <Card>
+      <CardHeader title="Since the last scan"
+                  actions={<Button variant="ghost" size="icon-sm" asChild aria-label="Open changes"><Link to="/drift"><ArrowUpRight /></Link></Button>} />
+      <CardBody>
+        {!s ? <p className="text-sm text-fg-2">Needs two completed scans to compare.</p> : (
+          <dl className="grid grid-cols-3 divide-x divide-line rounded-md border border-line">
+            {items.map(([label, v, tone]) => (
+              <div key={label} className="grid gap-0.5 px-3 py-2.5">
+                <dt className="text-xs text-fg-3">{label}</dt>
+                <dd className={cn('num text-lg font-semibold', num(v) ? tone : 'text-fg')}>{num(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function Coverage({ d }) {
+  return (
+    <Card>
+      <CardHeader title="Coverage"
+                  actions={<Button variant="ghost" size="icon-sm" asChild aria-label="Open assets"><Link to="/assets"><ArrowUpRight /></Link></Button>} />
+      <CardBody className="grid gap-2.5 text-sm">
+        <div className="flex items-center justify-between"><span className="text-fg-2">Assets inventoried</span><span className="num font-medium text-fg">{d.assets ?? '—'}</span></div>
+        <div className="flex items-center justify-between"><span className="text-fg-2">Regions</span><span className="truncate pl-4 font-mono text-xs text-fg">{d.account?.regions?.join(', ') || '—'}</span></div>
+        <div className="flex items-center justify-between">
+          <span className="text-fg-2">Permission gaps</span>
+          {d.gaps
+            ? <Link to="/settings" className="num font-medium text-med-text hover:underline">{d.gaps} blocked</Link>
+            : <span className="font-medium text-low-text">None</span>}
+        </div>
+      </CardBody>
+    </Card>
+  )
+}
+
+function CompliancePanel({ d }) {
+  return (
+    <Card>
+      <CardHeader title="Compliance" description="Share of automated controls passing in the latest scan."
+                  actions={<Button variant="ghost" size="sm" asChild><Link to="/compliance">Details <ChevronRight /></Link></Button>} />
+      <CardBody>
+        {d.complianceLoading ? <div className="grid gap-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8" />)}</div>
+          : d.compliance.length === 0 ? <p className="text-sm text-fg-2">Scores appear after the first scan.</p>
+          : (
+            <ul className="grid gap-4">
+              {d.compliance.map(f => {
+                const score = num(f.score)
+                return (
+                  <li key={f.id} className="grid gap-1.5">
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="font-medium text-fg">{frameworkName(f)}</span>
+                      <span className="num text-fg-2"><span className="font-semibold text-fg">{score}%</span> · {num(f.passingRules)} of {num(f.passingRules) + num(f.failingRules)} passing</span>
+                    </div>
+                    <span className="block h-1.5 overflow-hidden rounded-full bg-muted-2">
+                      <span className={cn('block h-full rounded-full', score >= 85 ? 'bg-low' : score >= 60 ? 'bg-med' : 'bg-crit')} style={{ width: `${score}%` }} />
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function ScoreTrend({ d }) {
+  const data = d.history.map(s => ({ date: shortDate(s.completed_at || s.started_at), score: num(s.risk_score) }))
+  return (
+    <Card>
+      <CardHeader title="Risk score over time" description={data.length > 1 ? `Last ${data.length} scans` : undefined} />
+      <CardBody>
+        {data.length < 2 ? (
+          <p className="grid h-[200px] place-items-center text-center text-sm text-fg-2">{d.demo ? 'Built from real scans — switch to live data.' : 'Appears after two completed scans.'}</p>
+        ) : (
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -24 }}>
+                <defs>
+                  <linearGradient id="trend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="0" />
+                <XAxis dataKey="date" tick={{ fill: 'var(--fg-3)', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={24} />
+                <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={{ fill: 'var(--fg-3)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <ChartTooltip
+                  cursor={{ stroke: 'var(--line-strong)' }}
+                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, boxShadow: 'var(--elev-overlay)', fontSize: 12 }}
+                  labelStyle={{ color: 'var(--fg-3)' }} itemStyle={{ color: 'var(--fg)' }}
+                  formatter={(v) => [v, 'Risk score']}
+                />
+                <Area type="monotone" dataKey="score" stroke="var(--accent)" strokeWidth={2} fill="url(#trend)"
+                      dot={false} activeDot={{ r: 4, fill: 'var(--accent)', stroke: 'var(--surface)', strokeWidth: 2 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function ByService({ d }) {
+  const entries = Object.entries(d.stats?.by_service || {}).sort((a, b) => b[1] - a[1])
+  const max = Math.max(1, ...entries.map(([, n]) => n))
+  return (
+    <Card>
+      <CardHeader title="Open findings by service" />
+      <CardBody>
+        {entries.length === 0 ? <p className="grid h-[200px] place-items-center text-sm text-fg-2">No open findings.</p> : (
+          <ul className="grid gap-3.5">
+            {entries.map(([svc, n]) => (
+              <li key={svc}>
+                <Link to={`/findings?service=${svc}`} className="group grid gap-1.5">
+                  <span className="flex items-baseline justify-between text-sm">
+                    <span className="text-fg group-hover:underline">{SERVICE_NAMES[svc] || svc.toUpperCase()}</span>
+                    <span className="num font-medium text-fg">{n}</span>
+                  </span>
+                  <span className="block h-1.5 overflow-hidden rounded-full bg-muted-2">
+                    <span className="block h-full rounded-full bg-fg-2 transition-[width] duration-500" style={{ width: `${(n / max) * 100}%` }} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+/* ─── page ─────────────────────────────────────────────────────────────────── */
+
+export default function Dashboard() {
+  const user = useUser()
+  const d = useOverview()
+  const cfg = useConfig()
+  const run = useCan('scan:run')
+  const { openScanModal, openExecutiveDossier } = useSentinelStore()
+  const hour = new Date().getHours()
+  const greeting = hour < 5 ? 'Working late' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const first = (user?.name || '').split(' ')[0]
+  const every = cfg.data?.scheduled_scans ? cfg.data.scan_interval_minutes : null
+
+  return (
+    <Page>
+      <GettingStarted />
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-6">
+        <div className="min-w-0">
+          <p className="text-sm text-fg-3">{greeting}{first ? `, ${first}` : ''}</p>
+          <h2 className="mt-0.5 text-xl font-semibold text-fg">Security posture</h2>
+          <p className="num mt-1 flex flex-wrap items-center gap-x-2 text-sm text-fg-2">
+            {d.account ? <span className="font-mono text-xs">AWS {d.account.id}</span> : d.demo ? <span>Sample account</span> : null}
+            {d.latest && <><span aria-hidden className="text-fg-3">·</span><span>Scanned {ago(d.latest.completed_at || d.latest.started_at)}</span></>}
+            {every && <><span aria-hidden className="text-fg-3">·</span><span>Rescans every {every} min</span></>}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={openExecutiveDossier}><FileText /> Executive report</Button>
+          <Button variant="primary" onClick={openScanModal} disabled={!run.allowed} title={run.reason || undefined} className="md:hidden"><Play /> Scan</Button>
+        </div>
+      </header>
+
+      {d.error && !d.stats ? (
+        <Card><ErrorState error={d.error} onRetry={d.refetch} /></Card>
+      ) : d.loading ? (
+        <div className="grid gap-4">
+          <Skeleton className="h-[220px] rounded-lg" />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-lg" />)}</div>
+          <Skeleton className="h-[320px] rounded-lg" />
+        </div>
+      ) : !d.latest && !d.demo ? (
+        <Card>
+          <EmptyState mood="calm" title="No scans yet"
+                      body="Run the first scan to see findings, attack paths and compliance for this account. It usually takes under a minute."
+                      action={<Button variant="primary" onClick={openScanModal} disabled={!run.allowed}><Play /> Run first scan</Button>} />
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          <PostureSummary d={d} />
+          <SeverityTiles d={d} />
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <FixFirst d={d} />
+            <div className="grid gap-4">
+              <Exposure d={d} />
+              <SinceLastScan d={d} />
+              <Coverage d={d} />
+            </div>
+          </div>
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <ScoreTrend d={d} />
+            <ByService d={d} />
+          </div>
+          <CompliancePanel d={d} />
+        </div>
+      )}
+    </Page>
   )
 }

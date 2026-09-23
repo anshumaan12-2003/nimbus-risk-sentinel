@@ -115,3 +115,23 @@ export function useLiveInvalidation() {
     if (latest.type === 'scan.completed' || latest.type === 'remediation.applied') triggerRefresh()  // legacy pages
   }), [qc, triggerRefresh])
 }
+
+export function useFindingStats() {
+  const on = useLive()
+  return useQuery({ queryKey: qk.stats, queryFn: () => get('/findings/stats'), enabled: on })
+}
+
+export function useLatestDrift() {
+  const on = useLive()
+  return useQuery({ queryKey: [...qk.drift, 'latest'], queryFn: () => get('/drift/latest'), enabled: on })
+}
+
+export function useCompliance() {
+  const on = useLive()
+  return useQuery({ queryKey: qk.compliance, queryFn: () => get('/compliance'), enabled: on })
+}
+
+export function useBlastRadius(nodeId = 'internet') {
+  const on = useLive()
+  return useQuery({ queryKey: [...qk.topology, 'blast', nodeId], queryFn: () => get(`/topology/blast-radius/${nodeId}`), enabled: on })
+}

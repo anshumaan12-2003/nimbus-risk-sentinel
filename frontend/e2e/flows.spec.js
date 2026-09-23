@@ -15,7 +15,7 @@ test('wrong password is rejected with one generic message', async ({ page }) => 
 test('a reload keeps you signed in (refresh cookie) and sign-out ends the session', async ({ page }) => {
   await signIn(page, 'viewer')
   await page.reload()
-  await expect(page.getByText('Security Command Center')).toBeVisible()
+  await expect(page.getByText('Security posture')).toBeVisible()
   expect(await page.evaluate(() => Object.keys(localStorage).some(k => /token/i.test(k)))).toBe(false)
   await page.getByRole('button', { name: /^Account:/ }).click()
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
