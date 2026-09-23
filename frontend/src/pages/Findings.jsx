@@ -1,819 +1,297 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
-import Search from 'lucide-react/dist/esm/icons/search'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import X from 'lucide-react/dist/esm/icons/x'
-import Terminal from 'lucide-react/dist/esm/icons/terminal'
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
-import Copy from 'lucide-react/dist/esm/icons/copy'
-import Check from 'lucide-react/dist/esm/icons/check'
-import Download from 'lucide-react/dist/esm/icons/download'
-import Code2 from 'lucide-react/dist/esm/icons/code-2'
-import Layers from 'lucide-react/dist/esm/icons/layers'
-import Shield from 'lucide-react/dist/esm/icons/shield'
-import Zap from 'lucide-react/dist/esm/icons/zap'
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
-import Play from 'lucide-react/dist/esm/icons/play'
-import Globe from 'lucide-react/dist/esm/icons/globe'
-import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right'
-import HardDrive from 'lucide-react/dist/esm/icons/hard-drive'
-import KeyRound from 'lucide-react/dist/esm/icons/key-round'
-import Server from 'lucide-react/dist/esm/icons/server'
-import Database from 'lucide-react/dist/esm/icons/database'
-import ReactMarkdown from 'react-markdown'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
+import { toast } from 'sonner'
+import { ArrowDown, ArrowUp, CheckCircle2, Download, Search, ShieldCheck, X } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { ago } from '@/lib/time'
+import { SERVICE_NAMES } from '@/lib/aws'
 import {
-  listFindings, updateFindingStatus, requestRemediation,
-  dryRunRemediation, api, apiError
-} from '../api/nimbus'
-import { useCan } from '../auth/authStore'
-import SeverityBadge from '../components/SeverityBadge'
-import { useSentinelStore } from '../store/sentinelStore'
-import EmptyState from '../components/EmptyState'
-import { MOCK_FINDINGS } from '../data/mockData'
+  Page, PageHeader, Card, Button, Input, SeverityBadge, StatusBadge, EmptyState, ErrorState, SkeletonRows,
+  Tabs, TabsList, TabsTrigger, Kbd, Tooltip,
+} from '@/components/ds'
+import FindingSheet from '@/components/findings/FindingSheet'
+import { downloadFile, toCsv } from '@/components/ui'
+import { useFindings } from '@/hooks/queries'
+import { useCan } from '@/auth/authStore'
+import { useSentinelStore } from '@/store/sentinelStore'
+import { apiError, requestRemediation, updateFindingStatus } from '@/api/nimbus'
+import { MOCK_FINDINGS } from '@/data/mockData'
 
-const SEVERITIES = ['', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
-const STATUSES   = ['', 'OPEN', 'RESOLVED']
-const SERVICES   = ['', 's3', 'iam', 'ec2', 'rds']
+const SEV_ORDER = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, INFO: 0 }
+const SEV_STRIPE = { CRITICAL: 'bg-crit', HIGH: 'bg-high', MEDIUM: 'bg-med', LOW: 'bg-low' }
+const STATUS_VIEWS = {
+  open: { label: 'Open', match: (f) => f.status === 'OPEN' || f.status === 'IN_PROGRESS' },
+  resolved: { label: 'Resolved', match: (f) => f.status === 'RESOLVED' },
+  accepted: { label: 'Accepted', match: (f) => f.status === 'ACCEPTED' },
+  all: { label: 'All', match: () => true },
+}
+const typing = (el) => el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
 
-function renderServiceIcon(service) {
-  switch ((service || '').toLowerCase()) {
-    case 's3':  return <HardDrive size={12} className="service-vector-icon" />
-    case 'iam': return <KeyRound size={12} className="service-vector-icon" />
-    case 'ec2': return <Server size={12} className="service-vector-icon" />
-    case 'rds': return <Database size={12} className="service-vector-icon" />
-    default:    return <Layers size={12} className="service-vector-icon" />
-  }
+function Checkbox({ checked, indeterminate, onChange, label }) {
+  const ref = useRef(null)
+  useEffect(() => { if (ref.current) ref.current.indeterminate = !!indeterminate }, [indeterminate])
+  return (
+    <input ref={ref} type="checkbox" checked={checked} onChange={onChange} aria-label={label} onClick={e => e.stopPropagation()}
+           className="size-4 cursor-pointer rounded-xs border-line-strong accent-[var(--accent)]" />
+  )
+}
+
+function SortHeader({ column, children, align }) {
+  const s = column.getIsSorted()
+  return (
+    <button type="button" onClick={column.getToggleSortingHandler()}
+            className={cn('inline-flex items-center gap-1 hover:text-fg', align === 'right' && 'ml-auto')}>
+      {children}
+      {s === 'asc' ? <ArrowUp className="size-3" /> : s === 'desc' ? <ArrowDown className="size-3" /> : null}
+    </button>
+  )
 }
 
 export default function Findings() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const { refreshDataTrigger, triggerRefresh, dataSource } = useSentinelStore()
-
-  const canRequest = useCan('remediation:request')
-  const canTriage = useCan('finding:triage')
-  const [findings, setFindings] = useState([])
-  const [offline, setOffline] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState(null)
-  const [inspectorTab, setInspectorTab] = useState('overview') // 'overview' | 'copilot' | 'remediate'
-  const [remediationTab, setRemediationTab] = useState('cli') // 'cli' | 'tf' | 'cf'
-  const [copied, setCopied] = useState(false)
-  const [toast, setToast] = useState(null)
-
-  // AI Copilot state inside inspector
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiExplanation, setAiExplanation] = useState('')
-  const [aiScript, setAiScript] = useState('')
-  const [aiError, setAiError] = useState(null)
-
-  // Auto-remediation execution state
-  const [remediating, setRemediating] = useState(false)
-  const [remediated, setRemediated] = useState(false)
-
-  // Multi-select bulk state
-  const [selectedIds, setSelectedIds] = useState([])
-  const [bulkRemediating, setBulkRemediating] = useState(false)
-
-  // Filters
-  const [severity, setSeverity] = useState(searchParams.get('severity') || '')
-  const [status, setStatus]     = useState(searchParams.get('status') || '')
-  const [service, setService]   = useState(searchParams.get('service') || '')
-  const [search, setSearch]     = useState(searchParams.get('search') || '')
-
-  useEffect(() => {
-    if (searchParams.get('severity')) setSeverity(searchParams.get('severity'))
-    if (searchParams.get('service'))  setService(searchParams.get('service'))
-  }, [searchParams])
-
-  const load = useCallback(async () => {
-    if (dataSource === 'demo') {
-      setOffline(false)
-      let f = MOCK_FINDINGS
-      if (severity) f = f.filter(x => x.severity === severity)
-      if (status) f = f.filter(x => x.status === status)
-      if (service) f = f.filter(x => x.service === service)
-      setFindings(f)
-      return
-    }
-
-    setLoading(true)
-    try {
-      const p = {}
-      if (severity) p.severity = severity
-      if (status)   p.status   = status
-      if (service)  p.service  = service
-      const data = await listFindings(p)
-      setFindings(Array.isArray(data) ? data : [])
-      setOffline(false)
-    } catch {
-      setFindings([])
-      setOffline(true)
-    } finally {
-      setLoading(false)
-    }
-  }, [severity, status, service, refreshDataTrigger, dataSource])
-
-  useEffect(() => { load() }, [load])
-
-  // Fetch AI Copilot insight when user switches to 'copilot' tab or selects a finding
-  const fetchAICopilot = useCallback(async (finding) => {
-    if (!finding) return
-    setAiLoading(true)
-    setAiError(null)
-    try {
-      const [expRes, scriptRes] = await Promise.all([
-        api.post('/copilot/explain', finding),
-        api.post('/copilot/remediate', { ...finding, format: 'cli' }),
-      ])
-      setAiExplanation(expRes.data.explanation)
-      setAiScript(scriptRes.data.script)
-    } catch (err) {
-      setAiError("AI Copilot is currently offline or unreachable.")
-    } finally {
-      setAiLoading(false)
-    }
-  }, [])
-
-  const handleSelectFinding = (f, initialTab = 'overview') => {
-    setSelected(f)
-    setInspectorTab(initialTab)
-    setRemediated(f.status === 'RESOLVED')
-    if (initialTab === 'copilot' || !aiExplanation) {
-      fetchAICopilot(f)
-    }
-  }
-  // Deep link: /findings/:findingId opens that finding's inspector (shareable URL)
+  const [params, setParams] = useSearchParams()
   const { findingId } = useParams()
   const navigate = useNavigate()
+  const qc = useQueryClient()
+  const demo = useSentinelStore(s => s.dataSource) === 'demo'
+  const canRequest = useCan('remediation:request')
+  const canTriage = useCan('finding:triage')
+  const query = useFindings({ limit: 500 })
+  const all = demo ? MOCK_FINDINGS : (query.data || [])
+
+  // Filters live in the URL, so any view can be shared or bookmarked.
+  const severity = params.get('severity') || ''
+  const service = params.get('service') || ''
+  const view = params.get('status') && STATUS_VIEWS[params.get('status').toLowerCase()] ? params.get('status').toLowerCase() : 'open'
+  const [q, setQ] = useState(params.get('q') || '')
+  const setParam = (k, v) => setParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
+  useEffect(() => { const t = setTimeout(() => setParam('q', q.trim()), 250); return () => clearTimeout(t) }, [q]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const inView = useMemo(() => all.filter(STATUS_VIEWS[view].match), [all, view])
+  const services = useMemo(() => [...new Set(all.map(f => f.service))].sort(), [all])
+  const sevCounts = useMemo(() => {
+    const c = { '': 0 }
+    inView.filter(f => !service || f.service === service).forEach(f => { c[f.severity] = (c[f.severity] || 0) + 1; c[''] += 1 })
+    return c
+  }, [inView, service])
+  const rows = useMemo(() => {
+    const needle = (params.get('q') || '').toLowerCase()
+    return inView.filter(f =>
+      (!severity || f.severity === severity) && (!service || f.service === service) &&
+      (!needle || `${f.title} ${f.rule_id} ${f.resource_name} ${f.resource_id}`.toLowerCase().includes(needle)))
+  }, [inView, severity, service, params])
+
+  const [sorting, setSorting] = useState([{ id: 'risk', desc: true }])
+  const [selection, setSelection] = useState({})
+  const [active, setActive] = useState(0)
+  const columns = useMemo(() => [
+    {
+      id: 'select', size: 40, enableSorting: false,
+      header: ({ table }) => <Checkbox label="Select all" checked={table.getIsAllRowsSelected()} indeterminate={table.getIsSomeRowsSelected()} onChange={table.getToggleAllRowsSelectedHandler()} />,
+      cell: ({ row }) => <Checkbox label={`Select ${row.original.title}`} checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />,
+    },
+    {
+      id: 'severity', accessorFn: f => SEV_ORDER[f.severity] ?? 0, size: 110,
+      header: ({ column }) => <SortHeader column={column}>Severity</SortHeader>,
+      cell: ({ row }) => <SeverityBadge severity={row.original.severity} size="sm" />,
+    },
+    {
+      id: 'title', accessorKey: 'title', enableSorting: false,
+      header: () => 'Finding',
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium text-fg">{row.original.title}</p>
+          <p className="mt-0.5 font-mono text-xs text-fg-3">{row.original.rule_id}</p>
+        </div>
+      ),
+    },
+    {
+      id: 'resource', accessorKey: 'resource_name', size: 220,
+      header: ({ column }) => <SortHeader column={column}>Resource</SortHeader>,
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <p className="truncate text-fg">{row.original.resource_name || row.original.resource_id}</p>
+          <p className="mt-0.5 truncate text-xs text-fg-3">{SERVICE_NAMES[row.original.service] || row.original.service}{row.original.region && row.original.region !== 'global' ? ` · ${row.original.region}` : ''}</p>
+        </div>
+      ),
+    },
+    {
+      id: 'status', accessorKey: 'status', size: 120,
+      header: ({ column }) => <SortHeader column={column}>Status</SortHeader>,
+      cell: ({ row }) => <StatusBadge status={row.original.status} size="sm" />,
+    },
+    {
+      id: 'detected', accessorFn: f => f.detected_at || f.created_at || '', size: 130,
+      header: ({ column }) => <SortHeader column={column}>Detected</SortHeader>,
+      cell: ({ row }) => <span className="whitespace-nowrap text-fg-2">{ago(row.original.detected_at || row.original.created_at)}</span>,
+    },
+    {
+      id: 'risk', accessorFn: f => Number(f.risk_score) || 0, size: 72,
+      header: ({ column }) => <div className="flex"><SortHeader column={column} align="right">Risk</SortHeader></div>,
+      cell: ({ getValue }) => <span className="num block text-right font-semibold text-fg">{getValue()}</span>,
+    },
+  ], [])
+
+  const table = useReactTable({
+    data: rows, columns, state: { sorting, rowSelection: selection }, getRowId: (f) => String(f.id),
+    onSortingChange: setSorting, onRowSelectionChange: setSelection, enableRowSelection: !demo,
+    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
+  })
+  const sorted = table.getRowModel().rows
+  const selected = table.getSelectedRowModel().rows.map(r => r.original)
+
+  // Deep link: /findings/:id opens that finding; closing returns to the list URL (keeps filters).
+  const open = findingId ? all.find(f => String(f.id) === findingId) : null
+  const [lastOpen, setLastOpen] = useState(null)   // keeps content on screen while the sheet animates out
+  useEffect(() => { if (open) setLastOpen(open) }, [open])
+  const openFinding = (f) => navigate({ pathname: `/findings/${f.id}`, search: params.toString() })
+  const closeFinding = () => navigate({ pathname: '/findings', search: params.toString() }, { replace: true })
+
+  // Keyboard: j/k move, Enter opens, x selects.
+  const listRef = useRef(null)
   useEffect(() => {
-    if (!findingId || !findings.length) return
-    const f = findings.find(x => x.id === findingId)
-    if (f && selected?.id !== f.id) handleSelectFinding(f)
-  }, [findingId, findings])
-  const wasOpen = useRef(false)
-  useEffect(() => {
-    if (selected) { wasOpen.current = true; return }
-    if (findingId && wasOpen.current) navigate('/findings', { replace: true })   // closed -> clean URL
-    wasOpen.current = false
-  }, [selected])
-
-
-  // Four-eyes: this sends the fix to an approver; AWS changes only when they approve it.
-  async function handleApplyRemediation() {
-    if (!selected?.id) return
-    setRemediating(true)
-    try {
-      await requestRemediation(selected.id, '')
-      setRemediated(true)
-      setFindings(prev => prev.map(f => f.id === selected.id ? { ...f, status: 'IN_PROGRESS' } : f))
-      setSelected(prev => ({ ...prev, status: 'IN_PROGRESS' }))
-      showToast('Sent for approval — see Approvals')
-      triggerRefresh()
-    } catch (err) {
-      showToast(`Not requested: ${apiError(err)}`)
-    } finally {
-      setRemediating(false)
+    const onKey = (e) => {
+      if (open || e.metaKey || e.ctrlKey || e.altKey || typing(document.activeElement)) return
+      if (e.key === 'j') { e.preventDefault(); setActive(i => Math.min(sorted.length - 1, i + 1)) }
+      else if (e.key === 'k') { e.preventDefault(); setActive(i => Math.max(0, i - 1)) }
+      else if (e.key === 'Enter' && sorted[active]) { e.preventDefault(); openFinding(sorted[active].original) }
+      else if (e.key === 'x' && sorted[active]) { e.preventDefault(); sorted[active].toggleSelected() }
     }
-  }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }) // re-bind each render: cheap, and always sees the current rows
+  useEffect(() => { listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' }) }, [active])
+  useEffect(() => { setActive(0) }, [severity, service, view, params])
 
-  async function toggleResolve(id) {
-    const nextStatus = selected?.status === 'RESOLVED' ? 'OPEN' : 'RESOLVED'
-    try {
-      await updateFindingStatus(id, nextStatus)
-      setFindings(prev => prev.map(f => f.id === id ? { ...f, status: nextStatus } : f))
-      setSelected(prev => ({ ...prev, status: nextStatus }))
-      setRemediated(nextStatus === 'RESOLVED')
-      showToast(`Finding marked as ${nextStatus}`)
-      triggerRefresh()
-    } catch {
-      showToast('Failed to update finding status')
+  const [busy, setBusy] = useState(false)
+  async function bulk(kind) {
+    setBusy(true)
+    let ok = 0; const errors = []
+    for (const f of selected) {
+      try { kind === 'request' ? await requestRemediation(f.id, 'Bulk request from Findings') : await updateFindingStatus(f.id, 'RESOLVED'); ok++ }
+      catch (e) { errors.push(`${f.rule_id}: ${apiError(e)}`) }
     }
+    setBusy(false); setSelection({})
+    qc.invalidateQueries({ queryKey: ['findings'] }); qc.invalidateQueries({ queryKey: ['remediation'] })
+    const verb = kind === 'request' ? 'sent for approval' : 'marked resolved'
+    if (errors.length) toast.warning(`${ok} of ${ok + errors.length} ${verb}`, { description: errors[0] + (errors.length > 1 ? ` (+${errors.length - 1} more)` : '') })
+    else toast.success(`${ok} ${ok === 1 ? 'finding' : 'findings'} ${verb}`)
   }
+  const exportCsv = (list) => downloadFile(`nimbus-findings-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(list, [
+    { label: 'Rule', get: f => f.rule_id }, { label: 'Severity', get: f => f.severity }, { label: 'Title', get: f => f.title },
+    { label: 'Service', get: f => f.service }, { label: 'Region', get: f => f.region }, { label: 'Resource', get: f => f.resource_id },
+    { label: 'Risk', get: f => f.risk_score }, { label: 'Status', get: f => f.status },
+  ]))
 
-  function showToast(msg) {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
-  }
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const filtered = findings.filter(f =>
-    !search ||
-    (f.title || '').toLowerCase().includes(search.toLowerCase()) ||
-    (f.resource_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (f.rule_id || '').toLowerCase().includes(search.toLowerCase())
-  )
-
-  const toggleSelectFinding = (id, e) => {
-    e?.stopPropagation()
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    )
-  }
-
-  const toggleSelectAll = () => {
-    if (selectedIds.length === filtered.length && filtered.length > 0) {
-      setSelectedIds([])
-    } else {
-      setSelectedIds(filtered.map(f => f.id || f.rule_id))
-    }
-  }
-
-  const handleBulkRemediate = async () => {
-    if (selectedIds.length === 0 || bulkRemediating) return
-    setBulkRemediating(true)
-    try {
-      const targets = findings.filter(f => selectedIds.includes(f.id || f.rule_id))
-      const fixed = [], failed = []
-      for (const target of targets) {
-        try {
-          await requestRemediation(target.id, 'Bulk request from Findings')
-          fixed.push(target.id)
-        } catch (err) {
-          failed.push(`${target.rule_id}: ${apiError(err)}`)
-        }
-      }
-      setFindings(prev => prev.map(f => fixed.includes(f.id) ? { ...f, status: 'IN_PROGRESS' } : f))
-      showToast(`Sent ${fixed.length}/${targets.length} for approval` + (failed.length ? ` — failed: ${failed[0]}${failed.length > 1 ? ` (+${failed.length - 1} more)` : ''}` : ''))
-      setSelectedIds([])
-      triggerRefresh()
-    } catch {
-      showToast('Bulk remediation encountered an issue')
-    } finally {
-      setBulkRemediating(false)
-    }
-  }
-
-  const handleBulkResolve = async () => {
-    if (selectedIds.length === 0) return
-    try {
-      const targets = findings.filter(f => selectedIds.includes(f.id || f.rule_id))
-      for (const target of targets) {
-        if (target.id) {
-          await updateFindingStatus(target.id, 'RESOLVED').catch(() => {})
-        }
-      }
-      setFindings(prev => prev.map(f => selectedIds.includes(f.id || f.rule_id) ? { ...f, status: 'RESOLVED' } : f))
-      showToast(`Marked ${selectedIds.length} findings as RESOLVED`)
-      setSelectedIds([])
-      triggerRefresh()
-    } catch {
-      showToast('Failed to update findings')
-    }
-  }
-
-  const handleExportSelectedCSV = () => {
-    const targets = findings.filter(f => selectedIds.includes(f.id || f.rule_id))
-    const headers = ['ID', 'Rule', 'Severity', 'Service', 'Title', 'Resource', 'RiskScore', 'Status']
-    const rows = targets.map(f => [
-      f.id, f.rule_id, f.severity, f.service, `"${(f.title || '').replace(/"/g, '""')}"`, `"${f.resource_id || f.resource_name}"`, f.risk_score, f.status
-    ])
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `sentinel-selected-${Date.now()}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-  }
-
-  const handleExportCSV = () => {
-    const headers = ['ID', 'Rule', 'Severity', 'Service', 'Title', 'Resource', 'RiskScore', 'Status']
-    const rows = filtered.map(f => [
-      f.id, f.rule_id, f.severity, f.service, `"${(f.title || '').replace(/"/g, '""')}"`, `"${f.resource_id || f.resource_name}"`, f.risk_score, f.status
-    ])
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `sentinel-findings-${Date.now()}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-  }
+  const filtersOn = severity || service || params.get('q')
+  const openCount = all.filter(STATUS_VIEWS.open.match).length
 
   return (
-    <div className="findings-container">
-      {/* ── Page Header ─────────────────────────────────────── */}
-      <div className="page-header">
-        <div>
-          <div className="page-tag">
-            <AlertTriangle size={12} />
-            <span>Continuous Misconfiguration Detection</span>
-          </div>
-          <h1 className="page-title">Security Findings</h1>
-          <p className="page-subtitle">
-            Autonomous multi-cloud policy audit results with Gemini AI Copilot risk analysis & one-click remediation.
-          </p>
-        </div>
+    <Page wide>
+      <PageHeader
+        title="Findings"
+        description={query.isLoading && !demo ? 'Loading…' : `${openCount} open across ${new Set(all.filter(STATUS_VIEWS.open.match).map(f => f.service)).size} services in the latest scan.`}
+        actions={<Button onClick={() => exportCsv(sorted.map(r => r.original))} disabled={!sorted.length}><Download /> Export CSV</Button>}
+      />
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-ghost" onClick={handleExportCSV} title="Export CSV for SOC 2 / CIS Audit">
-            <Download size={14} /> Export CSV
+      {/* toolbar */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Tabs value={view} onValueChange={(v) => setParam('status', v === 'open' ? '' : v)}>
+          <TabsList segmented>
+            {Object.entries(STATUS_VIEWS).map(([k, v]) => <TabsTrigger key={k} value={k}>{v.label}</TabsTrigger>)}
+          </TabsList>
+        </Tabs>
+        <div className="min-w-[200px] flex-1 sm:max-w-xs">
+          <Input icon={Search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search title, rule or resource" aria-label="Search findings" />
+        </div>
+        <select value={service} onChange={e => setParam('service', e.target.value)} aria-label="Service"
+                className="h-8 rounded-md border border-line-strong bg-surface px-2 text-sm text-fg hover:border-fg-3 focus:border-accent focus:outline-none">
+          <option value="">All services</option>
+          {services.map(s => <option key={s} value={s}>{SERVICE_NAMES[s] || s}</option>)}
+        </select>
+        {filtersOn && (
+          <Button variant="ghost" size="sm" onClick={() => { setQ(''); setParams(p => { const n = new URLSearchParams(); if (p.get('status')) n.set('status', p.get('status')); return n }, { replace: true }) }}>
+            <X /> Clear filters
+          </Button>
+        )}
+        <span className="ml-auto hidden items-center gap-1.5 text-xs text-fg-3 lg:flex"><Kbd>J</Kbd><Kbd>K</Kbd> move <Kbd>↵</Kbd> open <Kbd>X</Kbd> select</span>
+      </div>
+
+      {/* severity chips with counts */}
+      <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Severity">
+        {['', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(s => (
+          <button key={s || 'all'} type="button" onClick={() => setParam('severity', s)} aria-pressed={severity === s}
+                  className={cn('inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
+                    severity === s ? 'border-fg bg-fg text-bg' : 'border-line bg-surface text-fg-2 hover:border-line-strong hover:text-fg')}>
+            {s && <span className={cn('size-1.5 rounded-[2px]', SEV_STRIPE[s])} />}
+            {s ? s[0] + s.slice(1).toLowerCase() : 'All severities'}
+            <span className="num opacity-70">{sevCounts[s] || 0}</span>
           </button>
-          <button className="btn btn-ghost" onClick={load} disabled={loading} title="Reload findings from live database">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* ── Filter Bar ──────────────────────────────────────── */}
-      <div className="findings-filter-bar">
-        <div className="search-input-wrap" style={{ minWidth: 280, flex: 1 }}>
-          <Search size={14} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Filter by title, rule ID, ARN, or resource..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="search-input"
-          />
-          {search && (
-            <button className="search-clear-btn" onClick={() => setSearch('')}>
-              <X size={13} />
-            </button>
-          )}
-        </div>
-
-        {/* Severity filter pills */}
-        <div className="filter-group">
-          {SEVERITIES.map(sev => (
-            <button
-              key={sev}
-              className={`filter-chip ${severity === sev ? 'active' : ''}`}
-              onClick={() => setSeverity(sev)}
-            >
-              {sev || 'All Severities'}
-            </button>
-          ))}
-        </div>
-
-        {/* Status filter */}
-        <div className="filter-group">
-          {STATUSES.map(st => (
-            <button
-              key={st}
-              className={`filter-chip ${status === st ? 'active' : ''}`}
-              onClick={() => setStatus(st)}
-            >
-              {st || 'All Statuses'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Findings Table ─────────────────────────────────── */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          {offline && (
-            <div className="offline-banner" role="status" style={{ margin: '12px 12px 4px' }}>
-              <span className="offline-dot" />
-              Backend unreachable — showing demo findings, not your live cloud.
-              <button className="offline-retry" onClick={load}>Retry</button>
-            </div>
-          )}
-          <table className="findings-table">
-            <thead>
-              <tr>
-                <th style={{ width: 44, textAlign: 'center' }}>
-                  <input
-                    type="checkbox"
-                    className="finding-checkbox"
-                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
-                    onChange={toggleSelectAll}
-                    title="Select All Filtered"
-                  />
-                </th>
-                <th style={{ width: 128 }}>Severity</th>
-                <th style={{ width: 95 }}>Service</th>
-                <th style={{ width: 110 }}>Rule ID</th>
-                <th>Finding Title & Cloud Asset</th>
-                <th style={{ width: 85 }}>Risk</th>
-                <th style={{ width: 105 }}>Status</th>
-                <th style={{ width: 190, textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8}>
-                    <EmptyState
-                      compact
-                      mood="thinking"
-                      title="Nothing matches those filters"
-                      description="Try widening the severity or service filters, or clear the search to see everything."
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filtered.map(f => {
-                  const isChecked = selectedIds.includes(f.id || f.rule_id)
-                  const isRowSelected = selected?.id === f.id
-                  return (
-                      <tr
-                        key={f.id || f.rule_id}
-                        onClick={() => handleSelectFinding(f, 'overview')}
-                        style={{ cursor: 'pointer' }}
-                        className={`finding-row ${isRowSelected ? 'row-selected' : ''} ${isChecked ? 'row-checked' : ''}`}
-                      >
-                      <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          className="finding-checkbox"
-                          checked={isChecked}
-                          onChange={(e) => toggleSelectFinding(f.id || f.rule_id, e)}
-                        />
-                      </td>
-                      <td>
-                        <SeverityBadge severity={f.severity} />
-                      </td>
-                      <td>
-                        <span className="service-chip">
-                          {renderServiceIcon(f.service)}
-                          <span>{f.service?.toUpperCase()}</span>
-                        </span>
-                      </td>
-                      <td>
-                        <span className="font-mono text-cyan" style={{ fontWeight: 700, fontSize: 12 }}>
-                          {f.rule_id}
-                        </span>
-                      </td>
-                      <td style={{ maxWidth: 360 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }} className="truncate">
-                          {f.title}
-                        </div>
-                        <div className="font-mono text-secondary truncate" style={{ fontSize: 11 }}>
-                          {f.resource_id || f.resource_name}
-                        </div>
-                      </td>
-                      <td>
-                        <span style={{
-                          fontWeight: 800,
-                          fontSize: 13,
-                          color: f.risk_score >= 80 ? 'var(--sev-critical)' : f.risk_score >= 60 ? 'var(--sev-high)' : 'var(--sev-low)'
-                        }}>
-                          {f.risk_score}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`badge-pill ${f.status === 'RESOLVED' ? 'badge-low' : 'badge-high'}`}>
-                          {f.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div className="hover-actions-bar">
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ color: 'var(--sev-low)', background: 'var(--sev-low-bg)', border: '1px solid var(--sev-low-border)' }}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleSelectFinding(f, 'copilot')
-                            }}
-                            title="Open Gemini AI Security Analyst"
-                          >
-                            <Sparkles size={12} /> Copilot
-                          </button>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleSelectFinding(f, 'remediate')
-                            }}
-                          >
-                            <Zap size={12} /> Fix
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── FLOATING BULK REMEDIATION ACTION DOCK ────────────── */}
-      {selectedIds.length > 0 && (
-        <div className="bulk-action-dock">
-          <div className="dock-left">
-            <span className="dock-pill">{selectedIds.length} SELECTED</span>
-            <span className="dock-label">Misconfigurations staged for batch mitigation</span>
-          </div>
-
-          <div className="dock-actions">
-            <button
-              className="btn btn-primary btn-sm dock-action-btn pulse-glow"
-              onClick={handleBulkRemediate}
-              disabled={bulkRemediating || !canRequest.allowed}
-              title={canRequest.reason || 'Send the selected fixes to an approver'}
-            >
-              <Zap size={14} className={bulkRemediating ? 'animate-spin' : ''} />
-              {bulkRemediating ? `Requesting (${selectedIds.length})…` : `Request approval (${selectedIds.length})`}
-            </button>
-
-            <button
-              className="btn btn-ghost btn-sm dock-action-btn"
-              onClick={handleBulkResolve}
-              disabled={bulkRemediating || !canTriage.allowed}
-              title={canTriage.reason || undefined}
-            >
-              <CheckCircle2 size={14} color="#10b981" />
-              <span>Mark Resolved</span>
-            </button>
-
-            <button
-              className="btn btn-ghost btn-sm dock-action-btn"
-              onClick={handleExportSelectedCSV}
-              disabled={bulkRemediating}
-            >
-              <Download size={14} />
-              <span>Export CSV</span>
-            </button>
-
-            <button
-              className="btn-dock-clear"
-              onClick={() => setSelectedIds([])}
-              title="Clear selection"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── UNIFIED ALL-IN-ONE FINDING INSPECTOR DRAWER ────── */}
-      {selected && (
-        <div className="drawer-overlay" onClick={() => setSelected(null)}>
-          <div className="drawer-card inspector-drawer" onClick={e => e.stopPropagation()} style={{ width: '640px' }}>
-            
-            {/* Drawer Header */}
-            <div className="drawer-header" style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <SeverityBadge severity={selected.severity} />
-                <span className="font-mono text-cyan" style={{ fontWeight: 800, fontSize: 13 }}>{selected.rule_id}</span>
-                <span className="service-chip" style={{ fontSize: 11 }}>
-                  {renderServiceIcon(selected.service)}
-                  <span>{selected.service?.toUpperCase()}</span>
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button
-                  className={`btn btn-sm ${selected.status === 'RESOLVED' ? 'btn-ghost' : 'btn-primary'}`}
-                  onClick={() => toggleResolve(selected.id)}
-                  disabled={!canTriage.allowed}
-                  title={canTriage.reason || undefined}
-                  style={{ fontSize: 11.5 }}
-                >
-                  {selected.status === 'RESOLVED' ? <RefreshCw size={12} /> : <CheckCircle2 size={12} />}
-                  {selected.status === 'RESOLVED' ? 'Reopen Finding' : 'Mark Resolved'}
-                </button>
-                <button className="drawer-close-btn" onClick={() => setSelected(null)}>
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Inspector Navigation Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', padding: '0 24px' }}>
-              <button
-                className={`inspector-nav-tab ${inspectorTab === 'overview' ? 'active' : ''}`}
-                onClick={() => setInspectorTab('overview')}
-              >
-                <Shield size={13} /> Threat Overview
-              </button>
-              <button
-                className={`inspector-nav-tab ${inspectorTab === 'copilot' ? 'active' : ''}`}
-                onClick={() => {
-                  setInspectorTab('copilot')
-                  if (!aiExplanation) fetchAICopilot(selected)
-                }}
-              >
-                <Sparkles size={13} color="#10b981" /> AI Copilot Analyst
-              </button>
-              <button
-                className={`inspector-nav-tab ${inspectorTab === 'remediate' ? 'active' : ''}`}
-                onClick={() => setInspectorTab('remediate')}
-              >
-                <Zap size={13} color="var(--violet-bright)" /> Remediation
-              </button>
-            </div>
-
-            {/* Inspector Content Body */}
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', flex: 1 }}>
-              
-              {/* TAB 1: THREAT OVERVIEW */}
-              {inspectorTab === 'overview' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  <div>
-                    <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 8, lineHeight: 1.4, color: 'var(--text-primary)' }}>
-                      {selected.title}
-                    </h3>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                      {selected.description}
-                    </p>
-                  </div>
-
-                  {/* Target Cloud Resource Box */}
-                  <div className="card" style={{ padding: '14px', background: 'var(--bg-subtle)', border: '1px solid var(--border-normal)' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
-                      Target Cloud Resource ARN
-                    </div>
-                    <div className="font-mono text-cyan" style={{ fontSize: 12, wordBreak: 'break-all', fontWeight: 600 }}>
-                      {selected.resource_id || selected.resource_name}
-                    </div>
-                  </div>
-
-                  {/* Blast Radius Assessment */}
-                  <div className="card" style={{ padding: '16px', background: 'rgba(244,63,94,0.05)', border: '1px solid rgba(244,63,94,0.2)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--critical)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <AlertTriangle size={14} /> Blast Radius Assessment
-                    </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                      {selected.blast_radius || `Direct exposure: unauthorized compromise of ${selected.resource_name || 'asset'} grants lateral movement across VPC.`}
-                    </div>
-                  </div>
-
-                  {/* Compliance Mappings */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
-                      Governing Compliance Frameworks
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {(selected.compliance || ['CIS AWS 1.4 Benchmark §2.1', 'SOC 2 Type II CC6.1', 'PCI-DSS v3.2.1']).map(c => (
-                        <span key={c} className="compliance-pill" style={{ padding: '4px 10px', fontSize: 11.5 }}>
-                          {c}
-                        </span>
+      <Card className="overflow-hidden">
+        {query.isError && !demo ? <ErrorState error={query.error} onRetry={query.refetch} compact />
+          : query.isLoading && !demo ? <div className="p-5"><SkeletonRows rows={8} /></div>
+          : sorted.length === 0 ? (
+            <EmptyState compact mood={filtersOn || view !== 'open' ? 'thinking' : 'happy'}
+                        title={filtersOn ? 'Nothing matches these filters' : view === 'open' ? 'No open findings' : `No ${STATUS_VIEWS[view].label.toLowerCase()} findings`}
+                        body={filtersOn ? 'Try another severity or service, or clear the search.' : view === 'open' ? 'Every check Nimbus runs is passing.' : undefined} />
+          ) : (
+            <div className="overflow-x-auto" ref={listRef}>
+              <table className="w-full min-w-[860px] table-fixed border-collapse text-sm">
+                <colgroup>{table.getVisibleLeafColumns().map(c => <col key={c.id} style={c.id === 'title' ? undefined : { width: c.getSize() }} />)}</colgroup>
+                <thead className="sticky top-0 z-10 bg-surface-2">
+                  {table.getHeaderGroups().map(g => (
+                    <tr key={g.id} className="border-b border-line">
+                      {g.headers.map(h => (
+                        <th key={h.id} className="h-9 px-3 text-left text-xs font-medium text-fg-3 first:pl-4 last:pr-5">
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                        </th>
                       ))}
-                    </div>
-                  </div>
-
-                  {/* Quick Action Button */}
-                  <div style={{ marginTop: 10 }}>
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: '100%', gap: 8, height: 42 }}
-                      onClick={() => {
-                        setInspectorTab('copilot')
-                        fetchAICopilot(selected)
-                      }}
-                    >
-                      <Sparkles size={15} /> Analyze with Gemini AI Copilot
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: ✨ AI COPILOT ANALYST */}
-              {inspectorTab === 'copilot' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {aiLoading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 14 }}>
-                      <Sparkles className="animate-pulse" size={36} color="#10b981" />
-                      <div style={{ color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500 }}>
-                        Generating risk analysis with Gemini 3.5 Flash...
-                      </div>
-                    </div>
-                  ) : aiError ? (
-                    <div style={{ padding: 16, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 10, color: '#ef4444', display: 'flex', gap: 10 }}>
-                      <AlertTriangle size={18} />
-                      <div>{aiError}</div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      {/* AI Risk Card with High-Contrast Dark Styling */}
-                      <div className="ai-analyst-panel">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#38bdf8' }}>
-                            Executive Risk Analysis
-                          </span>
-                          <button
-                            onClick={() => fetchAICopilot(selected)}
-                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                          >
-                            <RefreshCw size={11} /> Re-analyze
-                          </button>
-                        </div>
-                        <div className="markdown-body">
-                          <ReactMarkdown>{aiExplanation}</ReactMarkdown>
-                        </div>
-                      </div>
-
-                      {/* Next Step Action */}
-                      <button
-                        className="btn btn-primary"
-                        style={{ width: '100%', gap: 8, height: 42 }}
-                        onClick={() => setInspectorTab('remediate')}
-                      >
-                        <Zap size={14} /> Review the fix
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TAB 3: ⚡ AUTO-REMEDIATION */}
-              {inspectorTab === 'remediate' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className={`filter-chip ${remediationTab === 'cli' ? 'active' : ''}`}
-                        onClick={() => setRemediationTab('cli')}
-                      >
-                        <Terminal size={12} /> AWS CLI
-                      </button>
-                      <button
-                        className={`filter-chip ${remediationTab === 'tf' ? 'active' : ''}`}
-                        onClick={() => setRemediationTab('tf')}
-                      >
-                        <Code2 size={12} /> Terraform HCL
-                      </button>
-                      <button
-                        className={`filter-chip ${remediationTab === 'cf' ? 'active' : ''}`}
-                        onClick={() => setRemediationTab('cf')}
-                      >
-                        <Layers size={12} /> CloudFormation
-                      </button>
-                    </div>
-
-                    <button
-                      className="btn-copy-code"
-                      onClick={() => {
-                        const code = remediationTab === 'cli' ? selected.remediation_cli || aiScript
-                          : remediationTab === 'tf' ? selected.remediation_tf
-                          : selected.remediation_cf || selected.remediation_cli
-                        handleCopy(code)
-                      }}
-                    >
-                      {copied ? <Check size={12} color="var(--low)" /> : <Copy size={12} />}
-                      {copied ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-
-                  {/* Syntax Code Box */}
-                  <pre className="inspector-code-block" style={{ maxHeight: '220px', background: '#050811', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 10, padding: 16 }}>
-                    <code style={{ color: '#a7f3d0', fontSize: 13, lineHeight: 1.6, fontFamily: 'JetBrains Mono, monospace' }}>
-                      {remediationTab === 'cli'
-                        ? selected.remediation_cli || aiScript || `aws ${selected.service} remediate --resource-id ${selected.resource_id}`
-                        : remediationTab === 'tf'
-                        ? selected.remediation_tf || `# Terraform remediation block for ${selected.rule_id}\nresource "aws_${selected.service}_hardened" "this" {\n  # zero-trust compliance policy\n}`
-                        : selected.remediation_cf || `# CloudFormation template for ${selected.rule_id}`
-                      }
-                    </code>
-                  </pre>
-
-                  {/* 1-Click Action */}
-                  <div style={{ marginTop: 10 }}>
-                    {selected.status !== 'RESOLVED' && selected.status !== 'IN_PROGRESS' && !remediated ? (
-                      <button
-                        className="btn btn-primary"
-                        style={{ width: '100%', height: 44, gap: 8, fontSize: 13, fontWeight: 700 }}
-                        onClick={handleApplyRemediation}
-                        disabled={remediating || !canRequest.allowed}
-                        title={canRequest.reason || 'Previews the change, then sends it to an approver'}
-                      >
-                        {remediating ? (
-                          <>
-                            <Sparkles className="animate-spin" size={15} /> Sending for approval…
-                          </>
-                        ) : (
-                          <>
-                            <Zap size={15} /> Request approval to auto-fix
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <div style={{ textAlign: 'center', padding: '14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: 'var(--low)', borderRadius: 10, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <CheckCircle2 size={16} /> {selected.status === 'RESOLVED' ? 'Resolved' : 'Waiting for approval'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {sorted.map((row, i) => (
+                    <tr key={row.id} data-index={i} onClick={() => { setActive(i); openFinding(row.original) }}
+                        className={cn('group relative cursor-pointer border-b border-line last:border-0 transition-colors hover:bg-surface-2',
+                          row.getIsSelected() && 'bg-accent-soft/60 hover:bg-accent-soft', i === active && 'bg-surface-2')}>
+                      {row.getVisibleCells().map((cell, ci) => (
+                        <td key={cell.id} className={cn('h-14 px-3 align-middle first:pl-4 last:pr-5', ci === 0 && 'relative')}>
+                          {ci === 0 && <span aria-hidden className={cn('absolute inset-y-2 left-0 w-[3px] rounded-r-full', SEV_STRIPE[row.original.severity], i === active ? 'opacity-100' : 'opacity-0 group-hover:opacity-60')} />}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          )}
+      </Card>
+      {sorted.length > 0 && <p className="num mt-3 text-xs text-fg-3">{sorted.length} of {all.length} findings</p>}
+
+      {/* bulk action bar */}
+      {selected.length > 0 && (
+        <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
+          <div role="toolbar" aria-label="Bulk actions"
+               className="flex animate-rise-in items-center gap-1 rounded-xl border border-line bg-surface p-1.5 pl-4 shadow-popover">
+            <span className="num mr-2 text-sm font-medium text-fg">{selected.length} selected</span>
+            <Tooltip content={canRequest.reason}>
+              <span><Button size="sm" variant="primary" disabled={!canRequest.allowed || busy} loading={busy} onClick={() => bulk('request')}><ShieldCheck /> Request fixes</Button></span>
+            </Tooltip>
+            <Tooltip content={canTriage.reason}>
+              <span><Button size="sm" disabled={!canTriage.allowed || busy} onClick={() => bulk('resolve')}><CheckCircle2 /> Mark resolved</Button></span>
+            </Tooltip>
+            <Button size="sm" variant="ghost" onClick={() => exportCsv(selected)}><Download /> Export</Button>
+            <Button size="icon-sm" variant="ghost" aria-label="Clear selection" onClick={() => setSelection({})}><X /></Button>
           </div>
         </div>
       )}
 
-      {/* Dynamic Island Toast */}
-      {toast && (
-        <div className="dynamic-island-wrapper">
-          <div className="dynamic-island expanded">
-            <span>{toast}</span>
-          </div>
-        </div>
-      )}
-    </div>
+      <FindingSheet finding={open || lastOpen} open={!!open} onOpenChange={(o) => { if (!o) closeFinding() }} />
+    </Page>
   )
 }

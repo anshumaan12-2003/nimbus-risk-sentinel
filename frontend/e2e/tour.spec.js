@@ -49,6 +49,13 @@ for (const theme of themes) {
         await page.waitForTimeout(600)           // let entrance motion settle
         await expect(page.locator('[data-error-boundary]'), `${name} crashed`).toHaveCount(0)
         await page.screenshot({ path: `test-results/tour/${theme}-${vp}-${name}.png`, fullPage: true })
+        if (name === 'findings') {                 // also capture the detail sheet
+          await page.locator('tbody tr').first().click()
+          await page.getByRole('dialog').waitFor()
+          await page.waitForTimeout(700)
+          await page.screenshot({ path: `test-results/tour/${theme}-${vp}-finding-sheet.png` })
+          await page.keyboard.press('Escape')
+        }
       }
     })
   }
