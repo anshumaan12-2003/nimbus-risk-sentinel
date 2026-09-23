@@ -15,7 +15,6 @@ import AuditFeedDrawer from './components/AuditFeedDrawer'
 import GlobalAICopilotDrawer from './components/GlobalAICopilotDrawer'
 import ExecutiveDossierModal from './components/ExecutiveDossierModal'
 import ErrorBoundary from './components/ErrorBoundary'
-import TableResizer from './components/TableResizer'
 import AccountHealthBanner from './components/AccountHealthBanner'
 import AuthGate from './auth/AuthGate'
 import { LiveStreamConnector, LiveToasts } from './components/LiveStream'
@@ -52,6 +51,7 @@ function AppRoutes() {
   }, [location.pathname])
   return (
     <div key={location.pathname.split('/')[1]} className="min-w-0 animate-fade-in">
+      <ErrorBoundary resetKey={location.pathname}>
       <Suspense fallback={<PageFallback />}>
         <Routes location={location}>
           <Route path="/" element={<Dashboard />} />
@@ -71,6 +71,7 @@ function AppRoutes() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </div>
   )
 }
@@ -118,9 +119,7 @@ export default function App() {
                 <Topbar />
                 <AccountHealthBanner />
                 <main id="main" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">
-                  <ErrorBoundary>
-                    <AppRoutes />
-                  </ErrorBoundary>
+                  <AppRoutes />
                 </main>
               </div>
             </div>
@@ -130,7 +129,6 @@ export default function App() {
             <AuditFeedDrawer />
             <GlobalAICopilotDrawer />
             <ExecutiveDossierModal />
-            <TableResizer />
             <LiveStreamConnector />
             <LiveToasts />
             <GlobalBehaviours />

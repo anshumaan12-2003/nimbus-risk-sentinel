@@ -120,7 +120,7 @@ export function TeamSection() {
         : 'Who has access and what they can do. Only admins can change this.'}</p>
       {users.isLoading ? <SkeletonRows rows={3} /> : users.isError ? <ErrorState error={users.error} onRetry={users.refetch} compact /> : (
         <div className="overflow-x-auto rounded-md border border-line">
-          <table className="team-table w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-surface-2 text-left text-xs text-fg-3">
               <tr><th className="py-2 pr-3 pl-4 font-medium">Person</th><th className="px-3 font-medium">Role</th><th className="px-3 font-medium">Last sign-in</th>{manage.allowed && <th className="pr-4"><span className="sr-only">Actions</span></th>}</tr>
             </thead>

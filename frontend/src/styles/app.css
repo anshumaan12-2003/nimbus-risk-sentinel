@@ -1,20 +1,14 @@
 /*
   The one stylesheet entry point.
 
-  Layer order is the contract: Tailwind utilities always win over the legacy stylesheets,
-  whatever their selector specificity, so rebuilt components can sit inside legacy pages.
-  As each page is rebuilt on the design system, its rules leave the legacy layer.
+  Everything is Tailwind utilities on the design tokens (tokens.css); the few global rules
+  below cover third-party widgets (React Flow) and printing.
 */
-@layer theme, base, legacy, components, utilities;
 
 @import "tailwindcss";
 @import "./tokens.css";
 @import "@xyflow/react/dist/style.css" layer(components);
 
-@import "./globals.css" layer(legacy);
-@import "./ui.css" layer(legacy);
-@import "./features.css" layer(legacy);
-@import "./mobile.css" layer(legacy);
 
 /* Theme dark variant follows the stamped attribute (set before paint in index.html). */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
