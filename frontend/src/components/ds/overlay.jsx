@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import * as DropdownPrimitive from '@radix-ui/react-dropdown-menu'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
+import * as PopoverPrimitive from '@radix-ui/react-popover'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from './button'
@@ -144,5 +145,24 @@ export function Tooltip({ content, side = 'top', children }) {
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
+  )
+}
+
+/* ─── Popover: non-modal panel anchored to a trigger (notifications, filters) ─── */
+export const Popover = PopoverPrimitive.Root
+export const PopoverTrigger = PopoverPrimitive.Trigger
+
+export function PopoverContent({ className, align = 'end', children, ...props }) {
+  return (
+    <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Content
+        align={align}
+        sideOffset={6}
+        className={cn('anim-pop z-50 rounded-lg border border-line bg-surface shadow-popover focus:outline-none', className)}
+        {...props}
+      >
+        {children}
+      </PopoverPrimitive.Content>
+    </PopoverPrimitive.Portal>
   )
 }

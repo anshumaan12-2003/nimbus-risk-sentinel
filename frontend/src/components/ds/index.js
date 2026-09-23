@@ -6,6 +6,7 @@ export { Input, Textarea, Field, Kbd } from './input'
 export {
   Dialog, DialogTrigger, DialogClose, DialogContent, Sheet, SheetTrigger, SheetContent,
   Menu, MenuTrigger, MenuContent, MenuItem, MenuLabel, MenuSeparator, Tooltip, TooltipProvider,
+  Popover, PopoverTrigger, PopoverContent,
 } from './overlay'
 export { Tabs, TabsList, TabsTrigger, TabsContent, Switch } from './tabs'
 export { Skeleton, SkeletonRows, EmptyState, ErrorState, QueryState } from './states'

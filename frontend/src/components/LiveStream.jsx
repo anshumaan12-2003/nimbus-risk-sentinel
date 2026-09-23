@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
 import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
 import GitCommit from 'lucide-react/dist/esm/icons/git-commit-horizontal'
@@ -115,61 +116,26 @@ export function LiveStreamConnector() {
   return null
 }
 
-/* Toasts — bottom-left (Copilot owns bottom-right). Skips your own
-   actions (you already saw them happen) and pauses dismissal on hover. */
+/* Live events as toasts (Sonner). Skips your own actions — you already saw them happen.
+   Severity shows as the toast's coloured marker; clicking "View" goes to the related page. */
 export function LiveToasts() {
   const events = useEventStore(s => s.events)
-  const [shown, setShown] = useState([])
   const seen = useRef(new Set())
-  const timers = useRef({})
   const navigate = useNavigate()
-
-  const dismiss = id => { clearTimeout(timers.current[id]); setShown(s => s.filter(t => t.id !== id)) }
-  const arm = id => { clearTimeout(timers.current[id]); timers.current[id] = setTimeout(() => dismiss(id), 6500) }
-
   useEffect(() => {
     const fresh = events.filter(e => !seen.current.has(e.id))
     fresh.forEach(e => seen.current.add(e.id))
-    const toastable = fresh.filter(e => e.source !== 'you')
-    if (!toastable.length) return
-    setShown(s => [...toastable.reverse(), ...s].slice(0, 3))
-    toastable.forEach(e => arm(e.id))
-  }, [events])
-
-  return (
-    <div className="live-toasts" aria-live="polite" aria-label="Live security events">
-      {shown.map(e => {
-        const Icon = EVENT_META[e.type]?.icon || Zap
-        return (
-          <div key={e.id} className={`live-toast tone-${toneFor(e)}`}
-               onMouseEnter={() => clearTimeout(timers.current[e.id])} onMouseLeave={() => arm(e.id)}>
-            <button className="live-toast-body" onClick={() => { if (e.link) navigate(e.link); dismiss(e.id) }}>
-              <span className="live-toast-icon"><Icon size={14} /></span>
-              <span className="live-toast-text">
-                <span className="live-toast-title">{e.title}</span>
-                {e.detail && <span className="live-toast-detail">{e.detail}</span>}
-              </span>
-            </button>
-            {e.source === 'simulated' && <span className="live-toast-tag">SIM</span>}
-            <button className="live-toast-close" onClick={() => dismiss(e.id)} aria-label="Dismiss"><X size={12} /></button>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-/* Header status pill: tells the truth about where events come from. */
-export function LiveStatusPill() {
-  const { mode, paused, togglePause } = useEventStore()
-  const label = paused ? 'Paused' : mode === 'live' ? 'Live' : mode === 'simulated' ? 'Simulated feed' : 'Connecting…'
-  const title = mode === 'simulated'
-    ? `No event socket — showing simulated events. Click to ${paused ? 'resume' : 'pause'}.`
-    : `Click to ${paused ? 'resume' : 'pause'} the event stream`
-  return (
-    <button className={`live-status-pill mode-${paused ? 'paused' : mode}`} onClick={togglePause} title={title} aria-pressed={paused}>
-      <span className="live-status-dot" />
-      {label}
-    </button>
-  )
+    fresh.filter(e => e.source !== 'you').slice(0, 3).reverse().forEach(e => {
+      const tone = toneFor(e)
+      const kind = tone === 'critical' || tone === 'high' ? 'warning' : tone === 'low' ? 'success' : 'message'
+      const opts = {
+        id: e.id,
+        description: [e.detail, e.source === 'simulated' ? 'simulated' : null].filter(Boolean).join(' · ') || undefined,
+        action: e.link ? { label: 'View', onClick: () => navigate(e.link) } : undefined,
+      }
+      if (kind === 'message') toast(e.title, opts)
+      else toast[kind](e.title, opts)
+    })
+  }, [events, navigate])
+  return null
 }

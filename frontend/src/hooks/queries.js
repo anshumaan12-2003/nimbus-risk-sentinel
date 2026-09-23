@@ -56,14 +56,14 @@ export function useFinding(id) {
   return useQuery({ queryKey: qk.finding(id), queryFn: () => get(`/findings/${id}`), enabled: !!id && on })
 }
 
-export function useFindings(params = {}) {
+export function useFindings(params = {}, { enabled = true } = {}) {
   const on = useLive()
-  return useQuery({ queryKey: qk.findings(params), queryFn: () => get('/findings', params), enabled: on })
+  return useQuery({ queryKey: qk.findings(params), queryFn: () => get('/findings', params), enabled: on && enabled })
 }
 
-export function useInventory() {
+export function useInventory({ enabled = true } = {}) {
   const on = useLive()
-  return useQuery({ queryKey: qk.inventory, queryFn: () => get('/inventory'), enabled: on })
+  return useQuery({ queryKey: qk.inventory, queryFn: () => get('/inventory'), enabled: on && enabled })
 }
 
 export function useControls() {

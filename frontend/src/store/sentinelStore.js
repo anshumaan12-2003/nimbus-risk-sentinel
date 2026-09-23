@@ -60,6 +60,13 @@ export const useSentinelStore = create((set, get) => ({
   openNav: () => set({ navOpen: true }),
   closeNav: () => set({ navOpen: false }),
   toggleNav: () => set((state) => ({ navOpen: !state.navOpen })),
+  // Desktop: sidebar collapsed to an icon rail (remembered per browser)
+  navCollapsed: (() => { try { return localStorage.getItem('nimbus-nav-collapsed') === '1' } catch { return false } })(),
+  toggleNavCollapsed: () => set((state) => {
+    const next = !state.navCollapsed
+    try { localStorage.setItem('nimbus-nav-collapsed', next ? '1' : '0') } catch { /* private mode */ }
+    return { navCollapsed: next }
+  }),
 
   // Command Palette
   commandPaletteOpen: false,

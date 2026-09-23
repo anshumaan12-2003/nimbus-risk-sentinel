@@ -1,27 +1,31 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSentinelStore } from '../store/sentinelStore'
+import { NAV, SETTINGS_ITEM } from '../app/nav'
 
-// Two-key "g then x" navigation, like GitHub/Linear. Ignored while typing in a field.
-const GOTO = { d: '/', f: '/findings', a: '/assets', w: '/workflow', t: '/topology', s: '/simulator',
-               c: '/compliance', r: '/drift', h: '/scans', p: '/approvals', ',': '/settings' }
+// Two-key "g then x" navigation, like GitHub/Linear. Keys come from the nav map. Ignored while typing.
+const PAGES = [...NAV.flatMap(g => g.items), SETTINGS_ITEM].filter(p => p.key)
+const GOTO = Object.fromEntries(PAGES.map(p => [p.key, p.to]))
 
-export const SHORTCUTS = [
-  { keys: '⌘K / Ctrl+K', label: 'Command palette' },
-  { keys: '/', label: 'Search (command palette)' },
-  { keys: 'g d', label: 'Go to Dashboard' },
-  { keys: 'g f', label: 'Go to Findings' },
-  { keys: 'g a', label: 'Go to Assets' },
-  { keys: 'g w', label: 'Go to Remediation board' },
-  { keys: 'g p', label: 'Go to Approvals' },
-  { keys: 'g s', label: 'Go to Attack simulator' },
-  { keys: 'g c', label: 'Go to Compliance' },
-  { keys: 'g r', label: 'Go to Drift' },
-  { keys: 'g h', label: 'Go to Scan history' },
-  { keys: 'g ,', label: 'Go to Settings' },
-  { keys: '?', label: 'Show this list' },
-  { keys: 'Esc', label: 'Close drawer / dialog' },
+export const SHORTCUT_GROUPS = [
+  {
+    title: 'General',
+    items: [
+      { keys: ['⌘', 'K'], label: 'Search and commands' },
+      { keys: ['/'], label: 'Search' },
+      { keys: ['⌘', 'J'], label: 'Ask Copilot' },
+      { keys: ['?'], label: 'Keyboard shortcuts' },
+      { keys: ['Esc'], label: 'Close panel or dialog' },
+    ],
+  },
+  {
+    title: 'Go to',
+    items: PAGES.map(p => ({ keys: ['G', p.key === ',' ? ',' : p.key.toUpperCase()], label: p.label })),
+  },
 ]
+
+// Flat list for the Settings page.
+export const SHORTCUTS = SHORTCUT_GROUPS.flatMap(g => g.items.map(s => ({ keys: s.keys.join(' '), label: s.label })))
 
 const typing = (el) => el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
 
@@ -36,7 +40,7 @@ export function useShortcuts() {
       if (e.metaKey || e.ctrlKey || e.altKey || typing(document.activeElement)) return
       if (pendingG) {
         pendingG = false; clearTimeout(timer)
-        const to = GOTO[e.key]
+        const to = GOTO[e.key.toLowerCase()]
         if (to) { e.preventDefault(); navigate(to) }
         return
       }

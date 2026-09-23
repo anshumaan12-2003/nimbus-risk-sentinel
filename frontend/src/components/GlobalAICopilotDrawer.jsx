@@ -100,21 +100,6 @@ export default function GlobalAICopilotDrawer() {
 
   return (
     <>
-      {/* Floating AI Command Trigger Button */}
-      <button
-        type="button"
-        className="floating-ai-trigger"
-        onClick={toggleGlobalCopilot}
-        title="Open Security Copilot (⌘J)"
-        aria-label="Open Security Copilot"
-      >
-        <div className="floating-ai-icon">
-          <Sparkles size={15} />
-        </div>
-        <span className="floating-ai-label">Copilot</span>
-        <kbd className="floating-ai-kbd">⌘J</kbd>
-      </button>
-
       {/* Slide-out Conversational Drawer */}
       {globalCopilotOpen && (
         <div className="drawer-overlay" onClick={closeGlobalCopilot} style={{ zIndex: 2200 }}>

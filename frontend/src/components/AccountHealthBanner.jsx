@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check'
-import X from 'lucide-react/dist/esm/icons/x'
+import { AlertTriangle, X } from 'lucide-react'
+import { Button } from '@/components/ds'
+import { cn } from '@/lib/cn'
 import { usePreflight } from '../hooks/queries'
 import { getPreflight, apiError } from '../api/nimbus'
 import { qk } from '../lib/queryClient'
@@ -50,31 +50,22 @@ export default function AccountHealthBanner() {
   }
 
   if (!state || hidden) return null
-  const palette = {
-    demo:  { bg: 'var(--violet-dim)',   bd: 'var(--border-normal)',   Icon: AlertTriangle, msg: 'Demo mode: sample data, not your AWS account.' },
-    error: { bg: 'var(--critical-dim)', bd: 'var(--critical-border)', Icon: AlertTriangle },
-    warn:  { bg: 'var(--high-dim, #ffedd5)', bd: 'var(--border-normal)', Icon: AlertTriangle },
-    ok:    { bg: 'var(--low-dim)',      bd: 'var(--low-border)',      Icon: ShieldCheck },
+  const tone = {
+    demo: 'border-accent-line bg-accent-soft text-accent-text',
+    error: 'border-crit-line bg-crit-soft text-crit-text',
+    warn: 'border-med-line bg-med-soft text-med-text',
   }[state.kind]
-  const { Icon } = palette
   return (
-    <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 24px 0', padding: '10px 14px',
-      borderRadius: 8, background: palette.bg, border: `1px solid ${palette.bd}`, fontSize: 13 }}>
-      <Icon size={15} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        {palette.msg || state.msg}
-        {state.detail && (
-          <code style={{ display: 'block', marginTop: 4, fontSize: 11, opacity: 0.8, overflowWrap: 'anywhere' }}>{state.detail}</code>
-        )}
-      </span>
+    <div role="status" className={cn('mx-3 mt-3 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm sm:mx-5', tone)}>
+      <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">{state.kind === 'demo' ? 'Demo mode — sample data, not your AWS account.' : state.msg}</p>
+        {state.detail && <p className="mt-1 font-mono text-xs break-words opacity-80">{state.detail}</p>}
+      </div>
       {state.kind !== 'demo' && (
-        <button className="btn btn-ghost btn-sm" onClick={recheck} disabled={checking}>
-          {checking ? 'Checking…' : 'Re-check'}
-        </button>
+        <Button size="sm" onClick={recheck} loading={checking}>{checking ? 'Checking' : 'Re-check'}</Button>
       )}
-      <button aria-label="Dismiss" onClick={() => setHidden(true)} style={{ background: 'none', border: 0, cursor: 'pointer', color: 'inherit' }}>
-        <X size={14} />
-      </button>
+      <Button variant="ghost" size="icon-sm" aria-label="Dismiss" onClick={() => setHidden(true)} className="text-current hover:bg-black/5 dark:hover:bg-white/10"><X /></Button>
     </div>
   )
 }
