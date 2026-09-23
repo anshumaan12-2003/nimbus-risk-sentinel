@@ -1,14 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { fileURLToPath } from 'node:url'
 
-const API_TARGET = process.env.VITE_API_URL || 'http://127.0.0.1:8001'
+// API_PROXY_TARGET: Docker Compose + Playwright; VITE_API_URL kept for older setups
+const API_TARGET = process.env.API_PROXY_TARGET || process.env.VITE_API_URL || 'http://127.0.0.1:8001'
 // A browser tab closing mid-socket is normal; don't print a stack trace for it.
 const quietWs = { target: API_TARGET.replace(/^http/, 'ws'), ws: true, changeOrigin: true,
   configure: (proxy) => proxy.on('error', () => {}) }
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     rollupOptions: {
       output: {

@@ -19,6 +19,7 @@ const PY = process.env.NIMBUS_PYTHON || 'python'
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: process.env.TOUR ? [] : [/tour\.spec/],   // the UI tour runs only via `npm run ui:tour`
   fullyParallel: false,
   workers: 1,                      // one shared fake account; flows mutate it
   retries: process.env.CI ? 1 : 0,
@@ -38,6 +39,7 @@ export default defineConfig({
   projects: [
     { name: 'visual-desktop', testMatch: /visual\.spec/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'visual-mobile', testMatch: /visual\.spec/, use: { ...devices['Pixel 7'] } },
+    { name: 'tour', testMatch: /tour\.spec/, use: { ...devices['Desktop Chrome'] } },
     { name: 'flows', testMatch: /flows\.spec/, dependencies: ['visual-desktop', 'visual-mobile'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
   ],

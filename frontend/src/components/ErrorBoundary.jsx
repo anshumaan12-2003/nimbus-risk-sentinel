@@ -34,7 +34,7 @@ export default class ErrorBoundary extends React.Component {
           justifyContent: 'center',
           padding: '40px 20px',
         }}>
-          <div className="card" style={{ maxWidth: 560, width: '100%', textAlign: 'center' }}>
+          <div className="card" data-error-boundary style={{ maxWidth: 560, width: '100%', textAlign: 'center' }}>
             <div
               className="stat-icon-box critical"
               style={{ width: 44, height: 44, margin: '0 auto 16px' }}

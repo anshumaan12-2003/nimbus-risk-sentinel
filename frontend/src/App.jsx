@@ -18,6 +18,7 @@ import AccountHealthBanner from './components/AccountHealthBanner'
 import AuthGate from './auth/AuthGate'
 import { LiveStreamConnector, LiveToasts } from './components/LiveStream'
 import { Drawer, Skeleton } from './components/ui'
+import { TooltipProvider } from './components/ds'
 
 /*
   Route-level code splitting: each page is its own chunk, so the first load only
@@ -36,6 +37,7 @@ const IacScanner = lazy(() => import('./pages/IacScanner'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Approvals = lazy(() => import('./pages/Approvals'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const UiKit = lazy(() => import('./pages/UiKit'))
 
 const TITLES = {
   '/': 'Dashboard', '/findings': 'Findings', '/assets': 'Assets', '/topology': 'Attack Graph',
@@ -68,6 +70,7 @@ function AnimatedRoutes() {
           <Route path="/scans" element={<ScanHistory />} />
           <Route path="/iac" element={<IacScanner />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/ui" element={<UiKit />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -96,6 +99,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
       <BrowserRouter>
         <AuthGate>
         <a href="#main" className="ui-skip-link">Skip to content</a>
@@ -123,6 +127,7 @@ export default function App() {
         </div>
         </AuthGate>
       </BrowserRouter>
+      </TooltipProvider>
     </QueryClientProvider>
   )
 }

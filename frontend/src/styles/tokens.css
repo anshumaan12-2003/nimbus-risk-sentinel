@@ -192,3 +192,21 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Overlay motion, driven by Radix data-state so exit animations play before unmount. */
+@keyframes overlay-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes dialog-in   { from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes dialog-out  { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -48%) scale(0.98); } }
+@keyframes sheet-in    { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes sheet-out   { from { transform: none; } to { transform: translateX(100%); } }
+@keyframes pop-in      { from { opacity: 0; transform: scale(0.97) translateY(-2px); } to { opacity: 1; transform: none; } }
+@keyframes pop-out     { from { opacity: 1; } to { opacity: 0; transform: scale(0.98); } }
+
+@utility anim-overlay { &[data-state="open"] { animation: overlay-in 200ms var(--ease-standard); } &[data-state="closed"] { animation: overlay-out 150ms var(--ease-exit); } }
+@utility anim-dialog  { &[data-state="open"] { animation: dialog-in 240ms var(--ease-standard); } &[data-state="closed"] { animation: dialog-out 150ms var(--ease-exit); } }
+@utility anim-sheet   { &[data-state="open"] { animation: sheet-in 320ms var(--ease-standard); } &[data-state="closed"] { animation: sheet-out 200ms var(--ease-exit); } }
+@utility anim-pop     { &[data-state="open"], &[data-state="delayed-open"] { animation: pop-in 160ms var(--ease-standard); } &[data-state="closed"] { animation: pop-out 100ms var(--ease-exit); } }
+
+/* Tabular figures wherever numbers are compared. */
+@utility num { font-variant-numeric: tabular-nums; }
