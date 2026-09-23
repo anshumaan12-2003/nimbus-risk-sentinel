@@ -9,6 +9,7 @@
 
 @import "tailwindcss";
 @import "./tokens.css";
+@import "@xyflow/react/dist/style.css" layer(components);
 
 @import "./globals.css" layer(legacy);
 @import "./ui.css" layer(legacy);
@@ -17,3 +18,23 @@
 
 /* Theme dark variant follows the stamped attribute (set before paint in index.html). */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* React Flow, themed by our tokens (both themes). */
+.nimbus-flow .react-flow {
+  --xy-background-color: transparent;
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--muted);
+  --xy-controls-button-color: var(--fg-2);
+  --xy-controls-button-color-hover: var(--fg);
+  --xy-controls-button-border-color: var(--line);
+  --xy-controls-box-shadow: var(--elev-raised);
+  --xy-minimap-background-color: var(--surface);
+  --xy-edge-label-background-color: var(--surface);
+}
+.nimbus-flow .react-flow__controls { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.nimbus-flow .react-flow__minimap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.nimbus-flow .react-flow__edge { cursor: pointer; }
+
+@keyframes edge-flow { to { stroke-dashoffset: -20; } }
+.nimbus-edge-flow { stroke-dasharray: 6 4; animation: edge-flow 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .nimbus-edge-flow { animation: none; } }

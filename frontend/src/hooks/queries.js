@@ -135,3 +135,8 @@ export function useBlastRadius(nodeId = 'internet') {
   const on = useLive()
   return useQuery({ queryKey: [...qk.topology, 'blast', nodeId], queryFn: () => get(`/topology/blast-radius/${nodeId}`), enabled: on })
 }
+
+export function useAttackEnvironment() {
+  const on = useLive()
+  return useQuery({ queryKey: [...qk.topology, 'environment'], queryFn: () => get('/topology/environment'), enabled: on })
+}

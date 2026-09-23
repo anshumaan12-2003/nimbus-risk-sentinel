@@ -1,358 +1,174 @@
-import { useState, useEffect } from 'react'
-import Compass from 'lucide-react/dist/esm/icons/compass'
-import Shield from 'lucide-react/dist/esm/icons/shield'
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
-import Layers from 'lucide-react/dist/esm/icons/layers'
-import Zap from 'lucide-react/dist/esm/icons/zap'
-import Lock from 'lucide-react/dist/esm/icons/lock'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import Terminal from 'lucide-react/dist/esm/icons/terminal'
-import Download from 'lucide-react/dist/esm/icons/download'
-import Check from 'lucide-react/dist/esm/icons/check'
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right'
-import Database from 'lucide-react/dist/esm/icons/database'
-import Server from 'lucide-react/dist/esm/icons/server'
-import Key from 'lucide-react/dist/esm/icons/key'
-import Globe from 'lucide-react/dist/esm/icons/globe'
-import HardDrive from 'lucide-react/dist/esm/icons/hard-drive'
-import KeyRound from 'lucide-react/dist/esm/icons/key-round'
-import AttackPathGraph from '../components/AttackPathGraph'
-import { getTopologyGraph, getFindingBlastRadius, listFindings } from '../api/nimbus'
-import { useSentinelStore } from '../store/sentinelStore'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ChevronRight, Crosshair, Crown, Play } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import {
+  Page, PageHeader, Card, CardHeader, CardBody, Button, StatTile, EmptyState, ErrorState, Skeleton, Switch,
+  SeverityBadge, ResourceId, Badge,
+} from '@/components/ds'
+import AttackCanvas, { LAYERS } from '@/components/graph/AttackCanvas'
+import { useAttackEnvironment, useFindings } from '@/hooks/queries'
+import { useSentinelStore } from '@/store/sentinelStore'
+import { ENV_NODES, ENV_EDGES, bfs, pathTo } from '@/data/cloudEnvironment'
+import { MOCK_FINDINGS } from '@/data/mockData'
 
-const ATTACK_VECTORS = [
-  {
-    id: 'node-s3',
-    name: 'S3 Data Lake Exposure',
-    icon: HardDrive,
-    startAsset: 's3://customer-finance-records-2026',
-    vectorDesc: 'Unauthenticated read/write access exposes pipeline configuration and secrets',
-  },
-  {
-    id: 'node-ec2',
-    name: 'EC2 Metadata IMDSv1 Compromise',
-    icon: Server,
-    startAsset: 'i-08249bf57a0129c (api-worker-node-03)',
-    vectorDesc: 'SSRF or workload vulnerability extracts instance profile temporary STS credentials',
-  },
-  {
-    id: 'node-iam',
-    name: 'IAM Role Over-Privilege Pivot',
-    icon: KeyRound,
-    startAsset: 'arn:aws:iam::role/DataOpsPipelineEngine',
-    vectorDesc: 'Excessive wildcard grants permit lateral access to production transactional datastore',
-  },
-]
+/* Everything reachable from the internet, and the shortest route to each reachable crown jewel. */
+function analyse(nodes, edges) {
+  const r = bfs('internet', new Set(), edges)
+  const crowns = nodes.filter(n => n.crown)
+  const reachedCrowns = crowns.filter(n => n.id in r.hop)
+  const pathEdges = new Set(reachedCrowns.flatMap(c => pathTo(c.id, r.via, edges)))
+  const byId = Object.fromEntries(edges.map(e => [e.id, e]))
+  const pathNodes = new Set(['internet', ...[...pathEdges].flatMap(id => [byId[id].from, byId[id].to])])
+  return { ...r, crowns, reachedCrowns, pathEdges, pathNodes, reachable: Object.keys(r.hop).length - 1 }
+}
+
+function NodePanel({ node, nodes, edges, findings, onClose }) {
+  const navigate = useNavigate()
+  const from = useMemo(() => bfs(node.id, new Set(), edges), [node.id, edges])
+  const fromInternet = useMemo(() => bfs('internet', new Set(), edges).hop[node.id], [node.id, edges])
+  const crownsFromHere = nodes.filter(n => n.crown && n.id !== node.id && n.id in from.hop)
+  const touching = edges.filter(e => e.from === node.id || e.to === node.id)
+  const findingIds = new Set(touching.map(e => e.findingId).filter(Boolean))
+  const related = findings.filter(f => findingIds.has(f.id) || (node.arn && f.resource_id === node.arn) || f.resource_id === node.id)
+
+  return (
+    <Card className="animate-rise-in">
+      <CardHeader title={node.short} description={`${node.kind} · ${LAYERS[node.layer]}`}
+                  actions={<Button variant="ghost" size="sm" onClick={onClose}>Close</Button>} />
+      <CardBody className="grid gap-5">
+        {node.crown && <Badge tone="critical"><Crown className="size-3" /> Crown jewel</Badge>}
+        {node.arn && <ResourceId value={node.arn} />}
+        <dl className="grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-md bg-surface-2 p-3">
+            <dt className="text-xs text-fg-3">From the internet</dt>
+            <dd className="mt-0.5 font-semibold text-fg">{node.id === 'internet' ? '—' : fromInternet != null ? `${fromInternet} step${fromInternet === 1 ? '' : 's'}` : 'Not reachable'}</dd>
+          </div>
+          <div className="rounded-md bg-surface-2 p-3">
+            <dt className="text-xs text-fg-3">Reaches from here</dt>
+            <dd className="num mt-0.5 font-semibold text-fg">{Object.keys(from.hop).length - 1} assets</dd>
+          </div>
+        </dl>
+        {crownsFromHere.length > 0 && (
+          <div className="grid gap-1.5">
+            <p className="text-xs font-medium tracking-wide text-fg-3 uppercase">Crown jewels exposed from here</p>
+            <ul className="grid gap-1 text-sm text-fg">{crownsFromHere.map(c => <li key={c.id} className="flex items-center gap-2"><Crown className="size-3.5 text-crit-text" />{c.short}</li>)}</ul>
+          </div>
+        )}
+        <div className="grid gap-1.5">
+          <p className="text-xs font-medium tracking-wide text-fg-3 uppercase">Findings that open these routes</p>
+          {related.length === 0 ? <p className="text-sm text-fg-2">None linked to this asset.</p> : (
+            <ul className="divide-y divide-line rounded-md border border-line">
+              {related.slice(0, 6).map(f => (
+                <li key={f.id}>
+                  <Link to={`/findings/${f.id}`} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-2">
+                    <SeverityBadge severity={f.severity} size="sm" />
+                    <span className="min-w-0 flex-1 truncate text-fg">{f.title}</span>
+                    <ChevronRight className="size-4 text-fg-3" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {!node.crown && (
+          <Button variant="primary" className="w-fit" onClick={() => navigate(`/simulator?entry=${encodeURIComponent(node.id)}`)}>
+            <Crosshair /> Simulate a breach from here
+          </Button>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
 
 export default function Topology() {
-  const { dataSource } = useSentinelStore()
-  const [selectedVector, setSelectedVector] = useState('node-s3')
-  const [computing, setComputing] = useState(false)
-  const [blastData, setBlastData] = useState({
-    blast_radius_score: 95,
-    severity: 'CRITICAL',
-    reachable_nodes_count: 4,
-    crown_jewels_at_risk: 1,
-    identities_compromised: 1,
-    reachable_assets: [
-      {
-        node: { id: 'node-ec2', name: 'EC2: api-worker-node-03', type: 'compute', service: 'ec2', threat_level: 'HIGH' },
-        hop_distance: 1,
-        attack_path: ['node-s3', 'node-ec2'],
-      },
-      {
-        node: { id: 'node-iam', name: 'IAM: DataOpsPipelineEngine', type: 'identity', service: 'iam', threat_level: 'HIGH' },
-        hop_distance: 2,
-        attack_path: ['node-s3', 'node-ec2', 'node-iam'],
-      },
-      {
-        node: { id: 'node-rds', name: 'RDS: prod-financial-aurora', type: 'crown_jewel', service: 'rds', threat_level: 'CRITICAL' },
-        hop_distance: 3,
-        attack_path: ['node-s3', 'node-ec2', 'node-iam', 'node-rds'],
-      },
-    ]
-  })
+  const demo = useSentinelStore(s => s.dataSource) === 'demo'
+  const { openScanModal } = useSentinelStore()
+  const q = useAttackEnvironment()
+  const findingsQ = useFindings({ limit: 500 })
+  const env = demo ? { nodes: ENV_NODES, edges: ENV_EDGES } : (q.data?.nodes ? q.data : { nodes: [], edges: [] })
+  const findings = demo ? MOCK_FINDINGS : (findingsQ.data || [])
+  const a = useMemo(() => analyse(env.nodes, env.edges), [env.nodes, env.edges])
+  const [onlyPaths, setOnlyPaths] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [selectedEdge, setSelectedEdge] = useState(null)
+  const node = env.nodes.find(n => n.id === selected)
+  const edge = env.edges.find(e => e.id === selectedEdge)
+  const edgeFinding = edge?.findingId && findings.find(f => f.id === edge.findingId)
 
-  const [graphData, setGraphData] = useState(null)
-  const [findings, setFindings] = useState([])
+  const header = (
+    <PageHeader
+      title="Attack paths"
+      description="How an attacker on the internet could move through your account — network exposure, IAM permissions and data access, built from the latest scan."
+      actions={<Button asChild><Link to="/simulator"><Play /> Open breach simulator</Link></Button>}
+    />
+  )
 
-  // Load Topology Data (live: real graph from latest scan)
-  useEffect(() => {
-    if (dataSource !== 'demo') {
-      getTopologyGraph().then(g => { setGraphData(g); computeRadius('internet') }).catch(console.error)
-      listFindings().then(setFindings).catch(console.error)
-    }
-  }, [dataSource])
-
-  // Live mode: starting points come from the real graph (nodes with outgoing attack edges)
-  const ICON_BY_SERVICE = { internet: Globe, s3: HardDrive, ec2: Server, lambda: Zap, iam: KeyRound, secretsmanager: Lock, rds: Database, dynamodb: Database }
-  const vectors = dataSource === 'demo' || !graphData?.nodes
-    ? ATTACK_VECTORS
-    : graphData.nodes
-        .filter(n => n.id === 'internet' || graphData.edges.some(e => e.from === n.id))
-        .filter(n => n.type !== 'crown_jewel')
-        .slice(0, 6)
-        .map(n => ({ id: n.id, name: n.id === 'internet' ? 'Public Internet' : n.label, icon: ICON_BY_SERVICE[n.service] || Server }))
-
-  // Load Blast Radius on vector change
-  const computeRadius = async (nodeId) => {
-    setSelectedVector(nodeId)
-    setComputing(true)
-    if (dataSource !== 'demo') {
-      try {
-        const res = await getFindingBlastRadius(nodeId)
-        setBlastData(res)          // real result, including a legitimate score of 0
-      } catch (e) {
-        console.warn('[topology] blast radius unavailable:', e?.message)
-        setBlastData({ blast_radius_score: 0, severity: 'LOW', reachable_nodes_count: 0, crown_jewels_at_risk: 0, identities_compromised: 0, reachable_assets: [] })
-      }
-      setComputing(false)
-      return
-    }
-    // Demo mode only: canned sample results below
-
-    // Dynamic client-side calculation based on selected node
-    setTimeout(() => {
-      if (nodeId === 'node-s3') {
-        setBlastData({
-          blast_radius_score: 95,
-          severity: 'CRITICAL',
-          reachable_nodes_count: 4,
-          crown_jewels_at_risk: 1,
-          identities_compromised: 1,
-          reachable_assets: [
-            { node: { id: 'node-ec2', name: 'EC2: api-worker-node-03', type: 'compute', service: 'ec2', threat_level: 'HIGH' }, hop_distance: 1 },
-            { node: { id: 'node-iam', name: 'IAM: DataOpsPipelineEngine', type: 'identity', service: 'iam', threat_level: 'HIGH' }, hop_distance: 2 },
-            { node: { id: 'node-rds', name: 'RDS: prod-financial-aurora', type: 'crown_jewel', service: 'rds', threat_level: 'CRITICAL' }, hop_distance: 3 },
-          ]
-        })
-      } else if (nodeId === 'node-ec2') {
-        setBlastData({
-          blast_radius_score: 82,
-          severity: 'CRITICAL',
-          reachable_nodes_count: 3,
-          crown_jewels_at_risk: 1,
-          identities_compromised: 1,
-          reachable_assets: [
-            { node: { id: 'node-iam', name: 'IAM: DataOpsPipelineEngine', type: 'identity', service: 'iam', threat_level: 'HIGH' }, hop_distance: 1 },
-            { node: { id: 'node-rds', name: 'RDS: prod-financial-aurora', type: 'crown_jewel', service: 'rds', threat_level: 'CRITICAL' }, hop_distance: 2 },
-          ]
-        })
-      } else {
-        setBlastData({
-          blast_radius_score: 68,
-          severity: 'HIGH',
-          reachable_nodes_count: 2,
-          crown_jewels_at_risk: 1,
-          identities_compromised: 0,
-          reachable_assets: [
-            { node: { id: 'node-rds', name: 'RDS: prod-financial-aurora', type: 'crown_jewel', service: 'rds', threat_level: 'CRITICAL' }, hop_distance: 1 },
-          ]
-        })
-      }
-      setComputing(false)
-    }, 300)
+  if (!demo && q.isLoading) return <Page wide>{header}<Skeleton className="h-[600px] rounded-lg" /></Page>
+  if (!demo && q.isError) return <Page wide>{header}<Card><ErrorState error={q.error} onRetry={q.refetch} /></Card></Page>
+  if (env.nodes.length <= 1) {
+    return (
+      <Page wide>{header}
+        <Card><EmptyState mood={q.data?.message ? 'calm' : 'happy'}
+          title={q.data?.message ? 'No attack graph yet' : 'No exposed paths'}
+          body={q.data?.message ? 'The graph is built from a scan’s inventory. Run a scan to map EC2, IAM, S3, RDS, Lambda, DynamoDB and Secrets.' : 'Nothing is reachable from the internet, and no data store is reachable through IAM.'}
+          action={q.data?.message && <Button variant="primary" onClick={openScanModal}><Play /> Run a scan</Button>} /></Card>
+      </Page>
+    )
   }
 
   return (
-    <div className="topology-page">
-      {/* Page Header */}
-      <div className="page-header reveal-on-scroll">
-        <div>
-          <div className="page-tag">
-            <Compass size={12} />
-            <span>Multi-Hop Graph Engine · BFS Reachability</span>
+    <Page wide>
+      {header}
+      <div className="grid gap-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile label="Reachable from the internet" value={a.reachable} tone={a.reachable ? 'high' : 'low'} hint={`of ${env.nodes.length - 1} mapped assets`} />
+          <StatTile label="Crown jewels exposed" value={`${a.reachedCrowns.length} / ${a.crowns.length}`} tone={a.reachedCrowns.length ? 'critical' : 'low'} hint="data stores an attacker can reach" />
+          <StatTile label="Steps on shortest path" value={a.reachedCrowns.length ? Math.min(...a.reachedCrowns.map(c => a.hop[c.id])) : '—'} tone="neutral" hint="fewer means easier to exploit" />
+          <StatTile label="Links to cut" value={[...a.pathEdges].filter(id => env.edges.find(e => e.id === id)?.fixable !== false).length} tone="accent" hint="links on the critical paths" />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-fg-2">
+            <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 rounded-full bg-crit" /> Path to a crown jewel</span>
+            <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 rounded-full bg-line-strong" /> Other access</span>
+            <span className="flex items-center gap-1.5"><Crown className="size-3.5 text-crit-text" /> Crown jewel</span>
           </div>
-          <h1 className="page-title">Cloud Attack Vector Topology & Blast Radius</h1>
-          <p className="page-subtitle">
-            Sentinel automated graph traversal correlates public perimeter exposure, lateral movement identities, and crown jewel databases.
-          </p>
+          <label className="flex items-center gap-2 text-sm text-fg-2">
+            <Switch checked={onlyPaths} onCheckedChange={setOnlyPaths} aria-label="Focus on attack paths" /> Focus on attack paths
+          </label>
         </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(graphData, null, 2))
-              const dlAnchor = document.createElement('a')
-              dlAnchor.setAttribute("href", dataStr)
-              dlAnchor.setAttribute("download", `sentinel-attack-graph-${Date.now()}.json`)
-              document.body.appendChild(dlAnchor)
-              dlAnchor.click()
-              dlAnchor.remove()
-            }}
-          >
-            <Download size={14} />
-            Export Graph JSON
-          </button>
-        </div>
-      </div>
-
-      <div className="bento-grid">
-        {/* Interactive Vector Selector / Simulator Bar */}
-        <div className="card bento-col-12 reveal-on-scroll" style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>
-                Select Compromise Starting Point (Blast Radius Simulation)
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {vectors.map(v => {
-                  const IconComponent = v.icon
-                  return (
-                    <button
-                      key={v.id}
-                      className={`filter-chip ${selectedVector === v.id ? 'active' : ''}`}
-                      onClick={() => computeRadius(v.id)}
-                      style={{ fontSize: 12, padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <IconComponent size={13} />
-                      <span>{v.name}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Simulated Blast Score
-                </div>
-                <div style={{
-                  fontSize: 22, fontWeight: 900,
-                  color: blastData.blast_radius_score >= 80 ? 'var(--sev-critical)' : 'var(--sev-high)'
-                }}>
-                  {computing ? '...' : `${blastData.blast_radius_score} / 100`}
-                </div>
-              </div>
-
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => computeRadius(selectedVector)}
-                disabled={computing}
-                title="Re-run Multi-Hop BFS Graph Traversal"
-              >
-                <RefreshCw size={13} className={computing ? 'spin' : ''} />
-                {computing ? 'Computing BFS...' : 'Recalculate'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Primary Attack Path Graph Component */}
-        <div className="bento-col-12 reveal-on-scroll">
-          {graphData && (
-            <AttackPathGraph graphData={graphData} allFindings={findings} />
+        <div className={cn('grid items-start gap-4', (node || edge) && 'xl:grid-cols-[minmax(0,1fr)_380px]')}>
+          <AttackCanvas
+            nodes={env.nodes}
+            edges={env.edges}
+            height={620}
+            view={{ entry: 'internet', pathEdges: a.pathEdges, pathNodes: a.pathNodes, dimOffPath: onlyPaths, labelPaths: onlyPaths, selectedNode: selected, selectedEdge }}
+            onNodeClick={(id) => { setSelected(id); setSelectedEdge(null) }}
+            onEdgeClick={(id) => { setSelectedEdge(id); setSelected(null) }}
+          />
+          {node && <NodePanel node={node} nodes={env.nodes} edges={env.edges} findings={findings} onClose={() => setSelected(null)} />}
+          {edge && !node && (
+            <Card className="animate-rise-in">
+              <CardHeader title="How this step works" description={`${env.nodes.find(n => n.id === edge.from)?.short} → ${env.nodes.find(n => n.id === edge.to)?.short}`}
+                          actions={<Button variant="ghost" size="sm" onClick={() => setSelectedEdge(null)}>Close</Button>} />
+              <CardBody className="grid gap-4">
+                <p className="text-sm text-fg">{edge.technique}</p>
+                {a.pathEdges.has(edge.id) && <Badge tone="critical" className="w-fit">On a path to a crown jewel</Badge>}
+                {edgeFinding ? (
+                  <Link to={`/findings/${edgeFinding.id}`} className="flex items-center gap-2 rounded-md border border-line px-3 py-2.5 text-sm hover:bg-surface-2">
+                    <SeverityBadge severity={edgeFinding.severity} size="sm" />
+                    <span className="min-w-0 flex-1 truncate text-fg">{edgeFinding.title}</span>
+                    <ChevronRight className="size-4 text-fg-3" />
+                  </Link>
+                ) : <p className="text-sm text-fg-2">{edge.fixable === false ? 'Built-in AWS behaviour — this link can’t be removed directly.' : 'Not tied to a single finding.'}</p>}
+              </CardBody>
+            </Card>
           )}
         </div>
-
-        {/* Downstream Blast Radius Impact Breakdown */}
-        <div className="card bento-col-12 reveal-on-scroll">
-          <div className="card-header">
-            <div className="card-title">
-              <Layers size={14} />
-              Downstream Blast Radius & Compromised Cloud Assets
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
-              BFS Multi-Hop Path Analysis
-            </span>
-          </div>
-
-        <div className="table-responsive" style={{ marginTop: 12 }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Hop Distance</th>
-                <th>Asset Target</th>
-                <th>Service</th>
-                <th>Type</th>
-                <th>Threat Impact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {blastData.reachable_assets?.map((asset, idx) => (
-                <tr key={idx}>
-                  <td>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      fontWeight: 700, fontSize: 12, color: 'var(--accent-primary)'
-                    }}>
-                      <ArrowRight size={13} /> Hop {asset.hop_distance}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ fontWeight: 700, fontSize: 13 }}>
-                      {asset.node?.name || asset.node?.id}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700 }}>
-                      {asset.node?.service}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="compliance-pill">
-                      {asset.node?.type?.toUpperCase()}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{
-                      fontWeight: 800, fontSize: 11,
-                      color: asset.node?.threat_level === 'CRITICAL' ? 'var(--sev-critical)' : 'var(--sev-high)'
-                    }}>
-                      {asset.node?.threat_level || 'ELEVATED'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <p className="text-xs text-fg-3">Click an asset to see where an attacker could go from it, or a link to see how that step works. Scroll to zoom, drag to pan.</p>
       </div>
-      </div>
-
-      {/* Bottom Insights Grid */}
-      <div className="grid-3" style={{ marginBottom: 24 }}>
-        <div className="card reveal-on-scroll">
-          <div className="card-title">
-            <Shield size={13} />
-            Perimeter Exposure
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--sev-critical)', marginTop: 8 }}>
-            1 Public Bucket
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
-            Direct read/write access via ACL permits anonymous adversaries to stage payload drops or harvest telemetry credentials.
-          </p>
-        </div>
-
-        <div className="card">
-          <div className="card-title">
-            <Zap size={13} />
-            Privilege Escalation Vector
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--sev-high)', marginTop: 8 }}>
-            {blastData.identities_compromised} Identity Compromised
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
-            EC2 IMDSv1 tokenless metadata endpoint allows extraction of instance profile credentials belonging to DataOpsPipelineEngine.
-          </p>
-        </div>
-
-        <div className="card">
-          <div className="card-title">
-            <Lock size={13} />
-            Crown Jewel Impact
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--accent-primary)', marginTop: 8 }}>
-            {blastData.crown_jewels_at_risk} Crown Jewel At Risk
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
-            Target RDS database is publicly routable without KMS customer-managed key encryption at rest.
-          </p>
-        </div>
-      </div>
-    </div>
+    </Page>
   )
 }

@@ -6,7 +6,7 @@ export function Card({ className, as: Comp = 'section', interactive = false, ...
   return (
     <Comp
       className={cn(
-        'rounded-lg border border-line bg-surface shadow-raised',
+        'min-w-0 rounded-lg border border-line bg-surface shadow-raised',
         interactive && 'cursor-pointer transition-colors duration-150 hover:border-line-strong',
         className,
       )}
