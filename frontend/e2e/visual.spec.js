@@ -19,10 +19,12 @@ for (const theme of ['dark', 'light']) {
       await signIn(page, 'admin')
       await page.goto('/approvals')
       await expect(page.getByText('Nothing waiting for approval')).toBeVisible()
+      await page.waitForLoadState('networkidle')   // the sidebar's account card loads after the page
       await expect(page).toHaveScreenshot(`approvals-empty-${theme}.png`, { mask: volatile(page) })
       await page.goto('/settings')
       await expect(page.getByRole('button', { name: 'Add person' })).toBeVisible()
       await expect(page.getByText('viewer@nimbus.local')).toBeVisible()
+      await page.waitForLoadState('networkidle')
       await expect(page).toHaveScreenshot(`settings-${theme}.png`, { mask: volatile(page) })
     })
   })
