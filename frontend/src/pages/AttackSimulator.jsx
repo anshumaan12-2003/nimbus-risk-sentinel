@@ -4,6 +4,7 @@ import { ChevronRight, Crown, Play, RotateCcw, Scissors, ShieldCheck, Wand2 } fr
 import { cn } from '@/lib/cn'
 import {
   Page, PageHeader, Card, CardHeader, CardBody, Button, EmptyState, ErrorState, Skeleton, SeverityBadge, Badge,
+  AnimatedNumber
 } from '@/components/ds'
 import AttackCanvas from '@/components/graph/AttackCanvas'
 import { useAttackEnvironment, useFindings } from '@/hooks/queries'
@@ -141,11 +142,11 @@ export default function AttackSimulator() {
             <p className="text-sm text-fg-2">From <span className="font-medium text-fg">{nodeById[entry].short}</span> an attacker reaches</p>
             <div className="mt-3 flex items-end gap-6">
               <div>
-                <p className={cn('num font-display text-3xl font-bold tracking-[-0.035em]', contained ? 'text-low-text' : 'text-crit-text')}>{crowns.length}<span className="text-lg text-fg-3"> / {totalCrowns}</span></p>
+                <p className={cn('num font-display text-3xl font-bold tracking-[-0.035em]', contained ? 'text-low-text' : 'text-crit-text')}><AnimatedNumber value={crowns.length} /><span className="text-lg text-fg-3"> / {totalCrowns}</span></p>
                 <p className="text-xs text-fg-3">crown jewels</p>
               </div>
               <div>
-                <p className="num font-display text-3xl font-bold tracking-[-0.035em] text-fg">{reachable}</p>
+                <p className="num font-display text-3xl font-bold tracking-[-0.035em] text-fg"><AnimatedNumber value={reachable} /></p>
                 <p className="text-xs text-fg-3">assets{severed.size > 0 && baseReach !== reachable ? ` (was ${baseReach})` : ''}</p>
               </div>
             </div>

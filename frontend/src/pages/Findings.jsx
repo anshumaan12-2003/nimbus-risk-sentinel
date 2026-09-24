@@ -28,6 +28,7 @@ const STATUS_VIEWS = {
   accepted: { label: 'Accepted', match: (f) => f.status === 'ACCEPTED' },
   all: { label: 'All', match: () => true },
 }
+const findingKey = (f) => `${f.rule_id}|${f.resource_id}`
 const typing = (el) => el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))
 
 function Checkbox({ checked, indeterminate, onChange, label }) {
@@ -83,6 +84,21 @@ export default function Findings() {
   useEffect(() => { const t = setTimeout(() => setParam('q', q.trim()), 250); return () => clearTimeout(t) }, [q]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const inView = useMemo(() => all.filter(STATUS_VIEWS[view].match), [all, view])
+
+  // Findings that appeared since the last load (after a scan) get a brief highlight. Keyed by rule +
+  // resource, not id: every scan stores its findings as new rows, so ids change each time.
+  const seen = useRef(null)
+  const [fresh, setFresh] = useState(() => new Set())
+  useEffect(() => {
+    if (!query.data?.length) return
+    const keys = query.data.map(findingKey)
+    const added = seen.current ? keys.filter(k => !seen.current.has(k)) : []
+    seen.current = new Set(keys)
+    if (!added.length) return
+    setFresh(new Set(added))
+    const t = setTimeout(() => setFresh(new Set()), 2600)
+    return () => clearTimeout(t)
+  }, [query.data])
   const services = useMemo(() => [...new Set(all.map(f => f.service))].sort(), [all])
   const sevCounts = useMemo(() => {
     const c = { '': 0 }
@@ -261,7 +277,7 @@ export default function Findings() {
               {sorted.map(row => {
                 const f = row.original
                 return (
-                  <li key={row.id}>
+                  <li key={row.id} className={cn(fresh.has(findingKey(f)) && 'animate-arrive')}>
                     <button type="button" data-finding-row onClick={() => openFinding(f)} className="relative flex w-full items-start gap-3 px-4 py-3 text-left active:bg-surface-2">
                       <span aria-hidden className={cn('absolute inset-y-3 left-0 w-[3px] rounded-r-full', SEV_STRIPE[f.severity])} />
                       <span className="min-w-0 flex-1">
@@ -296,6 +312,7 @@ export default function Findings() {
                   {sorted.map((row, i) => (
                     <tr key={row.id} data-index={i} data-finding-row onClick={() => { setActive(i); openFinding(row.original) }}
                         className={cn('group relative cursor-pointer border-b border-line last:border-0 transition-colors hover:bg-surface-2',
+                          fresh.has(findingKey(row.original)) && 'animate-arrive',
                           row.getIsSelected() && 'bg-accent-soft/60 hover:bg-accent-soft', i === active && 'bg-surface-2')}>
                       {row.getVisibleCells().map((cell, ci) => (
                         <td key={cell.id} className={cn('h-14 px-3 align-middle first:pl-4 last:pr-5', ci === 0 && 'relative')}>

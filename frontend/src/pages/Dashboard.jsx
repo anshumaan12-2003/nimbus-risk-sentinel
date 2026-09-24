@@ -6,7 +6,8 @@ import { cn } from '@/lib/cn'
 import { shortDate } from '@/lib/time'
 import {
   Page, Card, CardHeader, CardBody, Button, SeverityBadge, StatTile, EmptyState, Skeleton, ErrorState,
-  TimeAgo
+  TimeAgo,
+  AnimatedNumber
 } from '@/components/ds'
 import GettingStarted from '@/components/GettingStarted'
 import { useSentinelStore } from '@/store/sentinelStore'
@@ -105,7 +106,7 @@ function PostureSummary({ d }) {
       <div className="grid content-start gap-3">
         <p className="text-sm text-fg-2">Risk score</p>
         <div className="flex items-end gap-3">
-          <span className="num font-display text-[56px] leading-none font-bold tracking-[-0.045em] text-fg">{score}</span>
+          <AnimatedNumber value={score} className="num font-display text-[56px] leading-none font-bold tracking-[-0.045em] text-fg" />
           <span className="pb-1.5 text-sm text-fg-3">/ 100</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -144,7 +145,7 @@ function PostureSummary({ d }) {
         <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-muted-2" role="img"
              aria-label={open.map(s => `${s.count} ${s.label.toLowerCase()}`).join(', ')}>
           {totalOpen > 0 && open.filter(s => s.count).map(s => (
-            <span key={s.key} className={cn('h-full first:rounded-l-full last:rounded-r-full', s.bar)} style={{ width: `${(s.count / totalOpen) * 100}%` }} />
+            <span key={s.key} className={cn('h-full transition-[width] duration-700 ease-standard first:rounded-l-full last:rounded-r-full', s.bar)} style={{ width: `${(s.count / totalOpen) * 100}%` }} />
           ))}
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
@@ -152,7 +153,7 @@ function PostureSummary({ d }) {
             <button key={s.key} type="button" onClick={() => navigate(`/findings?severity=${s.key.toUpperCase()}`)}
                     className="flex items-center justify-between gap-2 rounded-md py-0.5 text-left text-sm hover:text-fg">
               <span className="flex items-center gap-2 text-fg-2"><span className={cn('size-2 rounded-[2px]', s.bar)} />{s.label}</span>
-              <span className="num font-medium text-fg">{s.count}</span>
+              <AnimatedNumber value={s.count} className="num font-medium text-fg" />
             </button>
           ))}
         </div>

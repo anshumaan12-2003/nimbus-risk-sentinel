@@ -16,7 +16,7 @@ export function PageHeader({ title, description, actions, meta, className }) {
 
 /* Page body width + gutters, consistent across pages. */
 export function Page({ className, wide = false, ...props }) {
-  return <div className={cn('mx-auto w-full px-4 py-6 sm:px-6 lg:px-8', wide ? 'max-w-[1600px]' : 'max-w-[1280px]', className)} {...props} />
+  return <div className={cn('stagger mx-auto w-full px-4 py-6 sm:px-6 lg:px-8', wide ? 'max-w-[1600px]' : 'max-w-[1280px]', className)} {...props} />
 }
 
 export function Section({ title, description, actions, className, children }) {

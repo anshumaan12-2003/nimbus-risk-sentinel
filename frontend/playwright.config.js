@@ -38,8 +38,9 @@ export default defineConfig({
   },
   snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',
   projects: [
-    { name: 'visual-desktop', testMatch: /visual\.spec/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
-    { name: 'visual-mobile', testMatch: /visual\.spec/, use: { ...devices['Pixel 7'] } },
+    // Screenshots compare the resting state, so motion is off for them (the flows project keeps it on).
+    { name: 'visual-desktop', testMatch: /visual\.spec/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' } },
+    { name: 'visual-mobile', testMatch: /visual\.spec/, use: { ...devices['Pixel 7'], reducedMotion: 'reduce' } },
     { name: 'tour', testMatch: /tour\.spec/, use: { ...devices['Desktop Chrome'] } },
     { name: 'readme', testMatch: /readme\.spec/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 } },

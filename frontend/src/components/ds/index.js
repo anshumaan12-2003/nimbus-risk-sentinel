@@ -10,5 +10,5 @@ export {
 } from './overlay'
 export { Tabs, TabsList, TabsTrigger, TabsContent, Switch, Segmented } from './tabs'
 export { Skeleton, SkeletonRows, EmptyState, ErrorState, QueryState } from './states'
-export { CopyButton, ResourceId, CodeBlock, DescriptionList, StatTile, TimeAgo } from './data'
+export { CopyButton, ResourceId, CodeBlock, DescriptionList, StatTile, TimeAgo, AnimatedNumber } from './data'
 export { PageHeader, Page, Section } from './page'
