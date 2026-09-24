@@ -21,6 +21,13 @@ export const useAuth = create((set, get) => ({
 
   applySession: ({ access_token, user }) => set({ token: access_token, user, status: 'signed-in', notice: null }),
 
+  // Is the API answering yet? Checks quietly (no switch to 'loading'), then signs in as usual if it is.
+  // Used while a sleeping free-tier server wakes up.
+  probe: async () => {
+    try { await api.get('/auth/status', { timeout: 15_000 }) } catch { return false }
+    await get().bootstrap()
+    return true
+  },
   bootstrap: async () => {
     if (isDemo()) return set({ status: 'signed-in', user: DEMO_USER, token: null })
     // Already holding a token (e.g. a test harness signed in first): confirm it instead of refreshing

@@ -39,6 +39,7 @@
   --dawn-1: #4353ff; --dawn-2: #8b5cf6; --dawn-3: #f472b6;
   /* Sky washes — Overview tint by posture (used at low opacity behind text) */
   --sky-clear: #7dd3fc; --sky-haze: #fcd34d; --sky-storm: #f87171;
+  --sky-wash: 26%;          /* how strongly the Overview sky shows; lower on the dark theme */
 
   /* Severity — the loudest colours in the product, reserved for risk */
   --crit: #e5484d;  --crit-text: #c4282d;  --crit-soft: #feebec;  --crit-line: #fdbdbe;
@@ -76,6 +77,7 @@
   --accent-soft: #171e4a;
   --accent-soft-2: #1e2760;
   --accent-line: #313d96;
+  --sky-wash: 20%;
 
   --crit: #e5484d;  --crit-text: #ff9592;  --crit-soft: #3b1219;  --crit-line: #72232d;
   --high: #f76b15;  --high-text: #ffa057;  --high-soft: #331e0b;  --high-line: #66350c;

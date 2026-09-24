@@ -49,5 +49,6 @@ test('navigation (phone drawer / desktop rail)', async ({ page, isMobile }) => {
   await expect(nav.getByRole('link', { name: 'Approvals' })).toBeVisible()
   await settled(page)
   await expect(nav.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page')
-  await expect(nav).toHaveScreenshot('nav-light.png', { mask: volatile(page) })
+  // Masks scoped to the drawer: changing content on the page behind it must not affect this test
+  await expect(nav).toHaveScreenshot('nav-light.png', { mask: volatile(nav) })
 })
