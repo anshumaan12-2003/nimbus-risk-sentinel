@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nimbus-api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd backend && .venv/bin/alembic upgrade head && .venv/bin/uvicorn app.main:app --reload --port 8000"],
+      "port": 8000
+    },
+    {
+      "name": "nimbus-ui",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd frontend && API_PROXY_TARGET=http://127.0.0.1:8000 npm run dev"],
+      "port": 3000
+    }
+  ]
+}
