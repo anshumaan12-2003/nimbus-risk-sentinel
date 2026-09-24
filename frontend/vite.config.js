@@ -9,19 +9,27 @@ const API_TARGET = process.env.API_PROXY_TARGET || process.env.VITE_API_URL || '
 const quietWs = { target: API_TARGET.replace(/^http/, 'ws'), ws: true, changeOrigin: true,
   configure: (proxy) => proxy.on('error', () => {}) }
 
+// Package-name patterns per vendor chunk, including each library's own dependencies.
+const VENDOR_CHUNKS = {
+  react: /^(react|react-dom|scheduler|react-router|react-router-dom|cookie)$/,
+  data: /^(@tanstack\/(react-query|query-core)|axios|zustand)$/,
+  motion: /^(motion|framer-motion|motion-dom|motion-utils)$/,
+  charts: /^(recharts|victory-vendor|d3-.+|internmap|es-toolkit|@reduxjs\/toolkit|redux|redux-thunk|reselect|immer|react-redux|decimal\.js-light|eventemitter3|tiny-invariant)$/,
+  markdown: /^(react-markdown|remark-.+|rehype-.+|micromark.*|mdast-.+|hast-.+|hastscript|unist-.+|unified|vfile.*|bail|trough|devlop|property-information|space-separated-tokens|comma-separated-tokens|zwitch|decode-named-character-reference|character-entities.*|html-url-attributes|estree-util-.+|ccount|longest-streak|trim-lines|is-plain-obj|style-to-js|style-to-object|inline-style-parser|@ungap\/structured-clone)$/,
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     rollupOptions: {
       output: {
-        // Stable vendor chunks: app code changes don't invalidate the browser's cached React/charts
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          data: ['@tanstack/react-query', 'axios', 'zustand'],
-          motion: ['motion/react'],
-          charts: ['recharts'],
-          markdown: ['react-markdown'],
+        // Stable vendor chunks: app code changes don't invalidate the browser's cached React/charts.
+        // Rolldown (Vite 8) only takes the function form, so each chunk is matched by package name.
+        manualChunks(id) {
+          const pkg = id.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/)?.[1]
+          if (!pkg) return
+          return Object.keys(VENDOR_CHUNKS).find(name => VENDOR_CHUNKS[name].test(pkg))
         },
       },
     },

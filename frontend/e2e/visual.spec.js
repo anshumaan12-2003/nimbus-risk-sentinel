@@ -3,7 +3,7 @@
   A failing test shows a diff image (in playwright-report/) of exactly which pixels changed.
 */
 import { test, expect } from '@playwright/test'
-import { signIn, useTheme, volatile } from './helpers'
+import { settled, signIn, useTheme, volatile } from './helpers'
 
 for (const theme of ['dark', 'light']) {
   test.describe(`${theme} theme`, () => {
@@ -19,11 +19,15 @@ for (const theme of ['dark', 'light']) {
       await signIn(page, 'admin')
       await page.goto('/approvals')
       await expect(page.getByText('Nothing waiting for approval')).toBeVisible()
+      await settled(page)
       await expect(page).toHaveScreenshot(`approvals-empty-${theme}.png`, { mask: volatile(page) })
       await page.goto('/settings')
       await expect(page.getByRole('button', { name: 'Add person' })).toBeVisible()
       await expect(page.getByText('viewer@nimbus.local')).toBeVisible()
-      await expect(page).toHaveScreenshot(`settings-${theme}.png`, { mask: volatile(page) })
+      await settled(page)
+      // "Last sign-in" depends on which users earlier tests signed in as, so mask the whole column
+      const lastSignIn = page.locator('table').filter({ hasText: 'Last sign-in' }).locator('tbody td:nth-child(3)')
+      await expect(page).toHaveScreenshot(`settings-${theme}.png`, { mask: [...volatile(page), lastSignIn] })
     })
   })
 }
@@ -33,7 +37,7 @@ test('findings list', async ({ page }) => {
   await signIn(page, 'viewer')
   await page.goto('/findings')
   await expect(page.getByText('IAM-002').first()).toBeVisible()
-  await page.waitForLoadState('networkidle')
+  await settled(page)
   await expect(page).toHaveScreenshot('findings-dark.png', { mask: volatile(page) })
 })
 
@@ -43,5 +47,7 @@ test('navigation (phone drawer / desktop rail)', async ({ page, isMobile }) => {
   if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click()
   const nav = page.getByRole('complementary', { name: 'Main navigation' })
   await expect(nav.getByRole('link', { name: 'Approvals' })).toBeVisible()
+  await settled(page)
+  await expect(nav.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(nav).toHaveScreenshot('nav-light.png', { mask: volatile(page) })
 })
