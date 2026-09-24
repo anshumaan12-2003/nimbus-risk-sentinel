@@ -157,3 +157,15 @@ test('Vesper streams a cited answer, links to the finding, and keeps the convers
   await expect(panel.getByRole('log').getByText('Fix first:', { exact: true })).toBeVisible()
   expect(rule).toMatch(/^(IAM|S3|EC2|RDS)-\d{3}$/)
 })
+
+test('Vesper still answers when the API is older than the UI (no /assistant endpoints yet)', async ({ page }) => {
+  await page.route('**/api/v1/assistant/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Not Found"}' }))
+  await signIn(page, 'engineer')
+  await page.keyboard.press('ControlOrMeta+j')
+  const panel = page.getByRole('dialog', { name: /Vesper/ })
+  await panel.getByRole('button', { name: 'What should I fix first?' }).click()
+  const log = panel.getByRole('log', { name: 'Conversation with Vesper' })
+  await expect(log.getByText('Fix first:', { exact: true })).toBeVisible()
+  await expect(log.getByRole('button', { name: /^(IAM|S3|EC2|RDS)-\d{3}$/ }).first()).toBeVisible()   // citations still work
+  await expect(log.getByRole('button', { name: 'Helpful', exact: true })).toHaveCount(0)              // nothing saved to rate
+})
