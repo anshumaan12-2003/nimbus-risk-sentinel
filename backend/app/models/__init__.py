@@ -5,6 +5,7 @@ from app.models.audit_log import AuditLog
 from app.models.inventory import InventorySnapshot
 from app.models.user import User, Role, RefreshSession
 from app.models.remediation_request import RemediationRequest, RequestStatus
+from app.models.assistant import Conversation, AssistantMessage
 
 __all__ = [
     "Scan", "ScanStatus",
@@ -14,4 +15,5 @@ __all__ = [
     "InventorySnapshot",
     "User", "Role", "RefreshSession",
     "RemediationRequest", "RequestStatus",
+    "Conversation", "AssistantMessage",
 ]

@@ -43,7 +43,8 @@ export const NAV = [
 
 export const SETTINGS_ITEM = { to: '/settings', label: 'Settings', icon: Settings, key: ',' }
 
-export const ALL_PAGES = [...NAV.flatMap(g => g.items), SETTINGS_ITEM, { to: '/ui', label: 'Design system' }]
+// Pages outside the sidebar still need a title (top bar, browser tab) and a name for Vesper's page context.
+export const ALL_PAGES = [...NAV.flatMap(g => g.items), SETTINGS_ITEM, { to: '/ui', label: 'Design system' }, { to: '/vesper', label: 'Vesper' }]
 
 export function pageFor(pathname) {
   const base = '/' + (pathname.split('/')[1] || '')

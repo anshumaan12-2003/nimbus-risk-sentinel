@@ -28,7 +28,7 @@ export default function GettingStarted() {
     { done: connected, title: 'Connect AWS', body: 'Add a read-only IAM user, SSO profile or role to backend/.env.', to: '/settings' },
     { done: permissions, title: 'Grant read access', body: 'Attach SecurityAudit and ViewOnlyAccess so nothing is a blind spot.', to: '/settings' },
     { done: scanned, title: 'Run the first scan', body: 'Builds findings, inventory, attack paths and compliance scores.', action: openScanModal },
-    { done: ai, title: 'Turn on Copilot', body: 'Optional: add AI_API_KEY for plain-English explanations.', to: '/settings', optional: true },
+    { done: ai, title: 'Turn on Vesper', body: 'Optional: add AI_API_KEY so Vesper answers in plain English (it works from scan facts without it).', to: '/settings', optional: true },
   ]
   const next = steps.find(s => !s.done && !s.optional)
   const done = steps.filter(s => s.done).length
