@@ -43,5 +43,8 @@ test('navigation (phone drawer / desktop rail)', async ({ page, isMobile }) => {
   if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click()
   const nav = page.getByRole('complementary', { name: 'Main navigation' })
   await expect(nav.getByRole('link', { name: 'Approvals' })).toBeVisible()
+  // The account card and active-page highlight fill in after the first paint; shoot the settled state
+  await page.waitForLoadState('networkidle')
+  await expect(nav.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(nav).toHaveScreenshot('nav-light.png', { mask: volatile(page) })
 })

@@ -94,6 +94,11 @@ export default function Findings() {
     return inView.filter(f =>
       (!severity || f.severity === severity) && (!service || f.service === service) &&
       (!needle || `${f.title} ${f.rule_id} ${f.resource_name} ${f.resource_id}`.toLowerCase().includes(needle)))
+      // Fixed order for ties: the table's sort is stable, so equal-risk findings keep this order
+      // instead of whatever order the parallel scan happened to save them in.
+      .sort((a, b) => (SEV_ORDER[b.severity] ?? -1) - (SEV_ORDER[a.severity] ?? -1)
+        || String(a.rule_id).localeCompare(String(b.rule_id))
+        || String(a.resource_name).localeCompare(String(b.resource_name)))
   }, [inView, severity, service, params])
 
   const [sorting, setSorting] = useState([{ id: 'risk', desc: true }])
