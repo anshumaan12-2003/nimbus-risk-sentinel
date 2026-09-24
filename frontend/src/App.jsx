@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
@@ -12,7 +12,6 @@ import Topbar from './components/shell/Topbar'
 import CommandPalette from './components/CommandPalette'
 import LiveScanTerminalModal from './components/LiveScanTerminalModal'
 import AuditFeedDrawer from './components/AuditFeedDrawer'
-import GlobalAICopilotDrawer from './components/GlobalAICopilotDrawer'
 import ExecutiveDossierModal from './components/ExecutiveDossierModal'
 import ErrorBoundary from './components/ErrorBoundary'
 import AccountHealthBanner from './components/AccountHealthBanner'
@@ -38,6 +37,24 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Approvals = lazy(() => import('./pages/Approvals'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const UiKit = lazy(() => import('./pages/UiKit'))
+// Loaded on first open: it brings the markdown renderer, which no page needs on first load.
+const GlobalAICopilotDrawer = lazy(() => import('./components/GlobalAICopilotDrawer'))
+
+/* ⌘J / Ctrl+J toggles Copilot from anywhere; the panel itself mounts the first time it opens. */
+function CopilotSlot() {
+  const open = useSentinelStore(s => s.globalCopilotOpen)
+  const toggle = useSentinelStore(s => s.toggleGlobalCopilot)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { if (open) setMounted(true) }, [open])
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); toggle() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggle])
+  return mounted ? <Suspense fallback={null}><GlobalAICopilotDrawer /></Suspense> : null
+}
 
 function PageFallback() {
   return <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-6 lg:px-8"><SkeletonRows rows={6} /></div>
@@ -132,7 +149,7 @@ export default function App() {
               <CommandPalette />
               <LiveScanTerminalModal />
               <AuditFeedDrawer />
-              <GlobalAICopilotDrawer />
+              <CopilotSlot />
               <ExecutiveDossierModal />
               <LiveStreamConnector />
               <LiveToasts />

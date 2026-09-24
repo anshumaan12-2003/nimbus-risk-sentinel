@@ -8,6 +8,7 @@ import { cn } from '@/lib/cn'
 import {
   Button, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Popover, PopoverContent, PopoverTrigger,
   Tooltip, Kbd, Badge,
+  AnimatedNumber
 } from '@/components/ds'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { useEventStore, timeAgo } from '@/store/eventStore'
@@ -164,7 +165,7 @@ export default function Topbar() {
               aria-label={running ? `Scan running${pct != null ? `, ${pct}%` : ''}` : 'Run scan'}
             >
               {running
-                ? <><span className="size-2 animate-pulse rounded-full bg-accent" /><span className="num">Scanning{pct != null ? ` ${pct}%` : '…'}</span></>
+                ? <><span className="size-2 animate-pulse rounded-full bg-accent" /><span className="num">Scanning{pct != null ? <> <AnimatedNumber value={pct} suffix="%" /></> : '…'}</span></>
                 : <><Play /><span>Run scan</span></>}
             </Button>
           </span>

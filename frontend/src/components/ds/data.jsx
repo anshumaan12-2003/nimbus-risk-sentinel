@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import NumberFlow from '@number-flow/react'
 import { Check, Copy, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ago, dateTime, parseUtc } from '@/lib/time'
@@ -99,7 +100,7 @@ export function StatTile({ label, value, tone = 'neutral', delta, deltaGood = 'd
         <span aria-hidden className={cn('size-2 rounded-[2px]', MARK[tone] || MARK.neutral)} />
         {label}
       </span>
-      <span className="num font-display text-2xl font-bold tracking-[-0.03em] text-fg">{value}</span>
+      <AnimatedNumber value={value} className="num font-display text-2xl font-bold tracking-[-0.03em] text-fg" />
       <span className="num flex items-center gap-1.5 text-xs text-fg-3">
         {d != null && (
           <span className={cn('font-medium', good === true && 'text-low-text', good === false && 'text-crit-text')}>
@@ -118,4 +119,23 @@ export function TimeAgo({ value, className }) {
   const d = parseUtc(value)
   if (!d) return <span className={className}>never</span>
   return <time dateTime={d.toISOString()} title={dateTime(value)} className={className}>{ago(value)}</time>
+}
+
+/* A number that rolls digit by digit when it changes (a scan landing, a fix applied), so you see the
+   direction of change. Shows its first value without animating; anything that isn't a finite number
+   renders as plain text. Honours prefers-reduced-motion (NumberFlow's default). */
+const ROLL = { duration: 700, easing: 'cubic-bezier(0.2, 0, 0, 1)' }
+// NumberFlow's box is one line plus its fade-mask height (0.25em) above and below, and its shadow
+// styles set line-height: 1. Styles on the host element win over :host rules, so inherit the caller's
+// line-height and cancel the mask space: an animated number takes exactly the space the text did
+// (measured: 38px line + 16px mask at 32px, cancelled to 38px).
+const FLOW_BOX = { lineHeight: 'inherit', marginBlock: 'calc(var(--number-flow-mask-height, 0.25em) * -1)' }
+export function AnimatedNumber({ value, suffix, prefix, format, className }) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return <span className={className}>{prefix}{value}{suffix}</span>
+  return (
+    <span className={className}>
+      <NumberFlow value={value} prefix={prefix} suffix={suffix} format={format} style={FLOW_BOX}
+                  transformTiming={ROLL} spinTiming={ROLL} opacityTiming={{ duration: 350, easing: 'ease-out' }} />
+    </span>
+  )
 }

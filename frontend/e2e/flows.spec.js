@@ -108,3 +108,16 @@ test.describe('phone', () => {
     }
   })
 })
+
+test('Copilot loads on first open, from the shortcut and from the header', async ({ page }) => {
+  await signIn(page, 'viewer')
+  const panel = page.getByRole('dialog', { name: /Copilot/ })
+  await expect(panel).toHaveCount(0)                      // not mounted until asked for
+  await page.keyboard.press('ControlOrMeta+j')
+  await expect(panel).toBeVisible()
+  await expect(panel.getByRole('textbox', { name: 'Message Copilot' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(panel).toBeHidden()
+  await page.getByRole('banner').getByRole('button', { name: /Ask Copilot/ }).click()
+  await expect(panel).toBeVisible()
+})

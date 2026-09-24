@@ -16,21 +16,13 @@ const SUGGESTIONS = [
 const MARKDOWN = 'text-sm leading-6 text-fg [&_a]:text-accent-text [&_a]:underline [&_code]:rounded-xs [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_h1]:text-md [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:font-semibold [&_h3]:mt-2 [&_h3]:font-semibold [&_li]:ml-4 [&_ol]:list-decimal [&_p]:my-1.5 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:border-line [&_pre]:bg-surface-2 [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_ul]:list-disc'
 
 export default function GlobalAICopilotDrawer() {
-  const { globalCopilotOpen, closeGlobalCopilot, toggleGlobalCopilot } = useSentinelStore()
+  const { globalCopilotOpen, closeGlobalCopilot } = useSentinelStore()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
-  // ⌘J / Ctrl+J toggles Copilot from anywhere.
-  useEffect(() => {
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); toggleGlobalCopilot() }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [toggleGlobalCopilot])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [messages, loading])
 
   const send = async (text = input) => {

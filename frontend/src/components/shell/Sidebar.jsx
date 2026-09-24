@@ -106,6 +106,7 @@ function NavItem({ item, collapsed, count }) {
     <NavLink
       to={to}
       end={to === '/'}
+      viewTransition
       className={({ isActive }) => cn(
         'group relative flex h-8 items-center gap-2.5 rounded-md px-2 text-sm font-medium transition-colors duration-150',
         isActive ? 'bg-muted-2 text-fg' : 'text-fg-2 hover:bg-muted hover:text-fg',

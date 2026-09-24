@@ -161,17 +161,23 @@
   --shadow-overlay: var(--elev-overlay);
   --shadow-popover: var(--elev-popover);
 
-  /* Motion: one standard curve, three durations. Only opacity/transform animate. */
+  /* Motion: one standard curve, three durations (fast 150 · base 240 · slow 400 ms).
+     Only opacity/transform animate; everything is instant under prefers-reduced-motion. */
+  --duration-fast: 150ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
   --animate-fade-in: fade-in 200ms var(--ease-standard);
   --animate-rise-in: rise-in 240ms var(--ease-standard);
   --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-arrive: arrive 2400ms var(--ease-standard);   /* a finding that just appeared */
 }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes arrive { from { background-color: var(--accent-soft-2); } to { background-color: transparent; } }
 
 @layer base {
   html {
@@ -198,6 +204,7 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;          /* staggered items must not sit invisible for their delay */
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
@@ -222,3 +229,26 @@
 /* Tabular figures wherever numbers are compared. */
 @utility num { font-variant-numeric: tabular-nums; }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+/* Page entrance: a page's direct sections rise in one after another (40 ms apart, capped at the 6th),
+   so a new page reads top-down instead of appearing all at once. */
+@utility stagger {
+  & > * { animation: section-in var(--duration-slow) var(--ease-standard) both; }
+  & > :nth-child(2) { animation-delay: 40ms; }
+  & > :nth-child(3) { animation-delay: 80ms; }
+  & > :nth-child(4) { animation-delay: 120ms; }
+  & > :nth-child(5) { animation-delay: 160ms; }
+  & > :nth-child(n + 6) { animation-delay: 200ms; }
+}
+
+/* Page changes cross-fade (View Transitions API, via React Router's viewTransition). Only the main
+   column takes part, so the sidebar and header stay perfectly still. */
+#main { view-transition-name: main; }
+::view-transition-old(main) { animation: fade-out var(--duration-fast) var(--ease-exit) both; }
+::view-transition-new(main) { animation: fade-in var(--duration-base) var(--ease-standard) both; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes section-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
