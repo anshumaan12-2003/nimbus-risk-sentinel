@@ -19,7 +19,8 @@ const PY = process.env.NIMBUS_PYTHON || 'python'
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: process.env.TOUR ? [] : [/tour\.spec/],   // the UI tour runs only via `npm run ui:tour`
+  // The UI tour and README images run only via `npm run ui:tour` / `npm run docs:screenshots`
+  testIgnore: [...(process.env.TOUR ? [] : [/tour\.spec/]), ...(process.env.README_SHOTS ? [] : [/readme\.spec/])],
   fullyParallel: false,
   workers: 1,                      // one shared fake account; flows mutate it
   retries: process.env.CI ? 1 : 0,
@@ -40,6 +41,8 @@ export default defineConfig({
     { name: 'visual-desktop', testMatch: /visual\.spec/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'visual-mobile', testMatch: /visual\.spec/, use: { ...devices['Pixel 7'] } },
     { name: 'tour', testMatch: /tour\.spec/, use: { ...devices['Desktop Chrome'] } },
+    { name: 'readme', testMatch: /readme\.spec/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 } },
     { name: 'flows', testMatch: /(flows|a11y)\.spec/, dependencies: ['visual-desktop', 'visual-mobile'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
   ],
@@ -48,7 +51,7 @@ export default defineConfig({
       command: `${PY} tests/dev_server_fake_aws.py`,
       cwd: '../backend',
       url: `http://127.0.0.1:${API_PORT}/health`,
-      env: { PORT: API_PORT, DATABASE_URL: 'sqlite:///./e2e_fake_aws.db', FAKE_LATENCY: '0.6' },
+      env: { PORT: API_PORT, DATABASE_URL: 'sqlite:///./e2e_fake_aws.db', FAKE_LATENCY: process.env.FAKE_LATENCY || '0.6' },
       reuseExistingServer: false,
       timeout: 90_000,
     },

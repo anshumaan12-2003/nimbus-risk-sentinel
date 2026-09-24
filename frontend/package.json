@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:visual:update": "playwright test --project=visual-desktop --project=visual-mobile --update-snapshots",
-    "ui:tour": "TOUR=1 playwright test --project=tour"
+    "ui:tour": "TOUR=1 playwright test --project=tour",
+    "docs:screenshots": "README_SHOTS=1 playwright test --project=readme"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
