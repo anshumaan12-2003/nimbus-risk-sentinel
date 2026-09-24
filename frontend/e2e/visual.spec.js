@@ -25,7 +25,9 @@ for (const theme of ['dark', 'light']) {
       await expect(page.getByRole('button', { name: 'Add person' })).toBeVisible()
       await expect(page.getByText('viewer@nimbus.local')).toBeVisible()
       await page.waitForLoadState('networkidle')
-      await expect(page).toHaveScreenshot(`settings-${theme}.png`, { mask: volatile(page) })
+      // "Last sign-in" depends on which users earlier tests signed in as, so mask the whole column
+      const lastSignIn = page.locator('table').filter({ hasText: 'Last sign-in' }).locator('tbody td:nth-child(3)')
+      await expect(page).toHaveScreenshot(`settings-${theme}.png`, { mask: [...volatile(page), lastSignIn] })
     })
   })
 }
