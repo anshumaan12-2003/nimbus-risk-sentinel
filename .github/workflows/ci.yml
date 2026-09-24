@@ -27,6 +27,9 @@ jobs:
       - name: Install + build
         working-directory: frontend
         run: npm ci && npm run build
+      - name: Colour contrast (every text token pair is WCAG AA in both themes)
+        working-directory: frontend
+        run: node scripts/check-contrast.mjs
       - name: Unit / route smoke tests (against a fake-AWS API)
         working-directory: frontend
         run: |
