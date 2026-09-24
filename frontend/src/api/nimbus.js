@@ -70,6 +70,16 @@ export async function streamChat(body, { signal, onEvent }) {
     if (!token) { authHandlers.onExpired(); throw new Error('Your session ended. Sign in again.') }
     res = await send(token)
   }
+  if (res.status === 404) {
+    // The UI can deploy before the API does (Vercel is instant; a free Render build takes longer). An
+    // API without Vesper's endpoint still has the older grounded chat, so answer through that: same
+    // events, no saved conversation, no rating.
+    const { answer, ai } = (await api.post('/copilot/chat', { question: body.question, history: [] }, { signal })).data
+    onEvent('meta', { conversation_id: null, title: body.question.slice(0, 60) })
+    onEvent('delta', { text: answer })
+    onEvent('done', { message_id: null, ai, citations: [...new Set(answer.match(/\b(?:IAM|S3|EC2|RDS)-\d{3}\b/g) || [])], scan_completed_at: null })
+    return
+  }
   if (!res.ok) {
     let detail = `Vesper couldn't answer (HTTP ${res.status}).`
     try { const j = await res.json(); detail = typeof j.detail === 'string' ? j.detail : detail } catch { /* not JSON */ }
