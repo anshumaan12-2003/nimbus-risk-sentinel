@@ -1,0 +1,28 @@
+name: Update visual baselines
+
+# Run by hand after an intentional UI change. Baselines must come from the same image + CPU as CI
+# (a Mac renders fonts differently), so this writes them here and uploads them as an artifact:
+#   gh workflow run update-visual-baselines.yml && gh run watch
+#   gh run download --name visual-baselines --dir frontend/e2e/__screenshots__
+# then review the images and commit them.
+on: workflow_dispatch
+
+jobs:
+  baselines:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.56.1-noble   # keep in step with ci.yml
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python for the fake-AWS API
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends python3 python3-venv
+          python3 -m venv /opt/venv && /opt/venv/bin/pip install -r backend/requirements-dev.txt
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+      - name: Write baselines
+        working-directory: frontend
+        env: { NIMBUS_PYTHON: /opt/venv/bin/python, HOME: /root }
+        run: npx playwright test --project=visual-desktop --project=visual-mobile --update-snapshots
+      - uses: actions/upload-artifact@v4
+        with: { name: visual-baselines, path: frontend/e2e/__screenshots__, retention-days: 7 }
