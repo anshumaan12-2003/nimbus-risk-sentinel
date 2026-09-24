@@ -119,7 +119,8 @@ function PostureSummary({ d }) {
         {spark.length > 1 && (
           <div className="h-12 w-full max-w-[260px]" aria-hidden>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={spark} margin={{ top: 4, right: 2, bottom: 2, left: 2 }}>
+              {/* Decorative: Recharts 3 makes charts keyboard-focusable by default, which is wrong inside aria-hidden */}
+              <AreaChart data={spark} margin={{ top: 4, right: 2, bottom: 2, left: 2 }} accessibilityLayer={false}>
                 <defs>
                   <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.22} />
