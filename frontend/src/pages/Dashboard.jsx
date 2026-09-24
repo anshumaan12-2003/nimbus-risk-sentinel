@@ -105,7 +105,7 @@ function PostureSummary({ d }) {
       <div className="grid content-start gap-3">
         <p className="text-sm text-fg-2">Risk score</p>
         <div className="flex items-end gap-3">
-          <span className="num text-[56px] leading-none font-semibold tracking-[-0.04em] text-fg">{score}</span>
+          <span className="num font-display text-[56px] leading-none font-bold tracking-[-0.045em] text-fg">{score}</span>
           <span className="pb-1.5 text-sm text-fg-3">/ 100</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -436,7 +436,7 @@ export default function Dashboard() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-6">
         <div className="min-w-0">
           <p className="text-sm text-fg-3">{greeting}{first ? `, ${first}` : ''}</p>
-          <h2 className="mt-0.5 text-xl font-semibold text-fg">Security posture</h2>
+          <h2 className="mt-0.5 font-display text-2xl font-bold tracking-[-0.03em] text-fg">Security posture</h2>
           <p className="num mt-1 flex flex-wrap items-center gap-x-2 text-sm text-fg-2">
             {d.account ? <span className="font-mono text-xs">AWS {d.account.id}</span> : d.demo ? <span>Sample account</span> : null}
             {d.latest && <><span aria-hidden className="text-fg-3">·</span><span>Scanned <TimeAgo value={d.latest.completed_at || d.latest.started_at} /></span></>}

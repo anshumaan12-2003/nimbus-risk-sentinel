@@ -6,6 +6,7 @@ import './styles/app.css'
 // security tool, and screenshots are identical everywhere (visual regression tests depend on it).
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
+import '@fontsource-variable/bricolage-grotesque/opsz.css'   // display face (with optical sizes: its character shows at large sizes); titles and hero numbers only
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

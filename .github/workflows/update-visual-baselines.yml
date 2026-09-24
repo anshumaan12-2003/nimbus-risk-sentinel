@@ -4,7 +4,8 @@ name: Update visual baselines
 # (a Mac renders fonts differently), so this writes them here and uploads them as an artifact:
 #   gh workflow run update-visual-baselines.yml && gh run watch
 #   gh run download --name visual-baselines --dir frontend/e2e/__screenshots__
-# then review the images and commit them.
+# then review the images and commit them. "=all" rewrites every image: the default only rewrites failing
+# ones, which leaves small-but-real changes (under the 1% tolerance) showing the old look.
 on: workflow_dispatch
 
 jobs:
@@ -23,6 +24,6 @@ jobs:
       - name: Write baselines
         working-directory: frontend
         env: { NIMBUS_PYTHON: /opt/venv/bin/python, HOME: /root }
-        run: npx playwright test --project=visual-desktop --project=visual-mobile --update-snapshots
+        run: npx playwright test --project=visual-desktop --project=visual-mobile --update-snapshots=all
       - uses: actions/upload-artifact@v4
         with: { name: visual-baselines, path: frontend/e2e/__screenshots__, retention-days: 7 }
