@@ -52,6 +52,9 @@ def _add_latency(seconds: float):
 
 if __name__ == "__main__":
     with mock_aws():
+        # Same volume/instance ids every run: they appear in finding titles, so screenshot baselines need them stable
+        from moto.moto_api._internal import mock_random
+        mock_random.seed(42)
         t._build_vulnerable_account()
         import uvicorn
         from app.database import Base, engine
