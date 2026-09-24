@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import {
-  Activity, Bell, FileText, LogOut, Menu as MenuIcon, Monitor, Moon, Play, Settings, ShieldCheck, Sparkles, Sun,
-} from 'lucide-react'
+import { Activity, Bell, FileText, LogOut, Menu as MenuIcon, Monitor, Moon, Play, Settings, ShieldCheck, Sun } from 'lucide-react'
 import { pageFor } from '@/app/nav'
 import { cn } from '@/lib/cn'
+import VesperMark from '@/components/vesper/VesperMark'
 import {
   Button, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Popover, PopoverContent, PopoverTrigger,
   Tooltip, Kbd, Badge,
@@ -129,7 +128,7 @@ function AccountMenu() {
 }
 
 export default function Topbar() {
-  const { toggleNav, navOpen, openScanModal, toggleAuditDrawer, toggleGlobalCopilot } = useSentinelStore()
+  const { toggleNav, navOpen, openScanModal, toggleAuditDrawer, toggleVesper } = useSentinelStore()
   const run = useCan('scan:run')
   const active = useActiveScan()
   const location = useLocation()
@@ -146,9 +145,9 @@ export default function Topbar() {
       <h1 className="min-w-0 truncate text-md font-semibold text-fg">{page?.label || 'Not found'}</h1>
 
       <div className="ml-auto flex items-center gap-0.5">
-        <Tooltip content={<span className="flex items-center gap-1.5">Ask Copilot <Kbd className="border-transparent bg-fg-2 text-bg">⌘J</Kbd></span>} side="bottom">
-          <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2.5" onClick={toggleGlobalCopilot}>
-            <Sparkles className="text-accent-text" /><span className="hidden sm:inline">Ask Copilot</span>
+        <Tooltip content={<span className="flex items-center gap-1.5">Ask Vesper <Kbd className="border-transparent bg-fg-2 text-bg">⌘J</Kbd></span>} side="bottom">
+          <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2.5" onClick={toggleVesper} aria-label="Ask Vesper">
+            <VesperMark size={18} /><span className="hidden sm:inline">Ask Vesper</span>
           </Button>
         </Tooltip>
         <IconButton label="Activity log" onClick={toggleAuditDrawer} className="hidden sm:inline-flex"><Activity /></IconButton>

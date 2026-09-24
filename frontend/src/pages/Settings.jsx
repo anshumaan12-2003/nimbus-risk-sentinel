@@ -73,7 +73,7 @@ export default function Settings() {
 
   const nav = [
     live && ['account', 'Your account'], live && ['team', 'Team'], ['aws', 'AWS connection'], ['scanning', 'Scanning'],
-    ['remediation', 'Remediation'], ['copilot', 'Copilot'], ['notifications', 'Notifications'], ['appearance', 'Appearance'], ['shortcuts', 'Keyboard shortcuts'],
+    ['remediation', 'Remediation'], ['copilot', 'Vesper'], ['notifications', 'Notifications'], ['appearance', 'Appearance'], ['shortcuts', 'Keyboard shortcuts'],
   ].filter(Boolean)
 
   return (
@@ -155,7 +155,7 @@ export default function Settings() {
             ]} />}
           </Section>
 
-          <Section id="copilot" title="Copilot">
+          <Section id="copilot" title="Vesper (assistant)">
             {cfg.data && <Rows items={[
               ['Provider', c.ai_provider],
               ['Model', <span className="font-mono text-xs">{c.ai_model}</span>],

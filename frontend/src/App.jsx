@@ -37,13 +37,14 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Approvals = lazy(() => import('./pages/Approvals'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const UiKit = lazy(() => import('./pages/UiKit'))
+const Vesper = lazy(() => import('./pages/Vesper'))
 // Loaded on first open: it brings the markdown renderer, which no page needs on first load.
-const GlobalAICopilotDrawer = lazy(() => import('./components/GlobalAICopilotDrawer'))
+const VesperPanel = lazy(() => import('./components/vesper/VesperPanel'))
 
-/* ⌘J / Ctrl+J toggles Copilot from anywhere; the panel itself mounts the first time it opens. */
-function CopilotSlot() {
-  const open = useSentinelStore(s => s.globalCopilotOpen)
-  const toggle = useSentinelStore(s => s.toggleGlobalCopilot)
+/* ⌘J / Ctrl+J toggles Vesper from anywhere; the panel itself mounts the first time it opens. */
+function VesperSlot() {
+  const open = useSentinelStore(s => s.vesperOpen)
+  const toggle = useSentinelStore(s => s.toggleVesper)
   const [mounted, setMounted] = useState(false)
   useEffect(() => { if (open) setMounted(true) }, [open])
   useEffect(() => {
@@ -53,7 +54,7 @@ function CopilotSlot() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [toggle])
-  return mounted ? <Suspense fallback={null}><GlobalAICopilotDrawer /></Suspense> : null
+  return mounted ? <Suspense fallback={null}><VesperPanel /></Suspense> : null
 }
 
 function PageFallback() {
@@ -85,6 +86,7 @@ function AppRoutes() {
           <Route path="/iac" element={<IacScanner />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/ui" element={<UiKit />} />
+          <Route path="/vesper" element={<Vesper />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -144,12 +146,12 @@ export default function App() {
             {/* Overlays get their own boundary: a bug in one panel must never blank the whole app. */}
             <ErrorBoundary silent onReset={() => {
               const s = useSentinelStore.getState()
-              s.closeScanModal(); s.closeCommandPalette(); s.closeAuditDrawer(); s.closeGlobalCopilot(); s.closeExecutiveDossier()
+              s.closeScanModal(); s.closeCommandPalette(); s.closeAuditDrawer(); s.closeVesper(); s.closeExecutiveDossier()
             }}>
               <CommandPalette />
               <LiveScanTerminalModal />
               <AuditFeedDrawer />
-              <CopilotSlot />
+              <VesperSlot />
               <ExecutiveDossierModal />
               <LiveStreamConnector />
               <LiveToasts />

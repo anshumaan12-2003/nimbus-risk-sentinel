@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import { toast } from 'sonner'
-import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Undo2, Wrench } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ShieldCheck, Undo2, Wrench } from 'lucide-react'
 import {
   Sheet, SheetContent, Tabs, TabsList, TabsTrigger, TabsContent, SeverityBadge, StatusBadge, Button, Badge,
   DescriptionList, ResourceId, CodeBlock, Textarea, Field, Skeleton, EmptyState,
@@ -13,6 +13,9 @@ import { useCan } from '@/auth/authStore'
 import { useControls } from '@/hooks/queries'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { consoleUrl, SERVICE_NAMES } from '@/lib/aws'
+import VesperMark from '@/components/vesper/VesperMark'
+
+const VesperStar = (props) => <VesperMark plain {...props} />
 
 function Section({ title, children }) {
   return (
@@ -101,18 +104,22 @@ function FixPanel({ finding, demo }) {
   )
 }
 
-function CopilotPanel({ finding }) {
+function VesperExplain({ finding }) {
+  const askVesper = useSentinelStore(s => s.askVesper)
   const q = useQuery({
     queryKey: ['copilot', 'explain', finding.id],
     queryFn: () => api.post('/copilot/explain', finding).then(r => r.data.explanation),
     staleTime: Infinity, retry: false,
   })
   if (q.isLoading) return <div className="grid gap-3"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4" /><Skeleton className="h-4 w-5/6" /><Skeleton className="h-4 w-2/3" /></div>
-  if (q.isError) return <EmptyState compact icon={Sparkles} title="Copilot is unavailable" body={apiError(q.error)} />
+  if (q.isError) return <EmptyState compact icon={VesperStar} title="Vesper is unavailable" body={apiError(q.error)} />
   return (
     <div className="prose-nimbus text-sm leading-6 text-fg [&_code]:rounded-xs [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_h1]:text-md [&_h1]:font-semibold [&_h2]:mt-4 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:text-sm [&_h3]:font-semibold [&_li]:ml-4 [&_ol]:list-decimal [&_p]:my-2 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-surface-2 [&_pre]:p-3 [&_ul]:list-disc">
       <ReactMarkdown>{q.data || ''}</ReactMarkdown>
-      <p className="mt-4 flex items-center gap-1.5 text-xs text-fg-3"><Sparkles className="size-3.5" /> Written by Copilot from this finding. Check before acting.</p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs text-fg-3"><VesperMark plain size={14} className="text-accent-text" /> Written by Vesper from this finding. Check before acting.</p>
+        <Button size="sm" onClick={() => askVesper(`About ${finding.rule_id}: `)}>Ask Vesper a follow-up</Button>
+      </div>
     </div>
   )
 }
@@ -159,7 +166,7 @@ export default function FindingSheet({ finding, open, onOpenChange }) {
           <TabsList className="sticky top-0 z-10 bg-surface px-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="fix">Fix</TabsTrigger>
-            <TabsTrigger value="copilot"><Sparkles className="size-3.5 text-accent-text" /> Explain</TabsTrigger>
+            <TabsTrigger value="copilot"><VesperMark plain size={14} className="text-accent-text" /> Explain</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="grid gap-6 p-5">
@@ -194,7 +201,7 @@ export default function FindingSheet({ finding, open, onOpenChange }) {
           </TabsContent>
 
           <TabsContent value="fix" className="p-5"><FixPanel finding={finding} demo={demo} /></TabsContent>
-          <TabsContent value="copilot" className="p-5"><CopilotPanel finding={finding} /></TabsContent>
+          <TabsContent value="copilot" className="p-5"><VesperExplain finding={finding} /></TabsContent>
         </Tabs>
       </SheetContent>
     </Sheet>

@@ -85,11 +85,16 @@ export const useSentinelStore = create((set, get) => ({
   closeAuditDrawer: () => set({ auditDrawerOpen: false }),
   toggleAuditDrawer: () => set((state) => ({ auditDrawerOpen: !state.auditDrawerOpen })),
 
-  // Global AI Copilot Assistant
-  globalCopilotOpen: false,
-  openGlobalCopilot: () => set({ globalCopilotOpen: true }),
-  closeGlobalCopilot: () => set({ globalCopilotOpen: false }),
-  toggleGlobalCopilot: () => set((state) => ({ globalCopilotOpen: !state.globalCopilotOpen })),
+  // Vesper, the assistant. vesperDraft pre-fills the composer (e.g. "Ask Vesper about this finding").
+  vesperOpen: false,
+  vesperDraft: null,
+  openVesper: () => set({ vesperOpen: true }),
+  closeVesper: () => set({ vesperOpen: false }),
+  toggleVesper: () => set((state) => ({ vesperOpen: !state.vesperOpen })),
+  askVesper: (question) => set({ vesperOpen: true, vesperDraft: question }),
+  takeVesperDraft: () => { const d = get().vesperDraft; if (d) set({ vesperDraft: null }); return d },
+  vesperConversationId: null,   // shared by the panel and the full page
+  setVesperConversation: (id) => set({ vesperConversationId: id }),
 
   // Executive Dossier Modal
   executiveDossierOpen: false,

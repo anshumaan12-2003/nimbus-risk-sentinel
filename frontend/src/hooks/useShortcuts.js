@@ -13,7 +13,7 @@ export const SHORTCUT_GROUPS = [
     items: [
       { keys: ['⌘', 'K'], label: 'Search and commands' },
       { keys: ['/'], label: 'Search' },
-      { keys: ['⌘', 'J'], label: 'Ask Copilot' },
+      { keys: ['⌘', 'J'], label: 'Ask Vesper' },
       { keys: ['?'], label: 'Keyboard shortcuts' },
       { keys: ['Esc'], label: 'Close panel or dialog' },
     ],

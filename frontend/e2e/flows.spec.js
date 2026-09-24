@@ -109,15 +109,51 @@ test.describe('phone', () => {
   })
 })
 
-test('Copilot loads on first open, from the shortcut and from the header', async ({ page }) => {
+test('Vesper loads on first open, from the shortcut and from the header', async ({ page }) => {
   await signIn(page, 'viewer')
-  const panel = page.getByRole('dialog', { name: /Copilot/ })
+  const panel = page.getByRole('dialog', { name: /Vesper/ })
   await expect(panel).toHaveCount(0)                      // not mounted until asked for
   await page.keyboard.press('ControlOrMeta+j')
   await expect(panel).toBeVisible()
-  await expect(panel.getByRole('textbox', { name: 'Message Copilot' })).toBeVisible()
+  await expect(panel.getByRole('textbox', { name: 'Message Vesper' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(panel).toBeHidden()
-  await page.getByRole('banner').getByRole('button', { name: /Ask Copilot/ }).click()
+  await page.getByRole('banner').getByRole('button', { name: 'Ask Vesper' }).click()
   await expect(panel).toBeVisible()
+})
+
+test('Vesper streams a cited answer, links to the finding, and keeps the conversation', async ({ page }) => {
+  await signIn(page, 'engineer')
+  await page.keyboard.press('ControlOrMeta+j')
+  const panel = page.getByRole('dialog', { name: /Vesper/ })
+  await panel.getByRole('button', { name: 'What should I fix first?' }).click()
+  const log = panel.getByRole('log', { name: 'Conversation with Vesper' })
+  await expect(log.getByText('Fix first:', { exact: true })).toBeVisible()               // fake account has no AI key: scan facts
+  await expect(log.getByText(/scan facts only \(AI is off\)/)).toBeVisible()
+  await expect(log.getByRole('button', { name: 'Helpful', exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: /^What breaks if I fix/ })).toBeVisible()   // follow-ups
+
+  // Slash commands expand into a full question
+  const box = panel.getByRole('textbox', { name: 'Message Vesper' })
+  await box.fill('/rep')
+  await expect(panel.getByRole('option', { name: /Status update for a manager/ })).toBeVisible()
+  await box.press('Enter')
+  await expect(box).toHaveValue(/status update on our cloud risk/)
+  await box.fill('')
+
+  // A citation chip opens that finding
+  const chip = log.getByRole('button', { name: /^(IAM|S3|EC2|RDS)-\d{3}$/ }).first()
+  const rule = await chip.textContent()
+  await chip.click()
+  await expect(panel).toBeHidden()
+  await expect(page).toHaveURL(/\/findings/)
+
+  // The conversation is saved and can be reopened from History
+  await page.keyboard.press('ControlOrMeta+j')
+  await panel.getByRole('button', { name: 'New' }).click()
+  await expect(panel.getByRole('button', { name: 'What should I fix first?' })).toBeVisible()
+  await panel.getByRole('button', { name: 'History' }).click()
+  await page.getByRole('menuitem', { name: /What should I fix first\?/ }).click()
+  await expect(panel.getByRole('log').getByText('Fix first:', { exact: true })).toBeVisible()
+  expect(rule).toMatch(/^(IAM|S3|EC2|RDS)-\d{3}$/)
 })

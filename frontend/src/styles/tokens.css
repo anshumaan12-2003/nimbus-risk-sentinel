@@ -252,3 +252,8 @@
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* Vesper's star breathes and turns slowly while an answer is being written. */
+@keyframes vesper-breathe { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(.82) rotate(45deg); opacity: .8; } }
+.vesper-thinking .vesper-star { animation: vesper-breathe 1.6s var(--ease-standard) infinite; }
+@media (prefers-reduced-motion: reduce) { .vesper-thinking .vesper-star { animation: none; } }

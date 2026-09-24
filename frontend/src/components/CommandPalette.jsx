@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Command } from 'cmdk'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import {
-  Activity, Boxes, CornerDownLeft, Database, FileText, Filter, Globe, Moon, Play, Search, ShieldAlert, Sparkles, Sun,
-} from 'lucide-react'
+import { Activity, Boxes, CornerDownLeft, Database, FileText, Filter, Globe, Moon, Play, Search, ShieldAlert, Sun } from 'lucide-react'
 import { NAV, SETTINGS_ITEM } from '@/app/nav'
 import { Kbd, SeverityBadge } from '@/components/ds'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { useFindings, useInventory } from '@/hooks/queries'
+import VesperMark from '@/components/vesper/VesperMark'
+
+const VesperIcon = (props) => <VesperMark plain size={16} {...props} />
 
 function Item({ icon: Icon, children, hint, shortcut, onSelect, value }) {
   return (
@@ -38,7 +39,7 @@ function Group({ heading, children }) {
 
 export default function CommandPalette() {
   const {
-    commandPaletteOpen, closeCommandPalette, openScanModal, toggleAuditDrawer, toggleGlobalCopilot,
+    commandPaletteOpen, closeCommandPalette, openScanModal, toggleAuditDrawer, toggleVesper,
     openExecutiveDossier, theme, setTheme, dataSource, setDataSource, triggerRefresh,
   } = useSentinelStore()
   const [query, setQuery] = useState('')
@@ -117,7 +118,7 @@ export default function CommandPalette() {
 
               <Group heading="Actions">
                 <Item icon={Play} value="run scan now" onSelect={run(openScanModal)}>Run a scan now</Item>
-                <Item icon={Sparkles} value="ask copilot ai" shortcut={['⌘', 'J']} onSelect={run(toggleGlobalCopilot)}>Ask Copilot</Item>
+                <Item icon={VesperIcon} value="ask vesper assistant ai copilot" shortcut={['⌘', 'J']} onSelect={run(toggleVesper)}>Ask Vesper</Item>
                 <Item icon={FileText} value="executive report dossier export" onSelect={run(openExecutiveDossier)}>Executive report</Item>
                 <Item icon={Activity} value="activity log audit feed" onSelect={run(toggleAuditDrawer)}>Open activity log</Item>
                 <Item icon={theme === 'dark' ? Sun : Moon} value="toggle theme dark light mode"

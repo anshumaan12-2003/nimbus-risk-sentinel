@@ -78,7 +78,7 @@ def _posture_context(db: Session) -> tuple[str, str]:
            f"Risk score: {scan.risk_score}/100 | Open findings by severity: {counts or 'none'}\n"
            f"Top open findings:\n" + ("\n".join(lines) or "(none)"))
     top = rows[:5]
-    fallback = (f"**AI is offline** (no `AI_API_KEY` or model error), so here is the factual summary instead.\n\n"
+    fallback = (f"I'm working from scan facts only right now (AI isn't available), so here's the straight summary.\n\n"
                 f"Account `{scan.account_id}` · risk **{scan.risk_score}/100** · open findings: "
                 + (", ".join(f"{v} {k.lower()}" for k, v in sorted(counts.items(), key=lambda kv: SEV_ORDER.get(kv[0], 9))) or "none")
                 + ("\n\n**Fix first:**\n" + "\n".join(f"1. `{f.rule_id}` {f.title} — `{f.resource_name or f.resource.resource_id}`" for f in top) if top else ""))

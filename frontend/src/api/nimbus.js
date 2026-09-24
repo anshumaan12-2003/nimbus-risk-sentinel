@@ -46,6 +46,55 @@ api.interceptors.response.use((r) => r, async (error) => {
   return api(config)
 })
 
+// ─── Vesper (assistant) ───────────────────────────────────────────────────────
+export const listConversations = () => api.get('/assistant/conversations').then(r => r.data)
+export const getConversation = (id) => api.get(`/assistant/conversations/${id}`).then(r => r.data)
+export const renameConversation = (id, title) => api.patch(`/assistant/conversations/${id}`, { title }).then(r => r.data)
+export const deleteConversation = (id) => api.delete(`/assistant/conversations/${id}`)
+export const rateMessage = (id, rating) => api.patch(`/assistant/messages/${id}`, { rating }).then(r => r.data)
+
+/*
+  Streams an answer from POST /assistant/chat (Server-Sent Events) and calls onEvent(name, data) for
+  each event as it arrives. Uses fetch (axios can't stream in the browser) with the same auth rules:
+  in-memory token, one shared refresh on 401, back to sign-in if that fails. Abort with `signal`.
+*/
+export async function streamChat(body, { signal, onEvent }) {
+  const send = (token) => fetch(`${API_BASE}/api/v1/assistant/chat`, {
+    method: 'POST', signal, credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  })
+  let res = await send(authHandlers.getToken())
+  if (res.status === 401) {
+    const token = await authHandlers.refresh()
+    if (!token) { authHandlers.onExpired(); throw new Error('Your session ended. Sign in again.') }
+    res = await send(token)
+  }
+  if (!res.ok) {
+    let detail = `Vesper couldn't answer (HTTP ${res.status}).`
+    try { const j = await res.json(); detail = typeof j.detail === 'string' ? j.detail : detail } catch { /* not JSON */ }
+    throw new Error(detail)
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    let cut
+    while ((cut = buf.indexOf('\n\n')) >= 0) {           // one SSE event per blank-line-terminated block
+      const block = buf.slice(0, cut); buf = buf.slice(cut + 2)
+      let event = 'message', data = ''
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event: ')) event = line.slice(7)
+        else if (line.startsWith('data: ')) data += line.slice(6)
+      }
+      if (data) onEvent(event, JSON.parse(data))
+    }
+  }
+}
+
 // ─── Scans ────────────────────────────────────────────────────────────────────
 export const triggerScan = (regions = null) =>
   api.post('/scans/trigger', { regions }).then(r => r.data)
