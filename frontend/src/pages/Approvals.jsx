@@ -11,12 +11,12 @@ import { ArrowRight, CheckCircle2, ShieldCheck, Undo2, XCircle } from 'lucide-re
 import {
   Page, PageHeader, Card, Button, SeverityBadge, StatusBadge, Tabs, TabsList, TabsTrigger, TabsContent, Textarea,
   EmptyState, QueryState, SkeletonRows, Tooltip, ResourceId,
+  TimeAgo
 } from '@/components/ds'
 import { useRemediationRequests, useConfig } from '@/hooks/queries'
 import { approveRemediation, rejectRemediation, cancelRemediation, apiError } from '@/api/nimbus'
 import { useAuth, useCan } from '@/auth/authStore'
 import { emitEvent } from '@/store/eventStore'
-import { ago, dateTime } from '@/lib/time'
 
 function StateBox({ label, value, tone }) {
   return (
@@ -31,7 +31,7 @@ function Person({ label, who, when }) {
   return (
     <div className="grid gap-0.5">
       <dt className="text-xs text-fg-3">{label}</dt>
-      <dd className="text-sm text-fg"><span className="font-medium">{who}</span> <span className="text-fg-3" title={dateTime(when)}>· {ago(when)}</span></dd>
+      <dd className="text-sm text-fg"><span className="font-medium">{who}</span> <span className="text-fg-3">· <TimeAgo value={when} /></span></dd>
     </div>
   )
 }

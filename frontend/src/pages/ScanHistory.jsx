@@ -4,12 +4,13 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as
 import {
   Page, PageHeader, Card, CardHeader, CardBody, Button, StatTile, StatusBadge, EmptyState, QueryState, SkeletonRows,
   Sheet, SheetContent, DescriptionList, Tooltip, Badge, CodeBlock,
+  TimeAgo
 } from '@/components/ds'
 import ScanProgressGrid from '@/components/ScanProgressGrid'
 import { downloadFile } from '@/components/ui'
 import { useScans, useActiveScan, useScanWarnings, useScanProgress } from '@/hooks/queries'
 import { useSentinelStore } from '@/store/sentinelStore'
-import { ago, dateTime, parseUtc, shortDate } from '@/lib/time'
+import { dateTime, parseUtc, shortDate } from '@/lib/time'
 
 const durationSec = (s) => (s.started_at && s.completed_at ? (parseUtc(s.completed_at) - parseUtc(s.started_at)) / 1000 : null)
 const fmtDur = (sec) => (sec == null ? '—' : sec < 60 ? `${sec.toFixed(1)}s` : `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`)
@@ -113,7 +114,7 @@ export default function ScanHistory() {
       {active.data && (
         <div role="status" className="mb-4 flex items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3 text-sm text-accent-text">
           <Loader2 className="size-4 animate-spin" />
-          A scan started {ago(active.data.started_at)} is {active.data.status.toLowerCase()}. This page updates when it finishes.
+          A scan started <TimeAgo value={active.data.started_at} /> is {active.data.status.toLowerCase()}. This page updates when it finishes.
         </div>
       )}
       <QueryState query={q} loading={<SkeletonRows rows={8} />}
@@ -165,7 +166,7 @@ export default function ScanHistory() {
                       <tr key={s.id} tabIndex={0} onClick={() => { setOpenId(s.id); setShownId(s.id) }}
                           onKeyDown={e => { if (e.key === 'Enter') { setOpenId(s.id); setShownId(s.id) } }}
                           className="cursor-pointer border-b border-line last:border-0 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none">
-                        <td className="h-12 pr-3 pl-5"><span className="text-fg" title={dateTime(s.started_at)}>{ago(s.started_at)}</span></td>
+                        <td className="h-12 pr-3 pl-5"><TimeAgo value={s.started_at} className="text-fg" /></td>
                         <td className="px-3">
                           <span className="flex items-center gap-1.5">
                             <StatusBadge status={s.status} size="sm" />

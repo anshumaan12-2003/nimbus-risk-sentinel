@@ -7,13 +7,13 @@ import { cn } from '@/lib/cn'
 import {
   Badge, Button, CopyButton, Dialog, DialogClose, DialogContent, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger,
   SkeletonRows, ErrorState,
+  TimeAgo
 } from '@/components/ds'
 import { useUsers } from '../hooks/queries'
 import { createUser, updateUser, resetUserPassword, apiError } from '../api/nimbus'
 import { useAuth, useCan } from '../auth/authStore'
 import { ROLES, ROLE_INFO } from '../auth/permissions'
 import { qk } from '../lib/queryClient'
-import { ago } from '@/lib/time'
 import { MoreHorizontal } from 'lucide-react'
 
 const ROLE_TONE = { admin: 'accent', approver: 'medium', engineer: 'info', viewer: 'neutral' }
@@ -139,7 +139,7 @@ export function TeamSection() {
                       </select>
                     ) : <RoleBadge role={u.role} />}
                   </td>
-                  <td className="px-3 text-fg-2">{u.is_active ? (u.last_login_at ? ago(u.last_login_at) : 'Never') : 'Deactivated'}</td>
+                  <td className="px-3 text-fg-2">{u.is_active ? (u.last_login_at ? <TimeAgo value={u.last_login_at} /> : 'Never') : 'Deactivated'}</td>
                   {manage.allowed && (
                     <td className="pr-4 text-right">
                       {u.id !== me?.id && (

@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Crosshair, Crown, Download, Globe, Play, Search } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { ago } from '@/lib/time'
 import { consoleUrl } from '@/lib/aws'
 import {
   Page, PageHeader, Card, Button, Input, Badge, SeverityBadge, StatTile, EmptyState, QueryState, SkeletonRows,
   Sheet, SheetContent, DescriptionList, ResourceId, Switch,
+  TimeAgo
 } from '@/components/ds'
 import { downloadFile, toCsv } from '@/components/ui'
 import { useInventory } from '@/hooks/queries'
@@ -140,7 +140,7 @@ export default function Assets() {
       <PageHeader
         title="Assets"
         description="Every resource discovered in the latest scan, ranked by exposure. Healthy resources are listed too — attack paths run through them."
-        meta={q.data?.collected_at && <><span className="font-mono">AWS {q.data.account_id}</span><span aria-hidden>·</span><span>Collected {ago(q.data.collected_at)}</span></>}
+        meta={q.data?.collected_at && <><span className="font-mono">AWS {q.data.account_id}</span><span aria-hidden>·</span><span>Collected <TimeAgo value={q.data.collected_at} /></span></>}
         actions={<>
           <Button onClick={exportCsv} disabled={!rows.length}><Download /> Export CSV</Button>
           <Button variant="primary" onClick={openScanModal}><Play /> Rescan</Button>

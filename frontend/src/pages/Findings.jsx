@@ -5,11 +5,11 @@ import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, CheckCircle2, Download, Search, ShieldCheck, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { ago } from '@/lib/time'
 import { SERVICE_NAMES } from '@/lib/aws'
 import {
   Page, PageHeader, Card, Button, Input, SeverityBadge, StatusBadge, EmptyState, ErrorState, SkeletonRows,
   Segmented, Kbd, Tooltip,
+  TimeAgo
 } from '@/components/ds'
 import FindingSheet from '@/components/findings/FindingSheet'
 import { downloadFile, toCsv } from '@/components/ui'
@@ -138,7 +138,7 @@ export default function Findings() {
     {
       id: 'detected', accessorFn: f => f.detected_at || f.created_at || '', size: 130,
       header: ({ column }) => <SortHeader column={column}>Detected</SortHeader>,
-      cell: ({ row }) => <span className="whitespace-nowrap text-fg-2">{ago(row.original.detected_at || row.original.created_at)}</span>,
+      cell: ({ row }) => <TimeAgo value={row.original.detected_at || row.original.created_at} className="whitespace-nowrap text-fg-2" />,
     },
     {
       id: 'risk', accessorFn: f => Number(f.risk_score) || 0, size: 72,

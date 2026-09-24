@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Area, AreaChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { ArrowUpRight, ChevronRight, FileText, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { ago, shortDate } from '@/lib/time'
+import { shortDate } from '@/lib/time'
 import {
   Page, Card, CardHeader, CardBody, Button, SeverityBadge, StatTile, EmptyState, Skeleton, ErrorState,
+  TimeAgo
 } from '@/components/ds'
 import GettingStarted from '@/components/GettingStarted'
 import { useSentinelStore } from '@/store/sentinelStore'
@@ -437,7 +438,7 @@ export default function Dashboard() {
           <h2 className="mt-0.5 text-xl font-semibold text-fg">Security posture</h2>
           <p className="num mt-1 flex flex-wrap items-center gap-x-2 text-sm text-fg-2">
             {d.account ? <span className="font-mono text-xs">AWS {d.account.id}</span> : d.demo ? <span>Sample account</span> : null}
-            {d.latest && <><span aria-hidden className="text-fg-3">·</span><span>Scanned {ago(d.latest.completed_at || d.latest.started_at)}</span></>}
+            {d.latest && <><span aria-hidden className="text-fg-3">·</span><span>Scanned <TimeAgo value={d.latest.completed_at || d.latest.started_at} /></span></>}
             {every && <><span aria-hidden className="text-fg-3">·</span><span>Rescans every {every} min</span></>}
           </p>
         </div>

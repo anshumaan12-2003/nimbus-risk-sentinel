@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, Copy, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { ago, dateTime, parseUtc } from '@/lib/time'
 import { Tooltip } from './overlay'
 
 /* Copy with a visible confirmation that doesn't move the layout. */
@@ -109,4 +110,12 @@ export function StatTile({ label, value, tone = 'neutral', delta, deltaGood = 'd
       </span>
     </Comp>
   )
+}
+
+/* "5 minutes ago" as a real <time>: machine-readable date, exact time on hover, and screenshot tests
+   mask it (e2e/helpers.js) because the wording changes every run. */
+export function TimeAgo({ value, className }) {
+  const d = parseUtc(value)
+  if (!d) return <span className={className}>never</span>
+  return <time dateTime={d.toISOString()} title={dateTime(value)} className={className}>{ago(value)}</time>
 }

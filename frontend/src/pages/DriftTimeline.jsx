@@ -5,12 +5,12 @@ import { cn } from '@/lib/cn'
 import {
   Page, PageHeader, Card, CardHeader, Button, SeverityBadge, StatTile, EmptyState, ErrorState, SkeletonRows,
   Tabs, TabsList, TabsTrigger, TabsContent,
+  TimeAgo
 } from '@/components/ds'
 import { api } from '@/api/nimbus'
 import { useLatestDrift } from '@/hooks/queries'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { MOCK_DRIFT_REPORT, MOCK_DRIFT_TIMELINE } from '@/data/mockData'
-import { ago, dateTime } from '@/lib/time'
 import { SERVICE_NAMES } from '@/lib/aws'
 
 // Severity may arrive as "HIGH" or (older rows) "Severity.HIGH".
@@ -118,7 +118,7 @@ export default function DriftTimeline() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="text-sm font-medium text-fg" title={dateTime(t.timestamp)}>Scan {ago(t.timestamp)}</p>
+                        <p className="text-sm font-medium text-fg">Scan <TimeAgo value={t.timestamp} /></p>
                         <p className="num text-sm text-fg-2">Risk {t.previous_risk_score} → <span className="font-semibold text-fg">{t.current_risk_score}</span> <Delta value={t.risk_score_delta} /></p>
                       </div>
                       <p className="num mt-1 text-xs text-fg-3">

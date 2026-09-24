@@ -6,13 +6,13 @@ import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Undo2, Wrench } from '
 import {
   Sheet, SheetContent, Tabs, TabsList, TabsTrigger, TabsContent, SeverityBadge, StatusBadge, Button, Badge,
   DescriptionList, ResourceId, CodeBlock, Textarea, Field, Skeleton, EmptyState,
+  TimeAgo
 } from '@/components/ds'
 import { api, apiError, dryRunRemediation, requestRemediation, updateFindingStatus } from '@/api/nimbus'
 import { useCan } from '@/auth/authStore'
 import { useControls } from '@/hooks/queries'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { consoleUrl, SERVICE_NAMES } from '@/lib/aws'
-import { ago, dateTime } from '@/lib/time'
 
 function Section({ title, children }) {
   return (
@@ -170,7 +170,7 @@ export default function FindingSheet({ finding, open, onOpenChange }) {
                 ['ID', <ResourceId value={finding.resource_id} consoleUrl={url} />],
                 ['Service', SERVICE_NAMES[finding.service] || finding.service],
                 ['Region', finding.region || 'global'],
-                ['First detected', finding.detected_at ? <span title={dateTime(finding.detected_at)}>{ago(finding.detected_at)}</span> : null],
+                ['First detected', finding.detected_at ? <TimeAgo value={finding.detected_at} /> : null],
                 finding.assigned_to ? ['Assigned to', finding.assigned_to] : null,
               ]} />
             </Section>

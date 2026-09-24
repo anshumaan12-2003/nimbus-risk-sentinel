@@ -8,12 +8,12 @@ import { Bell, Pause, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
   Sheet, SheetContent, Tabs, TabsList, TabsTrigger, TabsContent, Button, Badge, EmptyState, SkeletonRows, ErrorState, CodeBlock,
+  TimeAgo
 } from '@/components/ds'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { useEventStore, timeAgo } from '@/store/eventStore'
 import { useAuditTrail } from '@/hooks/queries'
 import { EVENT_META, toneFor } from '@/components/LiveStream'
-import { ago, dateTime } from '@/lib/time'
 
 const TONE_DOT = { critical: 'bg-crit', high: 'bg-high', medium: 'bg-med', low: 'bg-low', brand: 'bg-accent', info: 'bg-accent' }
 
@@ -84,7 +84,7 @@ function AwsChanges() {
             <p className="text-xs text-fg-2">
               Approved by <span className="text-fg">{r.executed_by}</span>
               {r.requested_by && <> · requested by <span className="text-fg">{r.requested_by}</span></>}
-              <span className="text-fg-3" title={dateTime(r.timestamp)}> · {ago(r.timestamp)}</span>
+              <span className="text-fg-3"> · <TimeAgo value={r.timestamp} /></span>
             </p>
             {r.result_message && <p className="text-xs text-fg-2">{r.result_message}</p>}
             {r.rollback_command && (
