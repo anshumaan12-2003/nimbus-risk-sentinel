@@ -41,7 +41,7 @@ services:
       - key: COOKIE_SAMESITE
         value: strict            # the browser only ever sees the Vercel origin
       - key: FRONTEND_ORIGINS
-        value: https://nimbus-risk-sentinel.vercel.app
+        value: https://cloud-security-posture-delta.vercel.app
       - key: SCAN_EXECUTOR
         value: background        # single instance, no Redis/Celery needed
       - key: EVENTS_BACKEND
