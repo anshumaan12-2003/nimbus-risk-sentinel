@@ -20,8 +20,8 @@
   --muted-2: #e8e8ec;       /* slate 4: pressed / selected fill */
   --line: #e0e1e6;          /* slate 5/6: hairlines */
   --line-strong: #cdced6;   /* slate 7: input borders, dividers that must read */
-  --fg-3: #8b8d98;          /* slate 9: placeholders, meta */
-  --fg-2: #60646c;          /* slate 11: secondary text */
+  --fg-3: #676b76;          /* tertiary text / meta — AA on every surface (slate 9 alone is only 3.2:1) */
+  --fg-2: #4f535c;          /* secondary text */
   --fg: #1c2024;            /* slate 12: primary text */
 
   /* Accent — Radix indigo. Spent on the one primary action, focus and selection. */
@@ -34,10 +34,10 @@
   --accent-line: #c1d0ff;
 
   /* Severity — the loudest colours in the product, reserved for risk */
-  --crit: #e5484d;  --crit-text: #ce2c31;  --crit-soft: #feebec;  --crit-line: #fdbdbe;
-  --high: #f76b15;  --high-text: #cc4e00;  --high-soft: #ffefd6;  --high-line: #ffc182;
-  --med:  #ffc53d;  --med-text:  #ab6400;  --med-soft:  #fff7c2;  --med-line:  #f3d673;
-  --low:  #30a46c;  --low-text:  #218358;  --low-soft:  #e6f6eb;  --low-line:  #adddc0;
+  --crit: #e5484d;  --crit-text: #c4282d;  --crit-soft: #feebec;  --crit-line: #fdbdbe;
+  --high: #f76b15;  --high-text: #ad4400;  --high-soft: #ffefd6;  --high-line: #ffc182;
+  --med:  #ffc53d;  --med-text:  #945600;  --med-soft:  #fff7c2;  --med-line:  #f3d673;
+  --low:  #30a46c;  --low-text:  #1b744c;  --low-soft:  #e6f6eb;  --low-line:  #adddc0;
   --info: #0090ff;  --info-text: #0d74ce;  --info-soft: #e6f4fe;  --info-line: #acd8fc;
 
   /* Depth — three levels. Borders do most of the work; shadows only lift overlays. */
@@ -58,7 +58,7 @@
   --muted-2: #272a2d;
   --line: #2e3135;
   --line-strong: #43484e;
-  --fg-3: #7b818a;
+  --fg-3: #8e939c;
   --fg-2: #b0b4ba;
   --fg: #edeef0;
 
@@ -88,7 +88,7 @@
   :root:not([data-theme]) {
     color-scheme: dark;
     --bg: #111113; --surface: #18191b; --surface-2: #1c1d20; --muted: #212225; --muted-2: #272a2d;
-    --line: #2e3135; --line-strong: #43484e; --fg-3: #7b818a; --fg-2: #b0b4ba; --fg: #edeef0;
+    --line: #2e3135; --line-strong: #43484e; --fg-3: #8e939c; --fg-2: #b0b4ba; --fg: #edeef0;
     --accent-hover: #5472e4; --accent-text: #9eb1ff; --accent-soft: #182449; --accent-soft-2: #1d2e62; --accent-line: #304384;
     --crit-text: #ff9592; --crit-soft: #3b1219; --crit-line: #72232d;
     --high-text: #ffa057; --high-soft: #331e0b; --high-line: #66350c;

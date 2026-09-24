@@ -9,11 +9,12 @@ import { ago } from '@/lib/time'
 import { SERVICE_NAMES } from '@/lib/aws'
 import {
   Page, PageHeader, Card, Button, Input, SeverityBadge, StatusBadge, EmptyState, ErrorState, SkeletonRows,
-  Tabs, TabsList, TabsTrigger, Kbd, Tooltip,
+  Segmented, Kbd, Tooltip,
 } from '@/components/ds'
 import FindingSheet from '@/components/findings/FindingSheet'
 import { downloadFile, toCsv } from '@/components/ui'
 import { useFindings } from '@/hooks/queries'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useCan } from '@/auth/authStore'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { apiError, requestRemediation, updateFindingStatus } from '@/api/nimbus'
@@ -58,6 +59,7 @@ export default function Findings() {
   const canRequest = useCan('remediation:request')
   const canTriage = useCan('finding:triage')
   const query = useFindings({ limit: 500 })
+  const compact = useMediaQuery('(max-width: 767px)')
   const all = demo ? MOCK_FINDINGS : (query.data || [])
 
   // Filters live in the URL, so any view can be shared or bookmarked.
@@ -197,11 +199,8 @@ export default function Findings() {
 
       {/* toolbar */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Tabs value={view} onValueChange={(v) => setParam('status', v === 'open' ? '' : v)}>
-          <TabsList segmented>
-            {Object.entries(STATUS_VIEWS).map(([k, v]) => <TabsTrigger key={k} value={k}>{v.label}</TabsTrigger>)}
-          </TabsList>
-        </Tabs>
+        <Segmented label="Status" value={view} onValueChange={(v) => setParam('status', v === 'open' ? '' : v)}
+                   options={Object.entries(STATUS_VIEWS).map(([k, v]) => ({ value: k, label: v.label }))} />
         <div className="min-w-[200px] flex-1 sm:max-w-xs">
           <Input icon={Search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search title, rule or resource" aria-label="Search findings" />
         </div>
@@ -215,7 +214,7 @@ export default function Findings() {
             <X /> Clear filters
           </Button>
         )}
-        <span className="ml-auto hidden items-center gap-1.5 text-xs text-fg-3 lg:flex"><Kbd>J</Kbd><Kbd>K</Kbd> move <Kbd>↵</Kbd> open <Kbd>X</Kbd> select</span>
+        <span className="ml-auto hidden items-center gap-1.5 text-xs text-fg-3 xl:flex"><Kbd>J</Kbd><Kbd>K</Kbd> move <Kbd>↵</Kbd> open <Kbd>X</Kbd> select</span>
       </div>
 
       {/* severity chips with counts */}
@@ -239,7 +238,30 @@ export default function Findings() {
                         title={filtersOn ? 'Nothing matches these filters' : view === 'open' ? 'No open findings' : `No ${STATUS_VIEWS[view].label.toLowerCase()} findings`}
                         body={filtersOn ? 'Try another severity or service, or clear the search.' : view === 'open' ? 'Every check Nimbus runs is passing.' : undefined} />
           ) : (
-            <div className="overflow-x-auto" ref={listRef}>
+            <>
+            {/* Phones: a compact list. Tablets and up: the full sortable table. */}
+            {compact && <ul className="divide-y divide-line">
+              {sorted.map(row => {
+                const f = row.original
+                return (
+                  <li key={row.id}>
+                    <button type="button" data-finding-row onClick={() => openFinding(f)} className="relative flex w-full items-start gap-3 px-4 py-3 text-left active:bg-surface-2">
+                      <span aria-hidden className={cn('absolute inset-y-3 left-0 w-[3px] rounded-r-full', SEV_STRIPE[f.severity])} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm leading-5 font-medium text-fg">{f.title}</span>
+                        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-3">
+                          <SeverityBadge severity={f.severity} size="sm" />
+                          <span className="font-mono">{f.rule_id}</span>
+                          <span className="truncate">{f.resource_name}</span>
+                        </span>
+                      </span>
+                      <span className="num pt-0.5 text-sm font-semibold text-fg">{f.risk_score}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>}
+            {!compact && <div className="overflow-x-auto" ref={listRef}>
               <table className="w-full min-w-[860px] table-fixed border-collapse text-sm">
                 <colgroup>{table.getVisibleLeafColumns().map(c => <col key={c.id} style={c.id === 'title' ? undefined : { width: c.getSize() }} />)}</colgroup>
                 <thead className="sticky top-0 z-10 bg-surface-2">
@@ -255,7 +277,7 @@ export default function Findings() {
                 </thead>
                 <tbody>
                   {sorted.map((row, i) => (
-                    <tr key={row.id} data-index={i} onClick={() => { setActive(i); openFinding(row.original) }}
+                    <tr key={row.id} data-index={i} data-finding-row onClick={() => { setActive(i); openFinding(row.original) }}
                         className={cn('group relative cursor-pointer border-b border-line last:border-0 transition-colors hover:bg-surface-2',
                           row.getIsSelected() && 'bg-accent-soft/60 hover:bg-accent-soft', i === active && 'bg-surface-2')}>
                       {row.getVisibleCells().map((cell, ci) => (
@@ -268,7 +290,8 @@ export default function Findings() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div>}
+            </>
           )}
       </Card>
       {sorted.length > 0 && <p className="num mt-3 text-xs text-fg-3">{sorted.length} of {all.length} findings</p>}

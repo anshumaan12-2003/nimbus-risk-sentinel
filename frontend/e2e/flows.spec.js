@@ -26,15 +26,17 @@ test('a reload keeps you signed in (refresh cookie) and sign-out ends the sessio
 
 test('viewer sees everything but cannot act', async ({ page }) => {
   await signIn(page, 'viewer')
-  await expect(page.getByRole('button', { name: 'Run scan' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Run scan' })).toHaveAttribute('title', /engineer role/)
+  const run = page.getByRole('banner').getByRole('button', { name: 'Run scan' })
+  await expect(run).toBeDisabled()
+  await page.getByRole('banner').locator('[data-disabled-reason]').focus()   // the reason shows in a tooltip
+  await expect(page.getByRole('tooltip')).toContainText(/engineer role/)
   await page.goto('/settings')
   await expect(page.getByRole('button', { name: 'Add person' })).toHaveCount(0)
 })
 
 test('live scan grid fills in per service and region', async ({ page }) => {
   await signIn(page, 'engineer')
-  await page.getByRole('button', { name: 'Run scan' }).click()
+  await page.getByRole('banner').getByRole('button', { name: 'Run scan' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('columnheader', { name: 'ap-south-1' })).toBeVisible()
   await expect(dialog.getByRole('cell', { name: /EC2 in us-east-1: Scanning|EC2 in us-east-1: Done/ })).toBeVisible()
@@ -52,8 +54,8 @@ test('four-eyes: engineer requests, approver cannot self-approve, a second appro
   await signIn(eng, 'engineer')
   await eng.goto('/findings')
   await eng.getByText('EC2-005').first().click()
-  await eng.locator('.inspector-nav-tab').nth(2).click()
-  await eng.getByRole('button', { name: /Request approval to auto-fix/ }).click()
+  await eng.getByRole('dialog').getByRole('tab', { name: 'Fix' }).click()
+  await eng.getByRole('button', { name: 'Send for approval' }).click()
   await expect(eng.getByText('Sent for approval')).toBeVisible()
   // engineers have no approve power
   await eng.goto('/approvals')
@@ -62,14 +64,14 @@ test('four-eyes: engineer requests, approver cannot self-approve, a second appro
   // approver approves it; the audit shows both names
   const appr = await (await browser.newContext()).newPage()
   await signIn(appr, 'approver')
-  await expect(appr.getByRole('link', { name: /Approvals/ }).locator('.nav-count')).toHaveText('1')
+  await expect(appr.getByRole('navigation', { name: 'Pages' }).getByRole('link', { name: /Approvals/ })).toContainText('1')
   await appr.goto('/approvals')
   const card = appr.getByRole('article').filter({ hasText: 'EC2-005' })
   await expect(card.getByText(USERS.engineer)).toBeVisible()
   await card.getByRole('button', { name: 'Approve and apply' }).click()
   await appr.getByRole('tab', { name: 'History' }).click()
   const done = appr.getByRole('article').filter({ hasText: 'EC2-005' })
-  await expect(done.getByText('applied', { exact: true })).toBeVisible()
+  await expect(done.getByText('Applied', { exact: true })).toBeVisible()
   await expect(done.getByText(USERS.approver)).toBeVisible()
 })
 
@@ -77,10 +79,11 @@ test('approvers cannot approve their own request', async ({ page }) => {
   await signIn(page, 'approver')
   await page.goto('/findings')
   await page.getByText('RDS-001').first().click()
-  await page.locator('.inspector-nav-tab').nth(2).click()
-  const req = page.getByRole('button', { name: /Request approval to auto-fix/ })
-  if (await req.isDisabled()) test.skip(true, 'RDS-001 has no automated fix in this build')
+  await page.getByRole('dialog').getByRole('tab', { name: 'Fix' }).click()
+  const req = page.getByRole('button', { name: 'Send for approval' })
+  if (!(await req.waitFor({ timeout: 10_000 }).then(() => true, () => false))) test.skip(true, 'RDS-001 has no automated fix in this build')
   await req.click()
+  await expect(page.getByText('Sent for approval')).toBeVisible()
   await page.goto('/approvals')
   const card = page.getByRole('article').filter({ hasText: 'RDS-001' })
   await expect(card.getByRole('button', { name: 'Approve and apply' })).toBeDisabled()

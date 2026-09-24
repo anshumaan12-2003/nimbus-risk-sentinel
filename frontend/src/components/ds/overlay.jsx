@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import * as DropdownPrimitive from '@radix-ui/react-dropdown-menu'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
@@ -11,9 +12,10 @@ export const Dialog = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
 export const DialogClose = DialogPrimitive.Close
 
-function Overlay() {
-  return <DialogPrimitive.Overlay className="anim-overlay fixed inset-0 z-50 bg-scrim" />
-}
+// forwardRef: Radix attaches a ref to track the exit animation before unmounting.
+const Overlay = forwardRef(function Overlay(props, ref) {
+  return <DialogPrimitive.Overlay ref={ref} className="anim-overlay fixed inset-0 z-50 bg-scrim" {...props} />
+})
 
 export function DialogContent({ title, description, className, children, footer, hideClose = false }) {
   return (

@@ -4,7 +4,7 @@ import { ArrowDownRight, ArrowUpRight, Minus, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
   Page, PageHeader, Card, CardHeader, Button, SeverityBadge, StatTile, EmptyState, ErrorState, SkeletonRows,
-  Tabs, TabsList, TabsTrigger,
+  Tabs, TabsList, TabsTrigger, TabsContent,
 } from '@/components/ds'
 import { api } from '@/api/nimbus'
 import { useLatestDrift } from '@/hooks/queries'
@@ -88,17 +88,17 @@ export default function DriftTimeline() {
         </div>
 
         <Card className="overflow-hidden">
-          <div className="px-5 pt-3">
-            <Tabs value={tab} onValueChange={setTab}>
-              <TabsList>
-                <TabsTrigger value="new" count={s.new_count}>New</TabsTrigger>
-                <TabsTrigger value="resolved" count={s.resolved_count}>Fixed</TabsTrigger>
-                <TabsTrigger value="regressed" count={s.regressed_count}>Came back</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <FindingList items={lists[tab]}
-                       empty={tab === 'new' ? 'Nothing new since the last scan.' : tab === 'resolved' ? 'Nothing was fixed between these scans.' : 'Nothing came back — fixes are holding.'} />
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList className="px-5 pt-3">
+              <TabsTrigger value="new" count={s.new_count}>New</TabsTrigger>
+              <TabsTrigger value="resolved" count={s.resolved_count}>Fixed</TabsTrigger>
+              <TabsTrigger value="regressed" count={s.regressed_count}>Came back</TabsTrigger>
+            </TabsList>
+            <TabsContent value={tab} className="focus:outline-none">
+              <FindingList items={lists[tab]}
+                           empty={tab === 'new' ? 'Nothing new since the last scan.' : tab === 'resolved' ? 'Nothing was fixed between these scans.' : 'Nothing came back — fixes are holding.'} />
+            </TabsContent>
+          </Tabs>
         </Card>
 
         <Card className="overflow-hidden">

@@ -100,7 +100,7 @@ function PostureSummary({ d }) {
   const spark = d.history.map(s => ({ score: num(s.risk_score) }))
 
   return (
-    <Card className="grid gap-6 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:p-6">
+    <Card className="grid grid-cols-1 gap-6 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:p-6">
       <div className="grid content-start gap-3">
         <p className="text-sm text-fg-2">Risk score</p>
         <div className="flex items-end gap-3">

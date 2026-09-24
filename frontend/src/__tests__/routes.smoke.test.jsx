@@ -11,15 +11,16 @@ const ROUTES = [
   ['/', /Security posture/i],
   ['/findings', /IAM-00|EC2-00/],
   ['/assets', /prod-customer-data/],
-  ['/scans', /Scan History/],
+  ['/scans', /Scan history/],
   ['/compliance', /MFA enabled for the root user|Root/i],
-  ['/simulator', /api-worker-01/],
-  ['/topology', /Attack Vector Topology/i],
-  ['/drift', /Drift/i],
-  ['/workflow', /Remediation|Board|Backlog/i],
+  ['/simulator', /an attacker reaches/],
+  ['/topology', /Reachable from the internet/],
+  ['/drift', /Timeline|Needs two scans/],
+  ['/workflow', /Triaged, not started/],
+  ['/iac', /Run it in CI/],
   ['/settings', /123456789012/],
   ['/approvals', /Nothing waiting for approval|Approve and apply/],
-  ['/no-such-page', /Page not found/],
+  ['/no-such-page', /There’s nothing here/],
 ]
 
 afterEach(() => cleanup())
@@ -34,7 +35,7 @@ describe('every route renders against the live API', () => {
       try {
         render(<App />)
         await waitFor(() => expect(screen.getAllByText(expected).length).toBeGreaterThan(0), { timeout: 8000 })
-        expect(document.body.textContent).not.toMatch(/Something went wrong|Unexpected Application Error/i)
+        expect(document.body.textContent).not.toMatch(/This page hit a problem|Unexpected Application Error/i)
       } finally {
         console.error = orig
       }

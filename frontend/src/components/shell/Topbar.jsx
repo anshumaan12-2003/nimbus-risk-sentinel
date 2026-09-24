@@ -154,7 +154,9 @@ export default function Topbar() {
         <Notifications />
         <span className="mx-1.5 hidden h-5 w-px bg-line sm:block" aria-hidden />
         <Tooltip content={running ? 'Watch the running scan' : run.reason || 'Scan every service and region now'} side="bottom">
-          <span>
+          {/* focusable while the button is disabled, so keyboard users can still read why */}
+          <span tabIndex={!running && !run.allowed ? 0 : undefined} data-disabled-reason={!running && !run.allowed ? '' : undefined}
+                className="rounded-md focus-visible:outline-2 focus-visible:outline-accent">
             <Button
               variant={running ? 'secondary' : 'primary'}
               onClick={openScanModal}

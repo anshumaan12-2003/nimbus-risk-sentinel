@@ -15,6 +15,15 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('[nimbus] view crashed:', error, info?.componentStack)
+    if (this.props.silent) {
+      // Overlay failed: tell the user, keep the page they were on, and let them try again.
+      import('sonner').then(({ toast }) => toast.error('Something went wrong in that panel', { description: String(error?.message || error) }))
+      // Close whatever was open, then retry — but give up after repeated crashes so it can't loop.
+      const now = Date.now()
+      this.crashes = (this.crashes || []).filter(t => now - t < 10_000).concat(now)
+      this.props.onReset?.()
+      if (this.crashes.length <= 3) setTimeout(() => this.setState({ error: null }), 0)
+    }
   }
 
   componentDidUpdate(prev) {
@@ -23,6 +32,7 @@ export default class ErrorBoundary extends React.Component {
 
   render() {
     if (!this.state.error) return this.props.children
+    if (this.props.silent) return null
     return (
       <Page>
         <Card data-error-boundary className="mx-auto grid max-w-xl justify-items-center gap-4 p-8 text-center">

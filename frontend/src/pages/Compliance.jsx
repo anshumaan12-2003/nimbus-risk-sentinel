@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { CheckCircle2, CircleDashed, Download, Search, XCircle } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
-  Page, PageHeader, Card, Button, Input, Badge, EmptyState, ErrorState, SkeletonRows, Skeleton, Tabs, TabsList, TabsTrigger,
+  Page, PageHeader, Card, Button, Input, Badge, EmptyState, ErrorState, SkeletonRows, Skeleton, Segmented,
 } from '@/components/ds'
 import { downloadFile } from '@/components/ui'
 import { useCompliance, useControls } from '@/hooks/queries'
@@ -108,14 +108,10 @@ export default function Compliance() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Tabs value={status} onValueChange={setStatus}>
-              <TabsList segmented>
-                <TabsTrigger value="FAIL">Failing <span className="num text-fg-3">{counts.FAIL}</span></TabsTrigger>
-                <TabsTrigger value="PASS">Passing <span className="num text-fg-3">{counts.PASS}</span></TabsTrigger>
-                <TabsTrigger value="NOT_EVALUATED">Not checked <span className="num text-fg-3">{counts.NOT_EVALUATED}</span></TabsTrigger>
-                <TabsTrigger value="all">All</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <Segmented label="Control status" value={status} onValueChange={setStatus} options={[
+              { value: 'FAIL', label: 'Failing', count: counts.FAIL }, { value: 'PASS', label: 'Passing', count: counts.PASS },
+              { value: 'NOT_EVALUATED', label: 'Not checked', count: counts.NOT_EVALUATED }, { value: 'all', label: 'All' },
+            ]} />
             {fw !== 'all' && <Badge tone="accent" className="cursor-pointer" onClick={() => setFw('all')}>{FW.find(f => f.key === fw)?.short} only ✕</Badge>}
             <div className="ml-auto w-full sm:w-64"><Input icon={Search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search controls" aria-label="Search controls" /></div>
           </div>

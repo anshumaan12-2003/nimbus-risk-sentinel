@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { CheckCircle2, Monitor, Moon, RefreshCw, Sun, XCircle } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
-  Page, PageHeader, Card, Button, Badge, Input, Kbd, SkeletonRows, ErrorState, Tabs, TabsList, TabsTrigger, ResourceId,
+  Page, PageHeader, Card, Button, Badge, Input, Kbd, SkeletonRows, ErrorState, Segmented, ResourceId,
 } from '@/components/ds'
 import { usePreflight, useConfig } from '../hooks/queries'
 import { getPreflight, testSlackWebhook, apiError } from '../api/nimbus'
@@ -177,21 +177,13 @@ export default function Settings() {
           <Section id="appearance" title="Appearance" description="Saved in this browser.">
             <Rows items={[
               ['Theme', (
-                <Tabs value={themePref} onValueChange={setTheme}>
-                  <TabsList segmented>
-                    <TabsTrigger value="system"><Monitor className="size-3.5" /> System</TabsTrigger>
-                    <TabsTrigger value="light"><Sun className="size-3.5" /> Light</TabsTrigger>
-                    <TabsTrigger value="dark"><Moon className="size-3.5" /> Dark</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <Segmented label="Theme" value={themePref} onValueChange={setTheme} options={[
+                  { value: 'system', label: 'System', icon: Monitor }, { value: 'light', label: 'Light', icon: Sun }, { value: 'dark', label: 'Dark', icon: Moon },
+                ]} />
               )],
               ['Data', (
-                <Tabs value={dataSource} onValueChange={switchMode}>
-                  <TabsList segmented>
-                    <TabsTrigger value="live">My AWS account</TabsTrigger>
-                    <TabsTrigger value="demo">Sample data</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <Segmented label="Data" value={dataSource} onValueChange={switchMode}
+                           options={[{ value: 'live', label: 'My AWS account' }, { value: 'demo', label: 'Sample data' }]} />
               )],
             ]} />
           </Section>

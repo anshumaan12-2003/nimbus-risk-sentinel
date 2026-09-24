@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowRight, CheckCircle2, ShieldCheck, Undo2, XCircle } from 'lucide-react'
 import {
-  Page, PageHeader, Card, Button, SeverityBadge, StatusBadge, Tabs, TabsList, TabsTrigger, Textarea,
+  Page, PageHeader, Card, Button, SeverityBadge, StatusBadge, Tabs, TabsList, TabsTrigger, TabsContent, Textarea,
   EmptyState, QueryState, SkeletonRows, Tooltip, ResourceId,
 } from '@/components/ds'
 import { useRemediationRequests, useConfig } from '@/hooks/queries'
@@ -176,12 +176,12 @@ export default function Approvals() {
           ? 'Fixes requested by engineers. Approving one applies it to AWS and checks that it worked.'
           : 'Fixes waiting for an approver. You can follow them here; approving needs the approver role.'}
       />
-      <Tabs value={tab} onValueChange={(v) => setParams(v === 'history' ? { tab: 'history' } : {})} className="mb-5">
-        <TabsList>
+      <Tabs value={tab} onValueChange={(v) => setParams(v === 'history' ? { tab: 'history' } : {})}>
+        <TabsList className="mb-5">
           <TabsTrigger value="waiting" count={pending.data?.length}>Waiting</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
-      </Tabs>
+      <TabsContent value={tab} className="focus:outline-none">
       <QueryState
         query={query}
         loading={<SkeletonRows rows={6} />}
@@ -196,6 +196,8 @@ export default function Approvals() {
       >
         {(rows) => <div className="grid gap-4">{visible(rows).map(r => <RequestCard key={r.id} r={r} onDone={refresh} />)}</div>}
       </QueryState>
+      </TabsContent>
+      </Tabs>
     </Page>
   )
 }

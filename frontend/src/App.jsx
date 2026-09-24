@@ -124,14 +124,20 @@ export default function App() {
               </div>
             </div>
 
-            <CommandPalette />
-            <LiveScanTerminalModal />
-            <AuditFeedDrawer />
-            <GlobalAICopilotDrawer />
-            <ExecutiveDossierModal />
-            <LiveStreamConnector />
-            <LiveToasts />
-            <GlobalBehaviours />
+            {/* Overlays get their own boundary: a bug in one panel must never blank the whole app. */}
+            <ErrorBoundary silent onReset={() => {
+              const s = useSentinelStore.getState()
+              s.closeScanModal(); s.closeCommandPalette(); s.closeAuditDrawer(); s.closeGlobalCopilot(); s.closeExecutiveDossier()
+            }}>
+              <CommandPalette />
+              <LiveScanTerminalModal />
+              <AuditFeedDrawer />
+              <GlobalAICopilotDrawer />
+              <ExecutiveDossierModal />
+              <LiveStreamConnector />
+              <LiveToasts />
+              <GlobalBehaviours />
+            </ErrorBoundary>
           </AuthGate>
           <Toaster
             theme={theme}

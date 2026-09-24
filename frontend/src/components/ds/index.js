@@ -8,7 +8,7 @@ export {
   Menu, MenuTrigger, MenuContent, MenuItem, MenuLabel, MenuSeparator, Tooltip, TooltipProvider,
   Popover, PopoverTrigger, PopoverContent,
 } from './overlay'
-export { Tabs, TabsList, TabsTrigger, TabsContent, Switch } from './tabs'
+export { Tabs, TabsList, TabsTrigger, TabsContent, Switch, Segmented } from './tabs'
 export { Skeleton, SkeletonRows, EmptyState, ErrorState, QueryState } from './states'
 export { CopyButton, ResourceId, CodeBlock, DescriptionList, StatTile } from './data'
 export { PageHeader, Page, Section } from './page'

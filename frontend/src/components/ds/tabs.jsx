@@ -59,3 +59,36 @@ export function Switch({ className, ...props }) {
     </SwitchPrimitive.Root>
   )
 }
+
+/*
+  Segmented control: picks one value (a filter or setting) — not tabs, because it has no panels.
+  Radio-group semantics with arrow-key navigation, styled like segmented tabs.
+*/
+export function Segmented({ value, onValueChange, options, label, className }) {
+  const onKey = (e, i) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+    e.preventDefault()
+    const dir = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1
+    const next = options[(i + dir + options.length) % options.length]
+    onValueChange(next.value)
+    e.currentTarget.parentElement?.querySelectorAll('[role=radio]')[(i + dir + options.length) % options.length]?.focus()
+  }
+  return (
+    <div role="radiogroup" aria-label={label} className={cn('inline-flex h-8 items-center gap-0.5 rounded-md bg-muted p-0.5', className)}>
+      {options.map((o, i) => {
+        const on = o.value === value
+        return (
+          <button key={o.value} type="button" role="radio" aria-checked={on} tabIndex={on ? 0 : -1}
+                  onClick={() => onValueChange(o.value)} onKeyDown={e => onKey(e, i)}
+                  className={cn('inline-flex h-7 items-center gap-1.5 rounded-[6px] px-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-150',
+                    'focus-visible:outline-2 focus-visible:outline-accent',
+                    on ? 'bg-surface text-fg shadow-raised' : 'text-fg-2 hover:text-fg')}>
+            {o.icon && <o.icon className="size-3.5" />}
+            {o.label}
+            {o.count != null && <span className="num text-fg-3">{o.count}</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}

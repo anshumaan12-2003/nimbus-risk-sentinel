@@ -19,10 +19,9 @@ export async function signIn(page, role) {
 }
 
 /* Things that legitimately differ between runs: random AWS ids from the fake account, timestamps,
-   relative times, live counters. Masked (drawn as solid boxes) in screenshots. */
+   relative times, live counters, charts. Masked (drawn as solid boxes) in screenshots. */
 export const volatile = (page) => [
-  page.locator('time, .font-mono, code, .mono, [class*="time"], [class*="ago"], [class*="timestamp"]'),
-  page.locator('.header-env-pill, .live-status-pill, .live-toasts, .ui-notif, .recharts-wrapper, canvas'),
-  page.locator('[class*="mascot"], [class*="Mascot"], .hero-right, .dynamic-island-wrapper'),
-  page.locator('.team-table td:nth-child(3)'),   // last sign-in date
+  page.locator('time, .font-mono, code, .num, [data-sonner-toaster]'),
+  page.locator('.recharts-wrapper, .react-flow, canvas'),
+  page.locator('#app-sidebar a[href="/settings"] + button, #app-sidebar a[href="/settings"]:first-of-type'),
 ]

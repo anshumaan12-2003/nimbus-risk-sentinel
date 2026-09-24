@@ -111,8 +111,8 @@ export default function LiveScanTerminalModal() {
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   ['Progress', p ? `${p.percent}%` : '—'],
-                  ['Units', p ? `${p.totals.finished} / ${p.totals.tasks}` : '—'],
-                  ['Findings', p ? p.totals.findings : '—'],
+                  ['Units', p?.totals ? `${p.totals.finished} / ${p.totals.tasks}` : '—'],
+                  ['Findings', p?.totals ? p.totals.findings : '—'],
                   ['Elapsed', p ? secs(elapsed) : '—', typical > 2000 && !done ? `last took ${secs(typical)}` : null],
                 ].map(([k, v, hint]) => (
                   <div key={k} className="rounded-md bg-surface-2 px-3 py-2">

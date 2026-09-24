@@ -144,9 +144,10 @@ export default function Sidebar() {
         id="app-sidebar"
         aria-label="Main navigation"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-line bg-bg transition-[width,transform] duration-200 ease-standard',
+          'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-line bg-bg transition-[width,transform,visibility] duration-200 ease-standard',
           'lg:sticky lg:top-0 lg:z-20 lg:h-dvh lg:translate-x-0',
-          navOpen ? 'translate-x-0 shadow-popover' : '-translate-x-full',
+          // closed drawer is invisible too, so it can't be tabbed into or read out off-screen
+          navOpen ? 'translate-x-0 shadow-popover' : 'max-lg:invisible -translate-x-full',
           collapsed ? 'w-[60px]' : 'w-[248px]',
         )}
       >

@@ -40,7 +40,7 @@ export default defineConfig({
     { name: 'visual-desktop', testMatch: /visual\.spec/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'visual-mobile', testMatch: /visual\.spec/, use: { ...devices['Pixel 7'] } },
     { name: 'tour', testMatch: /tour\.spec/, use: { ...devices['Desktop Chrome'] } },
-    { name: 'flows', testMatch: /flows\.spec/, dependencies: ['visual-desktop', 'visual-mobile'],
+    { name: 'flows', testMatch: /(flows|a11y)\.spec/, dependencies: ['visual-desktop', 'visual-mobile'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
   ],
   webServer: [

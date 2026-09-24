@@ -4,7 +4,7 @@ import {
   Page, PageHeader, Section, Card, CardHeader, CardBody, CardFooter, Button, Badge, SeverityBadge, StatusBadge,
   Input, Textarea, Field, Kbd, Dialog, DialogTrigger, DialogContent, DialogClose, Sheet, SheetTrigger, SheetContent,
   Menu, MenuTrigger, MenuContent, MenuItem, MenuLabel, MenuSeparator, Tooltip, Tabs, TabsList, TabsTrigger, TabsContent,
-  Switch, SkeletonRows, Skeleton, EmptyState, ErrorState, ResourceId, CodeBlock, DescriptionList, StatTile,
+  Switch, Segmented, SkeletonRows, Skeleton, EmptyState, ErrorState, ResourceId, CodeBlock, DescriptionList, StatTile,
 } from '@/components/ds'
 import { useSentinelStore } from '@/store/sentinelStore'
 
@@ -18,13 +18,8 @@ export default function UiKit() {
         title="Design system"
         description="Every Nimbus component in one place. Switch themes to check both."
         actions={
-          <Tabs value={themePref} onValueChange={setTheme}>
-            <TabsList segmented>
-              <TabsTrigger value="system">System</TabsTrigger>
-              <TabsTrigger value="light">Light</TabsTrigger>
-              <TabsTrigger value="dark">Dark</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <Segmented label="Theme" value={themePref} onValueChange={setTheme}
+                     options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
         }
       />
 
