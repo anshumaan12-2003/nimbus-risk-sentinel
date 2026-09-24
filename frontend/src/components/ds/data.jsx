@@ -99,7 +99,7 @@ export function StatTile({ label, value, tone = 'neutral', delta, deltaGood = 'd
         <span aria-hidden className={cn('size-2 rounded-[2px]', MARK[tone] || MARK.neutral)} />
         {label}
       </span>
-      <span className="num text-2xl font-semibold text-fg">{value}</span>
+      <span className="num font-display text-2xl font-bold tracking-[-0.03em] text-fg">{value}</span>
       <span className="num flex items-center gap-1.5 text-xs text-fg-3">
         {d != null && (
           <span className={cn('font-medium', good === true && 'text-low-text', good === false && 'text-crit-text')}>

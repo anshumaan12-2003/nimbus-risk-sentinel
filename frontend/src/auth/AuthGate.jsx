@@ -18,7 +18,7 @@ function Frame({ title, lead, children, footer, wide = false }) {
           <span className="text-lg font-semibold tracking-tight text-fg">Nimbus</span>
         </div>
         <div className="rounded-xl border border-line bg-surface p-6 shadow-overlay sm:p-7">
-          <h1 className="text-xl font-semibold text-fg">{title}</h1>
+          <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-fg">{title}</h1>
           {lead && <p className="mt-1.5 text-sm text-fg-2">{lead}</p>}
           <div className="mt-6">{children}</div>
         </div>
