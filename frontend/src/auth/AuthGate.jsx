@@ -5,6 +5,7 @@ import { apiError } from '../api/nimbus'
 import { Button, CodeBlock, Input } from '@/components/ds'
 import { BrandMark } from '@/components/shell/Sidebar'
 import { cn } from '@/lib/cn'
+import Mascot from '@/components/Mascot'
 
 /* Calm full-screen frame shared by every signed-out state. */
 function Frame({ title, lead, children, footer, wide = false }) {
@@ -151,28 +152,61 @@ function SetupScreen() {
   )
 }
 
-function OfflineScreen() {
-  const bootstrap = useAuth(s => s.bootstrap)
+/*
+  The API didn't answer yet. On free hosting (Render) the server sleeps when idle and takes up to a
+  minute to wake, so this is normal, not an error: say so kindly, keep retrying on our own, and only
+  after 90 seconds suggest that something may really be wrong.
+*/
+const GIVE_UP_AFTER = 90
+function WakingScreen() {
+  const { status, probe, bootstrap } = useAuth()
+  const [seconds, setSeconds] = useState(0)
   const [busy, setBusy] = useState(false)
+  useEffect(() => { const t = setInterval(() => setSeconds(s => s + 1), 1000); return () => clearInterval(t) }, [])
+  useEffect(() => {   // offline: try again every 5 s; 'loading' is already a request in flight
+    if (status !== 'offline') return
+    const t = setInterval(() => { probe() }, 5000)
+    return () => clearInterval(t)
+  }, [status, probe])
+  const stuck = seconds >= GIVE_UP_AFTER
   const retry = async () => { setBusy(true); try { await bootstrap() } finally { setBusy(false) } }
+  const local = ['localhost', '127.0.0.1'].includes(window.location.hostname)
   return (
-    <Frame wide title="Can’t reach the Nimbus API" lead="The sign-in service didn’t answer. Start the backend, then try again.">
-      <div className="mb-4 flex items-center gap-2 text-sm text-fg-2"><WifiOff className="size-4 text-fg-3" /> Nothing is listening on the API port.</div>
-      <CodeBlock language="terminal" code="cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 8001" />
-      <Button variant="primary" size="lg" className="mt-5 w-full" onClick={retry} loading={busy}>
-        {!busy && <RefreshCw />} Try again
-      </Button>
+    <Frame wide title={stuck ? 'Nimbus still isn\u2019t answering' : 'Waking Nimbus up\u2026'}
+           lead={stuck ? 'It usually wakes within a minute. Something may be wrong with the API service.' : 'The server sleeps when nobody\u2019s using it and takes up to a minute to wake. No need to reload: this page signs you in as soon as it\u2019s ready.'}>
+      <div className="grid justify-items-center gap-4" role="status" aria-live="polite">
+        <Mascot mood={stuck ? 'alarmed' : 'thinking'} size={96} label={stuck ? 'Not answering' : 'Waking up'} />
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted-2" aria-hidden>
+          <div className="h-full rounded-full bg-accent transition-[width] duration-1000 ease-linear" style={{ width: `${Math.min(100, (seconds / 60) * 100)}%` }} />
+        </div>
+        <p className="num text-sm text-fg-3">{seconds}s{seconds < 60 && ' · usually under a minute'}</p>
+      </div>
+      {stuck && (
+        <div className="mt-5 grid gap-3">
+          <div className="flex items-center gap-2 text-sm text-fg-2"><WifiOff className="size-4 text-fg-3" /> Still retrying every few seconds.</div>
+          {local
+            ? <CodeBlock language="terminal" code="cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 8001" />
+            : <p className="text-sm text-fg-2">Check that the API service is running on your host (on Render: the service's Events and Logs).</p>}
+          <Button variant="primary" size="lg" className="w-full" onClick={retry} loading={busy}>{!busy && <RefreshCw />} Try now</Button>
+        </div>
+      )}
     </Frame>
   )
 }
 
 export default function AuthGate({ children }) {
   const { status, bootstrap } = useAuth()
+  const [slow, setSlow] = useState(false)   // still loading after 2.5 s: probably a sleeping server
   useEffect(() => { bootstrap() }, [bootstrap])
-  if (status === 'loading') {
+  useEffect(() => {
+    if (status !== 'loading') { setSlow(false); return }
+    const t = setTimeout(() => setSlow(true), 2500)
+    return () => clearTimeout(t)
+  }, [status])
+  if (status === 'loading' && !slow) {
     return <div className="grid min-h-dvh place-items-center bg-bg" aria-busy="true" aria-label="Loading"><BrandMark className="size-9 animate-pulse" /></div>
   }
-  if (status === 'offline') return <OfflineScreen />
+  if (status === 'loading' || status === 'offline') return <WakingScreen />
   if (status === 'setup') return <SetupScreen />
   if (status === 'signed-out') return <LoginScreen />
   return children
