@@ -136,4 +136,57 @@ ASSISTANT:"""
         return fallback, False
 
 
+    # ─── Vesper: streaming, grounded chat ─────────────────────────────────────
+    VESPER_PROMPT = """You are Vesper, the assistant inside Nimbus Risk Sentinel, a cloud security tool for AWS.
+Voice: calm, plain-spoken and specific, like a senior engineer who is on the reader's side. No hype,
+no filler, no apologies. Short Markdown: a direct answer first, then detail only if it helps.
+
+Rules:
+- Use ONLY the account data below. If it doesn't contain the answer, say so plainly.
+- Never invent resource names, account ids, counts or findings.
+- Whenever you mention a finding, cite its rule id in square brackets, e.g. [RDS-001].
+- You cannot change AWS. To fix something, the reader opens the finding and requests the fix, which a
+  second person approves. Say so when a fix comes up; give CLI / Terraform only as a reference.
+
+=== ACCOUNT DATA (latest completed scan) ===
+{context}
+
+=== CONVERSATION SO FAR ===
+{convo}
+
+USER: {question}
+VESPER:"""
+
+    def chat_stream(self, question: str, history: list, context: str, fallback: str):
+        """Yields {"ai": bool} once, then {"delta": text} pieces. Falls back to the factual summary when
+        AI is off or every model fails before producing anything."""
+        convo = "\n".join(f"{m.get('role', 'user').upper()}: {m.get('text', '')[:2000]}" for m in history[-8:])
+        if self.client:
+            prompt = self.VESPER_PROMPT.format(context=context, convo=convo or "(none)", question=question)
+            for model in list(dict.fromkeys([settings.AI_MODEL, 'gemini-flash-latest', 'gemini-flash-lite-latest'])):
+                sent = False
+                try:
+                    stream = self.client.models.generate_content_stream(
+                        model=model, contents=prompt, config=types.GenerateContentConfig(temperature=0.2))
+                    for chunk in stream:
+                        text = getattr(chunk, "text", None)
+                        if not text:
+                            continue
+                        if not sent:
+                            yield {"ai": True}
+                            sent = True
+                        yield {"delta": text}
+                    if sent:
+                        return
+                except Exception as e:
+                    logger.warning(f"Vesper stream failed with {model}: {e}")
+                    if sent:   # already streaming: say it stopped rather than switching model mid-answer
+                        yield {"delta": "\n\n_The answer was cut off by a model error. Ask again to retry._"}
+                        return
+        yield {"ai": False}
+        words = fallback.split(" ")
+        for i in range(0, len(words), 4):
+            yield {"delta": " ".join(words[i:i + 4]) + (" " if i + 4 < len(words) else "")}
+
+
 copilot_engine = SecurityCopilot()

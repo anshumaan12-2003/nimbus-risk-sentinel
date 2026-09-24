@@ -6,8 +6,8 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — register models
-from app.api.routes import (account, auth, compliance, copilot, drift, findings, iac, inventory, remediation,
-                            scans, topology, users, ws)
+from app.api.routes import (account, assistant, auth, compliance, copilot, drift, findings, iac, inventory,
+                            remediation, scans, topology, users, ws)
 from app.auth.deps import viewer
 from app.auth.security import check_secret_key
 from app.config import settings
@@ -55,7 +55,7 @@ app.add_middleware(
 # Public: sign-in only. Everything else requires a valid session (viewer = any signed-in user);
 # stricter roles are enforced per endpoint (engineer: scans/triage, approver: apply fixes, admin: users).
 app.include_router(auth.router, prefix="/api/v1")
-for r in (scans, findings, drift, remediation, topology, iac, copilot, compliance, account, inventory, users):
+for r in (scans, findings, drift, remediation, topology, iac, copilot, assistant, compliance, account, inventory, users):
     app.include_router(r.router, prefix="/api/v1", dependencies=[Depends(viewer)])
 app.include_router(ws.router)  # /ws/events (+ legacy /api/v1/ws/telemetry)
 
