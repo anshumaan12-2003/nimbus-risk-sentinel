@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
 import { toast } from 'sonner'
@@ -51,7 +51,7 @@ function SortHeader({ column, children, align }) {
 }
 
 export default function Findings() {
-  const [params, setParams] = useSearchParams()
+  const [params] = useSearchParams()
   const { findingId } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -67,7 +67,19 @@ export default function Findings() {
   const service = params.get('service') || ''
   const view = params.get('status') && STATUS_VIEWS[params.get('status').toLowerCase()] ? params.get('status').toLowerCase() : 'open'
   const [q, setQ] = useState(params.get('q') || '')
-  const setParam = (k, v) => setParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
+  // Read the location through a ref so a delayed call (the search debounce) always uses the page
+  // you're on *now* — otherwise it could navigate you out of an open finding back to /findings.
+  const location = useLocation()
+  const locRef = useRef(location)
+  locRef.current = location
+  const setSearch = (mutate) => {
+    const { pathname, search } = locRef.current
+    const n = new URLSearchParams(search)
+    mutate(n)
+    if (n.toString() === new URLSearchParams(search).toString()) return   // nothing changed: don't navigate
+    navigate({ pathname, search: n.toString() ? `?${n}` : '' }, { replace: true })
+  }
+  const setParam = (k, v) => setSearch(n => { v ? n.set(k, v) : n.delete(k) })
   useEffect(() => { const t = setTimeout(() => setParam('q', q.trim()), 250); return () => clearTimeout(t) }, [q]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const inView = useMemo(() => all.filter(STATUS_VIEWS[view].match), [all, view])
@@ -210,7 +222,7 @@ export default function Findings() {
           {services.map(s => <option key={s} value={s}>{SERVICE_NAMES[s] || s}</option>)}
         </select>
         {filtersOn && (
-          <Button variant="ghost" size="sm" onClick={() => { setQ(''); setParams(p => { const n = new URLSearchParams(); if (p.get('status')) n.set('status', p.get('status')); return n }, { replace: true }) }}>
+          <Button variant="ghost" size="sm" onClick={() => { setQ(''); setSearch(n => { for (const k of [...n.keys()]) if (k !== 'status') n.delete(k) }) }}>
             <X /> Clear filters
           </Button>
         )}
