@@ -94,7 +94,7 @@ export default function AttackSimulator() {
       description="Assume an attacker gets in somewhere. Click an asset to start the breach there; click a link to cut it, as if you’d fixed it. Nimbus recomputes what they can still reach."
     />
   )
-  if (!demo && q.isLoading) return <Page wide>{header}<Skeleton className="h-[600px] rounded-lg" /></Page>
+  if (!demo && q.isLoading) return <Page wide>{header}<Skeleton className="h-[420px] rounded-lg" /></Page>
   if (!demo && q.isError) return <Page wide>{header}<Card><ErrorState error={q.error} onRetry={q.refetch} /></Card></Page>
   if (!nodeById[entry] || env.nodes.length <= 1) {
     return (

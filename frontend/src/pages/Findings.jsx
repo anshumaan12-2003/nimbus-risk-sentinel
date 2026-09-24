@@ -51,6 +51,53 @@ function SortHeader({ column, children, align }) {
   )
 }
 
+/* Fixing usually happens one resource at a time, so: each resource with its findings, the resource
+   with the riskiest finding first. Same filters and sorting as the list. */
+function ResourceGroups({ rows, onOpen, fresh }) {
+  const groups = useMemo(() => {
+    const m = new Map()
+    for (const f of rows) {
+      const key = f.resource_id || f.resource_name || f.id
+      const g = m.get(key) || { key, name: f.resource_name || f.resource_id, service: f.service, region: f.region, items: [] }
+      g.items.push(f); m.set(key, g)
+    }
+    return [...m.values()].map(g => ({ ...g, top: g.items.reduce((a, f) => (SEV_ORDER[f.severity] ?? 0) > (SEV_ORDER[a.severity] ?? 0) ? f : a).severity,
+                                        risk: Math.max(...g.items.map(f => Number(f.risk_score) || 0)) }))
+      .sort((a, b) => b.risk - a.risk || b.items.length - a.items.length)
+  }, [rows])
+  return (
+    <ul className="divide-y divide-line" aria-label="Findings by resource">
+      {groups.map(g => (
+        <li key={g.key} className="px-4 py-3.5 sm:px-5">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-fg">{g.name}</p>
+              <p className="truncate text-xs text-fg-3">{SERVICE_NAMES[g.service] || g.service}{g.region ? ` · ${g.region}` : ''}</p>
+            </div>
+            <span className="flex items-center gap-2 text-xs text-fg-3">
+              <SeverityBadge severity={g.top} size="sm" />
+              <span className="num">{g.items.length} {g.items.length === 1 ? 'finding' : 'findings'}</span>
+            </span>
+          </div>
+          <ul className="mt-2 grid gap-0.5">
+            {g.items.map(f => (
+              <li key={f.id} className={cn(fresh.has(findingKey(f)) && 'animate-arrive')}>
+                <button type="button" data-finding-row onClick={() => onOpen(f)}
+                        className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-surface-2">
+                  <span aria-hidden className={cn('h-5 w-[3px] shrink-0 rounded-full', SEV_STRIPE[f.severity])} />
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg">{f.title}</span>
+                  <span className="hidden font-mono text-xs text-fg-3 sm:inline">{f.rule_id}</span>
+                  <span className="num w-8 text-right text-sm font-semibold text-fg" title="Risk score">{f.risk_score}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function Findings() {
   const [params] = useSearchParams()
   const { findingId } = useParams()
@@ -68,6 +115,7 @@ export default function Findings() {
   const service = params.get('service') || ''
   const view = params.get('status') && STATUS_VIEWS[params.get('status').toLowerCase()] ? params.get('status').toLowerCase() : 'open'
   const [q, setQ] = useState(params.get('q') || '')
+  const byResource = params.get('group') === 'resource'
   // Read the location through a ref so a delayed call (the search debounce) always uses the page
   // you're on *now* — otherwise it could navigate you out of an open finding back to /findings.
   const location = useLocation()
@@ -234,6 +282,8 @@ export default function Findings() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented label="Status" value={view} onValueChange={(v) => setParam('status', v === 'open' ? '' : v)}
                    options={Object.entries(STATUS_VIEWS).map(([k, v]) => ({ value: k, label: v.label }))} />
+        <Segmented label="Group" value={byResource ? 'resource' : 'none'} onValueChange={(v) => setParam('group', v === 'resource' ? 'resource' : '')}
+                   options={[{ value: 'none', label: 'List' }, { value: 'resource', label: 'By resource' }]} />
         <div className="min-w-[200px] flex-1 sm:max-w-xs">
           <Input icon={Search} value={q} onChange={e => setQ(e.target.value)} placeholder="Search title, rule or resource" aria-label="Search findings" />
         </div>
@@ -243,7 +293,7 @@ export default function Findings() {
           {services.map(s => <option key={s} value={s}>{SERVICE_NAMES[s] || s}</option>)}
         </select>
         {filtersOn && (
-          <Button variant="ghost" size="sm" onClick={() => { setQ(''); setSearch(n => { for (const k of [...n.keys()]) if (k !== 'status') n.delete(k) }) }}>
+          <Button variant="ghost" size="sm" onClick={() => { setQ(''); setSearch(n => { for (const k of [...n.keys()]) if (k !== 'status' && k !== 'group') n.delete(k) }) }}>
             <X /> Clear filters
           </Button>
         )}
@@ -272,8 +322,9 @@ export default function Findings() {
                         body={filtersOn ? 'Try another severity or service, or clear the search.' : view === 'open' ? 'Every check Nimbus runs is passing.' : undefined} />
           ) : (
             <>
+            {byResource && <ResourceGroups rows={sorted.map(r => r.original)} onOpen={openFinding} fresh={fresh} />}
             {/* Phones: a compact list. Tablets and up: the full sortable table. */}
-            {compact && <ul className="divide-y divide-line">
+            {!byResource && compact && <ul className="divide-y divide-line">
               {sorted.map(row => {
                 const f = row.original
                 return (
@@ -294,7 +345,7 @@ export default function Findings() {
                 )
               })}
             </ul>}
-            {!compact && <div className="overflow-x-auto" ref={listRef}>
+            {!byResource && !compact && <div className="overflow-x-auto" ref={listRef}>
               <table className="w-full min-w-[860px] table-fixed border-collapse text-sm">
                 <colgroup>{table.getVisibleLeafColumns().map(c => <col key={c.id} style={c.id === 'title' ? undefined : { width: c.getSize() }} />)}</colgroup>
                 <thead className="sticky top-0 z-10 bg-surface-2">

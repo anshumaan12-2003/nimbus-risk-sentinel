@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { apiError } from '@/api/nimbus'
 import Mascot from '@/components/Mascot'
@@ -45,13 +45,12 @@ export function EmptyState({ title, body, action, mood = 'calm', icon: Icon, com
 
 export function ErrorState({ error, title, onRetry, compact = false, className }) {
   const offline = error && !error.response
-  const Icon = offline ? WifiOff : AlertTriangle
   return (
     <div role="alert" className={cn('flex flex-col items-center justify-center gap-3 text-center', compact ? 'py-8' : 'py-14', className)}>
-      <div className="grid size-10 place-items-center rounded-lg border border-crit-line bg-crit-soft text-crit-text"><Icon className="size-5" /></div>
+      <Mascot mood={offline ? 'thinking' : 'alarmed'} size={compact ? 64 : 80} label={offline ? 'Connection lost' : 'Something went wrong'} />
       <div className="grid max-w-md gap-1">
-        <p className="text-md font-semibold text-fg">{title || (offline ? 'Can’t reach the Nimbus API' : 'This didn’t load')}</p>
-        <p className="text-sm text-fg-2">{offline ? 'Check that the backend is running, then try again.' : apiError(error)}</p>
+        <p className="text-md font-semibold text-fg">{title || (offline ? 'Nimbus lost the connection' : 'This didn’t load')}</p>
+        <p className="text-sm text-fg-2">{offline ? 'The server may be waking up or restarting. Try again in a few seconds.' : apiError(error)}</p>
       </div>
       {onRetry && <Button size="sm" onClick={onRetry}><RefreshCw /> Try again</Button>}
     </div>
