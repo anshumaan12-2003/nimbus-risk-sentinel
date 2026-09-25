@@ -1,5 +1,5 @@
 """
-Nimbus Risk Sentinel — Infrastructure Drift Detection Engine
+Breachpath Cloud Recon — Infrastructure Drift Detection Engine
 Compares infrastructure security snapshots across scans to isolate state mutations:
 - New Vulnerabilities
 - Resolved Vulnerabilities

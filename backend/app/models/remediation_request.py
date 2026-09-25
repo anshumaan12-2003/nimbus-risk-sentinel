@@ -1,5 +1,5 @@
 """Four-eyes remediation: an engineer requests a fix (with the dry-run diff frozen at request time),
-a *different* approver approves it, and only then does Nimbus call AWS."""
+a *different* approver approves it, and only then does Breachpath call AWS."""
 import enum
 import uuid
 from datetime import datetime, timezone

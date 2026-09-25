@@ -18,7 +18,7 @@ let session
 beforeAll(async () => {
   const r = await fetch(`${API}/api/v1/auth/login`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@nimbus.local', password: 'nimbus-demo-password' }),
+    body: JSON.stringify({ email: 'admin@breachpath.local', password: 'breachpath-demo-password' }),
   })
   if (!r.ok) throw new Error(`test login failed (${r.status}) — is dev_server_fake_aws.py running on ${API}?`)
   session = await r.json()

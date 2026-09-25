@@ -1,4 +1,4 @@
-# Nimbus Risk Sentinel — Runbook & Completion Roadmap
+# Breachpath Cloud Recon — Runbook & Completion Roadmap
 
 Version 1.3.0 · Sign-in with roles, four-eyes remediation, live scan progress, phone layout, browser tests
 (builds on 1.2.0 frontend release and 1.1.0 real-data release)
@@ -75,10 +75,10 @@ replicas); no SSO/OIDC yet; no email delivery, so admins hand out one-time passw
 
 The one-click `/remediation/apply` endpoint is gone.
 
-1. An engineer opens a finding → **Request approval**. Nimbus reads the live resource, freezes the before/after
+1. An engineer opens a finding → **Request approval**. Breachpath reads the live resource, freezes the before/after
    preview into the request, and records the engineer's reason.
 2. The request appears on **Approvals** (`/approvals`, `g p`), with a count in the sidebar.
-3. A **different** approver reads the same preview and clicks **Approve and apply**. Only now does Nimbus change
+3. A **different** approver reads the same preview and clicks **Approve and apply**. Only now does Breachpath change
    AWS, re-read the resource to verify, and store the rollback.
 4. The audit trail records both names — `requested_by` and `executed_by` — taken from their sessions, never from
    a string the browser sends. Rejecting requires a note; requesters can withdraw.
@@ -230,7 +230,7 @@ The original project archive contained `backend/.env` with a live IAM access key
 | Remediation | Reported success even when AWS rejected the call; IAM/RDS never called AWS | Reads live state → mutates → re-reads to verify → stores exact rollback. Writes gated by `REMEDIATION_ENABLED` | A security tool must never claim a fix it did not make |
 | Audit trail | In-memory list seeded with a fake entry | `audit_logs` table | Survives restarts; auditable |
 | Scan lifecycle | Double-clicks stacked scans; stuck PENDING forever | One scan at a time (409 otherwise); zombies expire after 30 min | Stable scheduling |
-| Errors | AccessDenied swallowed → silent empty dashboard | Per-API warnings stored on the scan + `/account/preflight` | You can see what Nimbus is blind to |
+| Errors | AccessDenied swallowed → silent empty dashboard | Per-API warnings stored on the scan + `/account/preflight` | You can see what Breachpath is blind to |
 | Events | WebSocket path mismatch; `asyncio.run` from a thread never reached clients | Thread-safe bus on `/ws/events`, optional Redis fan-in for Celery | Live feed is real |
 | Celery beat | Scheduled a task name that did not exist | `run_full_scan_task` registered; interval schedule | Scheduled scans actually run |
 | Credentials | New STS AssumeRole per client | Cached session, auto-refreshing role creds, SSO profile support, ExternalId, adaptive retries | Fewer STS calls, no expiry mid-scan, no throttling failures |
@@ -404,7 +404,7 @@ Everything in section 1.
 | EventBridge rule on CloudTrail write events → SQS → targeted rescan of the changed resource | Near-real-time drift instead of polling every N minutes |
 | OpenTelemetry traces across API → Celery → AWS calls | Observability story for interviews |
 | PDF/CSV executive report from real data | Stakeholder deliverable |
-| Deploy: ECS Fargate + RDS Postgres + ElastiCache via Terraform; Nimbus scans its own account | End-to-end cloud ownership |
+| Deploy: ECS Fargate + RDS Postgres + ElastiCache via Terraform; Breachpath scans its own account | End-to-end cloud ownership |
 | GCP (Security Command Center API, Cloud Asset Inventory) | Only after AWS is solid |
 
 ---

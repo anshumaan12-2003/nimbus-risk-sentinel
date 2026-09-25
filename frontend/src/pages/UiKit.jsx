@@ -16,7 +16,7 @@ export default function UiKit() {
     <Page>
       <PageHeader
         title="Design system"
-        description="Every Nimbus component in one place. Switch themes to check both."
+        description="Every Breachpath component in one place. Switch themes to check both."
         actions={
           <Segmented label="Theme" value={themePref} onValueChange={setTheme}
                      options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
@@ -114,10 +114,10 @@ export default function UiKit() {
               <DialogTrigger asChild><Button>Open dialog</Button></DialogTrigger>
               <DialogContent
                 title="Approve and apply this fix?"
-                description="Nimbus will change your AWS account, verify the result and keep a rollback."
+                description="Breachpath will change your AWS account, verify the result and keep a rollback."
                 footer={<><DialogClose asChild><Button>Cancel</Button></DialogClose><Button variant="primary">Approve and apply</Button></>}
               >
-                <p className="text-sm text-fg-2">Requested by engineer@nimbus.local · “Close SSH to the internet.”</p>
+                <p className="text-sm text-fg-2">Requested by engineer@breachpath.local · “Close SSH to the internet.”</p>
               </DialogContent>
             </Dialog>
             <Sheet>
@@ -142,7 +142,7 @@ export default function UiKit() {
         <Section title="States">
           <div className="grid gap-4 lg:grid-cols-3">
             <Card><CardBody className="pt-5"><SkeletonRows rows={4} /><Skeleton className="mt-4 h-24" /></CardBody></Card>
-            <Card><EmptyState mood="happy" title="No open findings" body="Everything Nimbus checks is passing." compact /></Card>
+            <Card><EmptyState mood="happy" title="No open findings" body="Everything Breachpath checks is passing." compact /></Card>
             <Card><ErrorState error={{ message: 'Network Error' }} onRetry={() => {}} compact /></Card>
           </div>
         </Section>

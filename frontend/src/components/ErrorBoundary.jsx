@@ -39,12 +39,12 @@ export default class ErrorBoundary extends React.Component {
           <div className="grid size-11 place-items-center rounded-xl border border-crit-line bg-crit-soft text-crit-text"><AlertTriangle className="size-5" /></div>
           <div className="grid gap-1">
             <h2 className="text-lg font-semibold text-fg">This page hit a problem</h2>
-            <p className="text-sm text-fg-2">The rest of Nimbus still works — your session and data are fine. Try again, or open another page from the sidebar.</p>
+            <p className="text-sm text-fg-2">The rest of Breachpath still works — your session and data are fine. Try again, or open another page from the sidebar.</p>
           </div>
           <CodeBlock code={String(this.state.error?.message || this.state.error)} className="w-full text-left" />
           <div className="flex gap-2">
             <Button variant="primary" onClick={() => this.setState({ error: null })}><RefreshCw /> Try again</Button>
-            <Button onClick={() => window.location.reload()}>Reload Nimbus</Button>
+            <Button onClick={() => window.location.reload()}>Reload Breachpath</Button>
           </div>
         </Card>
       </Page>

@@ -17,7 +17,7 @@ def scan_iac(directory: str):
         console.print(f"[bold red]Error:[/bold red] Directory '{directory}' does not exist.")
         sys.exit(1)
 
-    console.print(f"[bold cyan]🌩️  Nimbus Sentinel CLI[/bold cyan] — Scanning Terraform in [bold]{directory}[/bold]...")
+    console.print(f"[bold cyan]Breachpath CLI[/bold cyan] — Scanning Terraform in [bold]{directory}[/bold]...")
     
     scanner = TerraformScanner()
     results = scanner.scan_directory(directory)
@@ -61,7 +61,7 @@ def scan_iac(directory: str):
         sys.exit(0)
 
 def main():
-    parser = argparse.ArgumentParser(description="Nimbus Risk Sentinel CLI")
+    parser = argparse.ArgumentParser(description="Breachpath Cloud Recon CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Command: scan

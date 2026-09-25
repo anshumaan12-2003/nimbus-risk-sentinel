@@ -1,5 +1,5 @@
 """
-Nimbus Risk Sentinel — Unit Tests for Terraform IaC Security Scanner
+Breachpath Cloud Recon — Unit Tests for Terraform IaC Security Scanner
 Tests all rule categories: S3, EC2/SG, RDS, IAM.
 """
 

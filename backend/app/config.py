@@ -22,7 +22,7 @@ except ImportError:
 
 class Settings(BaseSettings):
     # App
-    APP_NAME: str = "Nimbus Risk Sentinel"
+    APP_NAME: str = "Breachpath Cloud Recon"
     APP_VERSION: str = "1.3.0"
     DEBUG: bool = True
 
