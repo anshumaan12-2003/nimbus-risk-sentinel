@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { signIn, useTheme } from './helpers'
 
-const PAGES = ['/', '/findings', '/assets', '/topology', '/simulator', '/workflow', '/approvals', '/drift',
+const PAGES = ['/', '/vesper', '/findings', '/assets', '/topology', '/simulator', '/workflow', '/approvals', '/drift',
   '/compliance', '/scans', '/iac', '/settings']
 
 for (const theme of ['light', 'dark']) {
