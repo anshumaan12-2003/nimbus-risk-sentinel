@@ -65,7 +65,7 @@ function AppRoutes() {
   const location = useLocation()
   // Browser tab title per page (history, bookmarks, screen readers)
   useEffect(() => {
-    document.title = `${pageFor(location.pathname)?.label || 'Not found'} · Nimbus`
+    document.title = `${pageFor(location.pathname)?.label || 'Not found'} · Breachpath`
   }, [location.pathname])
   return (
     <div key={location.pathname.split('/')[1]} className="min-w-0 animate-fade-in">

@@ -1,5 +1,5 @@
 """
-Nimbus Risk Sentinel — IaC Security Scan API Routes
+Breachpath Cloud Recon — IaC Security Scan API Routes
 Handles Terraform static analysis scan requests from CLI, CI/CD pipelines, and the UI.
 """
 

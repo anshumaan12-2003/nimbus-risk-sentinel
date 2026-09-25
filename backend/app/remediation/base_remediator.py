@@ -1,5 +1,5 @@
 """
-Nimbus Risk Sentinel — Abstract Auto-Remediator Base
+Breachpath Cloud Recon — Abstract Auto-Remediator Base
 """
 
 from abc import ABC, abstractmethod

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/readme/banner.svg" alt="Nimbus Risk Sentinel: see the risk before the breach" width="100%">
+<img src="docs/readme/banner.svg" alt="Breachpath Cloud Recon: see the risk before the breach" width="100%">
 
 <br>
 
@@ -25,7 +25,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/readme/overview-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/readme/overview-light.png">
-  <img alt="Nimbus overview: risk score 95, 18 open findings, fix-first list and exposure from the internet" src="docs/readme/overview-dark.png">
+  <img alt="Breachpath overview: risk score 95, 18 open findings, fix-first list and exposure from the internet" src="docs/readme/overview-dark.png">
 </picture>
 
 <sub>Screenshots use the built-in fake AWS account. The image follows your GitHub light/dark theme.</sub>
@@ -51,7 +51,7 @@ An **attack graph** built from a live inventory of your account: internet → ed
 <td width="33%" valign="top">
 
 ### 🛡️ Fixes, safely
-An engineer **requests** a fix and a *different* approver **applies** it. Nimbus reads the live resource, changes it, reads it again to prove the fix worked, and **stores a rollback**.
+An engineer **requests** a fix and a *different* approver **applies** it. Breachpath reads the live resource, changes it, reads it again to prove the fix worked, and **stores a rollback**.
 
 </td>
 </tr>
@@ -100,7 +100,7 @@ Each cell is one unit of work: a service in a region. Progress is **pushed over 
 </tr>
 <tr>
 <td><b>Assets</b>: every EC2, S3, RDS, Lambda, DynamoDB, Secrets Manager and IAM resource, ranked by exposure.</td>
-<td><b>Compliance</b>: a score ring per framework, and PASS / FAIL / NOT EVALUATED per control. Controls Nimbus couldn't see are never counted as a pass.</td>
+<td><b>Compliance</b>: a score ring per framework, and PASS / FAIL / NOT EVALUATED per control. Controls Breachpath couldn't see are never counted as a pass.</td>
 </tr>
 <tr>
 <td colspan="2"><img src="docs/readme/findings-by-resource.png" alt="Findings grouped under each resource"></td>
@@ -128,12 +128,12 @@ Each cell is one unit of work: a service in a region. Progress is **pushed over 
 | | |
 |---|---|
 | **Vesper** (<kbd>⌘</kbd> <kbd>J</kbd>) | Streamed, cited answers from the latest scan (Gemini), saved per user, rate-limited per user. A full page at `/vesper` too. |
-| **Wakes up gracefully** | On free hosting the API sleeps; Nimbus says *Waking Nimbus up…*, retries on its own and signs you in when it's ready. |
+| **Wakes up gracefully** | On free hosting the API sleeps; Breachpath says *Waking Breachpath up…*, retries on its own and signs you in when it's ready. |
 | **Command palette** (<kbd>⌘</kbd> <kbd>K</kbd>) | Search findings and assets by name, ARN or rule id, and jump to any page. |
 | **Keyboard first** | `g d` overview, `g f` findings, `g t` attack paths, `g p` approvals; <kbd>?</kbd> lists them all. |
 | **Changes** | What's new, fixed or came back since the last scan, using stable AWS ids so drift is real. |
 | **Scan history** | Success rate, mean duration, risk trend, and a "blind spots" list of every AWS call that was denied. |
-| **IaC scanner** | Check Terraform before it ships, in the UI or from CI with `cli/nimbus_cli.py` (fails the build on CRITICAL). |
+| **IaC scanner** | Check Terraform before it ships, in the UI or from CI with `cli/breachpath_cli.py` (fails the build on CRITICAL). |
 | **Executive report** | One-page summary of posture for stakeholders. |
 | **Slack** | Alerts only on **new** criticals, so no alert fatigue. |
 | **Scheduled scans** | In-process scheduler, or Celery beat under Docker Compose. |
@@ -196,7 +196,7 @@ npm ci
 API_PROXY_TARGET=http://127.0.0.1:8000 npm run dev
 ```
 
-Open **http://localhost:3000** and sign in as `admin@nimbus.local` / `nimbus-demo-password`. You can also use `engineer@`, `approver@` or `viewer@` to see what each role can do.
+Open **http://localhost:3000** and sign in as `admin@breachpath.local` / `breachpath-demo-password`. You can also use `engineer@`, `approver@` or `viewer@` to see what each role can do.
 
 ### Against your real AWS account
 
@@ -204,7 +204,7 @@ Open **http://localhost:3000** and sign in as `admin@nimbus.local` / `nimbus-dem
 <summary>Step by step</summary>
 <br>
 
-1. **Create a read-only identity.** Attach the AWS managed policies `SecurityAudit` and `ViewOnlyAccess` (SSO permission set, or an IAM user). Nimbus never needs write access to scan.
+1. **Create a read-only identity.** Attach the AWS managed policies `SecurityAudit` and `ViewOnlyAccess` (SSO permission set, or an IAM user). Breachpath never needs write access to scan.
 2. **Configure the API:**
    ```bash
    cd backend
@@ -294,7 +294,7 @@ frontend/
   src/components/vesper/  the assistant: panel, full page, streaming client, citations
   e2e/                 Playwright flows, a11y, visual specs + baselines
 infra/aws/             IAM trust/remediator policies, Render setup script
-cli/nimbus_cli.py      IaC scanner for CI
+cli/breachpath_cli.py      IaC scanner for CI
 ```
 
 </details>
@@ -303,7 +303,7 @@ cli/nimbus_cli.py      IaC scanner for CI
 
 ## ✦ Security model
 
-Nimbus holds credentials to your cloud, so it's built to the standard it checks you against.
+Breachpath holds credentials to your cloud, so it's built to the standard it checks you against.
 
 | | |
 |---|---|
@@ -314,7 +314,7 @@ Nimbus holds credentials to your cloud, so it's built to the standard it checks 
 | **Stolen tokens** | Refresh tokens rotate on every use. Replaying an old one revokes the whole session family. |
 | **Instant revocation** | A role change, password change or deactivation takes effect on the user's next click, not when their token expires. |
 | **First-admin claim** | In production a `SETUP_TOKEN` is required to create the first admin. |
-| **Honest results** | A fix is reported only after re-reading AWS proves it worked. Controls Nimbus couldn't evaluate are marked `NOT_EVALUATED`, never passed. |
+| **Honest results** | A fix is reported only after re-reading AWS proves it worked. Controls Breachpath couldn't evaluate are marked `NOT_EVALUATED`, never passed. |
 
 ### Roles
 

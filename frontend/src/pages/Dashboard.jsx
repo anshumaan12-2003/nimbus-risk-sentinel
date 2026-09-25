@@ -183,7 +183,7 @@ function ForecastHero({ d, greeting, every, actions }) {
         <div className="grid min-w-0 content-start gap-3">
           <p className="text-sm font-medium text-fg">{fixes.length ? "Today's three fixes" : 'Nothing to fix'}</p>
           {fixes.length === 0 && (
-            <p className="rounded-lg border border-low-line bg-low-soft px-3 py-2.5 text-sm text-low-text">Every check Nimbus runs is passing. Enjoy the quiet.</p>
+            <p className="rounded-lg border border-low-line bg-low-soft px-3 py-2.5 text-sm text-low-text">Every check Breachpath runs is passing. Enjoy the quiet.</p>
           )}
           {fixes.map((x, i) => (
             <Link key={x.id} to={`/findings/${x.id}`}

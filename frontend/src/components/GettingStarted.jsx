@@ -36,7 +36,7 @@ export default function GettingStarted() {
   return (
     <Card className="mb-6 overflow-hidden" aria-label="Getting started">
       <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3">
-        <p className="text-sm font-semibold text-fg">Finish setting up Nimbus</p>
+        <p className="text-sm font-semibold text-fg">Finish setting up Breachpath</p>
         <div className="flex items-center gap-3">
           <span className="num text-xs text-fg-3">{done} of {steps.length}</span>
           <span className="h-1.5 w-24 overflow-hidden rounded-full bg-muted-2">

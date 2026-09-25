@@ -153,9 +153,14 @@ export default function Sidebar() {
         )}
       >
         <div className={cn('flex h-13 items-center gap-2.5 px-3.5', collapsed && 'justify-center px-0')}>
-          <Link to="/" className="flex min-w-0 items-center gap-2.5" aria-label="Nimbus overview">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5" aria-label="Breachpath overview">
             <BrandMark />
-            {!collapsed && <span className="truncate text-md font-semibold tracking-tight text-fg">Nimbus</span>}
+            {!collapsed && (
+              <span className="grid min-w-0 leading-none">
+                <span className="truncate font-display text-md font-bold tracking-[-0.02em] text-fg">Breachpath</span>
+                <span className="mt-0.5 truncate font-mono text-[9.5px] tracking-[0.14em] text-fg-3 uppercase">Cloud Recon</span>
+              </span>
+            )}
           </Link>
           <button type="button" onClick={closeNav} aria-label="Close navigation"
                   className="ml-auto grid size-8 place-items-center rounded-md text-fg-2 hover:bg-muted lg:hidden">

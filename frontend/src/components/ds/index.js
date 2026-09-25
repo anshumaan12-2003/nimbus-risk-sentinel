@@ -1,4 +1,4 @@
-// Nimbus design system — import everything from '@/components/ds'.
+// Breachpath design system — import everything from '@/components/ds'.
 export { Button, buttonVariants } from './button'
 export { Badge, SeverityBadge, StatusBadge, severityTone, badgeVariants } from './badge'
 export { Card, CardHeader, CardBody, CardFooter } from './card'
@@ -9,6 +9,6 @@ export {
   Popover, PopoverTrigger, PopoverContent,
 } from './overlay'
 export { Tabs, TabsList, TabsTrigger, TabsContent, Switch, Segmented } from './tabs'
-export { Skeleton, SkeletonRows, EmptyState, ErrorState, QueryState } from './states'
+export { Skeleton, SkeletonRows, EmptyState, ErrorState, QueryState, IconTile } from './states'
 export { CopyButton, ResourceId, CodeBlock, DescriptionList, StatTile, TimeAgo, AnimatedNumber, ScoreRing } from './data'
 export { PageHeader, Page, Section } from './page'

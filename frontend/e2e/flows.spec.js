@@ -170,11 +170,11 @@ test('Vesper still answers when the API is older than the UI (no /assistant endp
   await expect(log.getByRole('button', { name: 'Helpful', exact: true })).toHaveCount(0)              // nothing saved to rate
 })
 
-test('a sleeping API shows "Waking Nimbus up", keeps retrying, then signs in without a reload', async ({ page }) => {
+test('a sleeping API shows "Waking Breachpath up", keeps retrying, then signs in without a reload', async ({ page }) => {
   let calls = 0
   await page.route('**/api/v1/auth/status', r => (++calls <= 2 ? r.abort('connectionrefused') : r.continue()))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Waking Nimbus up…' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Waking Breachpath up…' })).toBeVisible()
   await expect(page.getByText(/usually under a minute/)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible({ timeout: 15_000 })   // retried on its own
   expect(calls).toBeGreaterThanOrEqual(3)

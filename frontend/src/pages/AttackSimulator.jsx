@@ -91,7 +91,7 @@ export default function AttackSimulator() {
   const header = (
     <PageHeader
       title="Breach simulator"
-      description="Assume an attacker gets in somewhere. Click an asset to start the breach there; click a link to cut it, as if you’d fixed it. Nimbus recomputes what they can still reach."
+      description="Assume an attacker gets in somewhere. Click an asset to start the breach there; click a link to cut it, as if you’d fixed it. Breachpath recomputes what they can still reach."
     />
   )
   if (!demo && q.isLoading) return <Page wide>{header}<Skeleton className="h-[420px] rounded-lg" /></Page>

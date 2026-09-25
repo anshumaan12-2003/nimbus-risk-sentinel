@@ -319,7 +319,7 @@ export default function Findings() {
           : sorted.length === 0 ? (
             <EmptyState compact mood={filtersOn || view !== 'open' ? 'thinking' : 'happy'}
                         title={filtersOn ? 'Nothing matches these filters' : view === 'open' ? 'No open findings' : `No ${STATUS_VIEWS[view].label.toLowerCase()} findings`}
-                        body={filtersOn ? 'Try another severity or service, or clear the search.' : view === 'open' ? 'Every check Nimbus runs is passing.' : undefined} />
+                        body={filtersOn ? 'Try another severity or service, or clear the search.' : view === 'open' ? 'Every check Breachpath runs is passing.' : undefined} />
           ) : (
             <>
             {byResource && <ResourceGroups rows={sorted.map(r => r.original)} onOpen={openFinding} fresh={fresh} />}

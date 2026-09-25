@@ -1,5 +1,5 @@
 """
-Nimbus Risk Sentinel — Terraform IaC Static Security Scanner
+Breachpath Cloud Recon — Terraform IaC Static Security Scanner
 Parses Terraform HCL files for security misconfigurations without executing them.
 Detects critical, high, medium, and low severity findings per CIS AWS Benchmark rules.
 """

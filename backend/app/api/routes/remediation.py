@@ -99,7 +99,7 @@ def create_request(payload: dict = Body(...), user: User = Depends(engineer), db
     try:
         diff = get_remediator_for_finding(rule_id, resource_id, region).dry_run()
     except RemediationNotSupported as e:
-        raise HTTPException(400, f"Nimbus cannot apply this fix automatically: {e}")
+        raise HTTPException(400, f"Breachpath cannot apply this fix automatically: {e}")
     except (ClientError, BotoCoreError) as e:
         raise _aws_error(e)
     req = RemediationRequest(
