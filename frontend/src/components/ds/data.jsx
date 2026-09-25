@@ -139,3 +139,24 @@ export function AnimatedNumber({ value, suffix, prefix, format, className }) {
     </span>
   )
 }
+
+/* A score out of 100 as a ring: the arc eases to its new length and the number rolls. Colour by band:
+   under 60 critical, under 85 medium, else low (good). */
+const RING_TONE = (v) => v >= 85 ? 'var(--low)' : v >= 60 ? 'var(--med)' : 'var(--crit)'
+export function ScoreRing({ value, size = 56, stroke = 5, label, className }) {
+  const v = Math.max(0, Math.min(100, Number(value) || 0))
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  return (
+    <span className={cn('relative inline-grid shrink-0 place-items-center', className)} style={{ width: size, height: size }}
+          role="img" aria-label={label || `${v}%`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--muted-2)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={RING_TONE(v)} strokeWidth={stroke} strokeLinecap="round"
+                strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)}
+                className="transition-[stroke-dashoffset] duration-700 ease-standard" />
+      </svg>
+      <AnimatedNumber value={v} suffix="%" className="num absolute text-xs font-semibold text-fg" />
+    </span>
+  )
+}

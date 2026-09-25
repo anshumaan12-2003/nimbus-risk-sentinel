@@ -11,12 +11,16 @@ import Mascot from '@/components/Mascot'
 function Frame({ title, lead, children, footer, wide = false }) {
   return (
     <div className="relative grid min-h-dvh place-items-center overflow-hidden bg-bg px-4 py-10">
-      {/* one soft wash of accent at the top — the only decoration */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_100%_at_50%_0%,var(--accent-soft)_0%,transparent_100%)] opacity-70" />
+      {/* a dawn sky over the top of the page: the only decoration */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-80
+        bg-[radial-gradient(50%_90%_at_35%_0%,color-mix(in_oklab,var(--dawn-1)_16%,transparent)_0%,transparent_100%),radial-gradient(45%_80%_at_70%_0%,color-mix(in_oklab,var(--dawn-3)_12%,transparent)_0%,transparent_100%)]" />
       <main className={cn('relative w-full animate-rise-in', wide ? 'max-w-[440px]' : 'max-w-[380px]')}>
-        <div className="mb-6 flex items-center justify-center gap-2.5">
-          <BrandMark className="size-8" />
-          <span className="text-lg font-semibold tracking-tight text-fg">Nimbus</span>
+        <div className="mb-6 grid justify-items-center gap-1.5">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="size-8" />
+            <span className="font-display text-xl font-bold tracking-[-0.02em] text-fg">Nimbus</span>
+          </div>
+          <p className="text-sm text-fg-3">See the risk before the breach.</p>
         </div>
         <div className="rounded-xl border border-line bg-surface p-6 shadow-overlay sm:p-7">
           <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-fg">{title}</h1>

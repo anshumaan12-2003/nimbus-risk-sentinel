@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { CheckCircle2, CircleDashed, Download, Search, XCircle } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
-  Page, PageHeader, Card, Button, Input, Badge, EmptyState, ErrorState, SkeletonRows, Skeleton, Segmented,
+  Page, PageHeader, Card, Button, Input, Badge, EmptyState, ErrorState, SkeletonRows, Skeleton, Segmented, ScoreRing,
 } from '@/components/ds'
 import { downloadFile } from '@/components/ui'
 import { useCompliance, useControls } from '@/hooks/queries'
@@ -88,16 +88,13 @@ export default function Compliance() {
                 <button key={b.id} type="button" onClick={() => setFw(active ? 'all' : f.key)} aria-pressed={active}
                         className={cn('grid gap-3 rounded-lg border bg-surface p-4 text-left shadow-raised transition-colors hover:border-line-strong',
                           active ? 'border-accent ring-2 ring-accent-soft-2' : 'border-line')}>
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <ScoreRing value={score} label={`${f.short}: ${score}% of automated controls passing`} />
                     <div className="min-w-0">
-                      <p className="font-semibold text-fg">{f.short}</p>
+                      <p className="font-display text-md font-bold tracking-[-0.01em] text-fg">{f.short}</p>
                       <p className="truncate text-xs text-fg-3" title={b.name}>{b.category || b.name}</p>
                     </div>
-                    <span className="num text-xl font-semibold text-fg">{score}%</span>
                   </div>
-                  <span className="block h-1.5 overflow-hidden rounded-full bg-muted-2">
-                    <span className={cn('block h-full rounded-full', score >= 85 ? 'bg-low' : score >= 60 ? 'bg-med' : 'bg-crit')} style={{ width: `${score}%` }} />
-                  </span>
                   <p className="num text-xs text-fg-2">
                     <span className="text-fg">{b.passingRules}</span> passing · <span className={b.failingRules ? 'text-crit-text' : ''}>{b.failingRules} failing</span>
                     {b.notEvaluated ? <> · {b.notEvaluated} not checked</> : null}

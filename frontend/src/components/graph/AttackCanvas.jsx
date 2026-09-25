@@ -94,9 +94,17 @@ const edgeTypes = { attack: AttackEdge }
   Shared attack-graph canvas.
   view: { entry, hop: {id: n}, reveal, severed: Set, pathEdges: Set, treeEdges: Set, selectedNode, selectedEdge, simulate }
 */
-export default function AttackCanvas({ nodes, edges, view, onNodeClick, onEdgeClick, height = 600, className }) {
+/* Canvas height follows the graph: a small graph no longer floats in a mostly empty 600px box.
+   maxHeight caps it; 360px keeps controls and the minimap usable. */
+function fitHeight(nodes, maxHeight) {
+  const tallest = Math.max(1, ...LAYERS.map((_, l) => nodes.filter(n => n.layer === l).length))
+  return Math.min(maxHeight, Math.max(360, tallest * ROW + 150))
+}
+
+export default function AttackCanvas({ nodes, edges, view, onNodeClick, onEdgeClick, height: maxHeight = 640, className }) {
   const theme = useSentinelStore(s => s.theme)
   const pos = useMemo(() => layout(nodes), [nodes])
+  const height = useMemo(() => fitHeight(nodes, maxHeight), [nodes, maxHeight])
 
   const rfNodes = useMemo(() => {
     const labels = LAYERS.map((label, l) => ({
@@ -144,7 +152,7 @@ export default function AttackCanvas({ nodes, edges, view, onNodeClick, onEdgeCl
         edgeTypes={edgeTypes}
         colorMode={theme}
         fitView
-        fitViewOptions={{ padding: 0.1, maxZoom: 1.1 }}
+        fitViewOptions={{ padding: 0.08, maxZoom: 1.2 }}
         minZoom={0.3}
         maxZoom={1.6}
         nodesDraggable={false}

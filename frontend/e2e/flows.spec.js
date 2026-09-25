@@ -179,3 +179,17 @@ test('a sleeping API shows "Waking Nimbus up", keeps retrying, then signs in wit
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible({ timeout: 15_000 })   // retried on its own
   expect(calls).toBeGreaterThanOrEqual(3)
 })
+
+test('Findings can be grouped by resource, and the choice survives clearing filters', async ({ page }) => {
+  await signIn(page, 'viewer')
+  await page.goto('/findings?severity=CRITICAL')
+  await page.getByRole('radio', { name: 'By resource' }).click()
+  await expect(page).toHaveURL(/group=resource/)
+  const groups = page.getByRole('list', { name: 'Findings by resource' })
+  await expect(groups.getByText('billing-db', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Clear filters' }).click()
+  await expect(page).toHaveURL(/group=resource/)
+  await expect(page).not.toHaveURL(/severity=/)
+  await groups.getByRole('button').first().click()
+  await expect(page.getByRole('dialog')).toBeVisible()                      // opens the finding sheet
+})
