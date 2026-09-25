@@ -10,7 +10,7 @@ import {
   AnimatedNumber
 } from '@/components/ds'
 import GettingStarted from '@/components/GettingStarted'
-import { forecastFor } from '@/lib/forecast'
+import { changeSentence, forecastFor } from '@/lib/forecast'
 import VesperMark from '@/components/vesper/VesperMark'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { useCan, useUser } from '@/auth/authStore'
@@ -313,6 +313,8 @@ function Exposure({ d }) {
   )
 }
 
+const changeTone = (s) => num(s.resolved_count) && !num(s.new_count) && !num(s.regressed_count) ? 'text-low-text' : 'text-fg-2'
+
 function SinceLastScan({ d }) {
   const s = d.drift?.summary
   const items = [
@@ -330,11 +332,12 @@ function SinceLastScan({ d }) {
             {items.map(([label, v, tone]) => (
               <div key={label} className="grid gap-0.5 px-3 py-2.5">
                 <dt className="text-xs text-fg-3">{label}</dt>
-                <dd className={cn('num text-lg font-semibold', num(v) ? tone : 'text-fg')}>{num(v)}</dd>
+                <dd><AnimatedNumber value={num(v)} className={cn('num text-lg font-semibold', num(v) ? tone : 'text-fg')} /></dd>
               </div>
             ))}
           </dl>
         )}
+        {s && <p className={cn('mt-3 text-sm', changeTone(s))}>{changeSentence(s)}</p>}
       </CardBody>
     </Card>
   )

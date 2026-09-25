@@ -100,7 +100,7 @@ test.describe('phone', () => {
     await nav.getByRole('link', { name: 'Assets' }).click()
     await expect(page).toHaveURL(/\/assets/)
     await expect(nav).toBeHidden()
-    for (const path of ['/', '/findings', '/assets', '/approvals', '/scans', '/settings']) {
+    for (const path of ['/', '/findings', '/findings?group=resource', '/assets', '/compliance', '/approvals', '/scans', '/settings', '/vesper']) {
       await page.goto(path)
       await page.waitForLoadState('networkidle')
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)

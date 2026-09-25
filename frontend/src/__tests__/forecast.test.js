@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { forecastFor } from '@/lib/forecast'
+import { changeSentence, forecastFor } from '@/lib/forecast'
 
 const top = { resource_name: 'billing-db', resource_id: 'arn:aws:rds:…:billing-db', service: 'rds' }
 
@@ -23,5 +23,19 @@ describe('forecastFor: the Overview weather comes only from scan data', () => {
     expect(forecastFor({ medium: 2, low: 1 }).why).toBe('Nothing critical or high is open. 3 lower-severity findings are worth a look this week.')
     expect(forecastFor({}).why).toBe('Nothing is open. Every check Nimbus runs is passing.')
     expect(forecastFor({}).wx).toBe('clear')
+  })
+})
+
+describe('changeSentence: what changed since the last scan, in plain words', () => {
+  it('celebrates pure progress', () => {
+    expect(changeSentence({ resolved_count: 3, new_count: 0, regressed_count: 0 })).toBe('You fixed 3 findings and nothing new appeared. Nice work.')
+    expect(changeSentence({ resolved_count: 1 })).toBe('You fixed 1 finding and nothing new appeared. Nice work.')
+  })
+  it('reports mixed changes in one sentence', () => {
+    expect(changeSentence({ resolved_count: 2, new_count: 1, regressed_count: 1 })).toBe('You fixed 2, 1 new finding appeared and 1 came back.')
+    expect(changeSentence({ new_count: 4 })).toBe('4 new findings appeared.')
+  })
+  it('says so when nothing changed', () => {
+    expect(changeSentence({})).toBe('No change since the last scan.')
   })
 })

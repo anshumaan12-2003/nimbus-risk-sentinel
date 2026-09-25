@@ -28,3 +28,17 @@ export function forecastFor(stats, open = [], blast = null) {
            why: rest ? `Nothing critical or high is open. ${plural(rest, 'lower-severity finding')} ${rest === 1 ? 'is' : 'are'} worth a look this week.`
                      : 'Nothing is open. Every check Nimbus runs is passing.' }
 }
+
+/* Say what changed like a person would, and notice progress. */
+export function changeSentence(s) {
+  const fixed = num(s.resolved_count), added = num(s.new_count), back = num(s.regressed_count)
+  const n = (k, one) => `${k} ${one}${k === 1 ? '' : 's'}`
+  if (!fixed && !added && !back) return 'No change since the last scan.'
+  if (fixed && !added && !back) return `You fixed ${n(fixed, 'finding')} and nothing new appeared. Nice work.`
+  const parts = []
+  if (fixed) parts.push(`you fixed ${fixed}`)
+  if (added) parts.push(`${n(added, 'new finding')} appeared`)
+  if (back) parts.push(`${back} came back`)
+  const text = parts.join(', ').replace(/, ([^,]*)$/, ' and $1')
+  return text[0].toUpperCase() + text.slice(1) + '.'
+}

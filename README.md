@@ -8,10 +8,11 @@
 ![Version](https://img.shields.io/badge/version-1.3.0-3b5bdb)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)
 ![Postgres](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-61%20passing-22c55e?logo=pytest&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-82%20passing-22c55e?logo=pytest&logoColor=white)
 
 **Scans your AWS account, shows how an attacker would move through it, and fixes it only after a second person approves.**
 
@@ -56,6 +57,16 @@ An engineer **requests** a fix and a *different* approver **applies** it. Nimbus
 </tr>
 </table>
 
+### A forecast, not an alarm
+
+The Overview opens with the weather for your account, worked out only from scan data: a **storm warning** when anything critical is open, **scattered risk** when only high-severity findings are, **clear skies** otherwise. It names the riskiest resource, says why in one sentence, and lists **today's three fixes**. Numbers roll when a scan changes them, so you see things get better.
+
+### Meet Vesper, the assistant
+
+<img src="docs/readme/vesper.png" alt="Vesper answering 'What should I fix first?' with severity-coloured citation chips, actions and follow-up questions" width="100%">
+
+Press <kbd>⌘</kbd> <kbd>J</kbd> anywhere. Vesper answers **as it writes**, from your latest scan only, and **cites findings as chips** you can click. It knows which page and finding you're looking at, keeps **conversations per user** (nobody else can read them), and offers slash commands (`/fix`, `/explain`, `/report`) and follow-ups. It **can't change AWS**: fixes still go through a request and a second person's approval. Without an AI key it answers from scan facts and says so.
+
 ### Watch a scan happen
 
 <img src="docs/readme/live-scan.gif" alt="A scan filling a grid of services by region, from waiting to scanning to done, with a live percentage" width="100%">
@@ -89,7 +100,13 @@ Each cell is one unit of work: a service in a region. Progress is **pushed over 
 </tr>
 <tr>
 <td><b>Assets</b>: every EC2, S3, RDS, Lambda, DynamoDB, Secrets Manager and IAM resource, ranked by exposure.</td>
-<td><b>Compliance</b>: PASS / FAIL / NOT EVALUATED per control. Controls Nimbus couldn't see are never counted as a pass.</td>
+<td><b>Compliance</b>: a score ring per framework, and PASS / FAIL / NOT EVALUATED per control. Controls Nimbus couldn't see are never counted as a pass.</td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/readme/findings-by-resource.png" alt="Findings grouped under each resource"></td>
+</tr>
+<tr>
+<td colspan="2"><b>Findings by resource</b>: fixing usually happens one resource at a time, so group findings under each resource, riskiest first.</td>
 </tr>
 </table>
 
@@ -110,7 +127,8 @@ Each cell is one unit of work: a service in a region. Progress is **pushed over 
 
 | | |
 |---|---|
-| **AI Copilot** (<kbd>⌘</kbd> <kbd>J</kbd>) | Multi-turn chat grounded only in your latest scan's findings (Gemini). Rate-limited per user. Gives an honest factual summary when AI is off. |
+| **Vesper** (<kbd>⌘</kbd> <kbd>J</kbd>) | Streamed, cited answers from the latest scan (Gemini), saved per user, rate-limited per user. A full page at `/vesper` too. |
+| **Wakes up gracefully** | On free hosting the API sleeps; Nimbus says *Waking Nimbus up…*, retries on its own and signs you in when it's ready. |
 | **Command palette** (<kbd>⌘</kbd> <kbd>K</kbd>) | Search findings and assets by name, ARN or rule id, and jump to any page. |
 | **Keyboard first** | `g d` overview, `g f` findings, `g t` attack paths, `g p` approvals; <kbd>?</kbd> lists them all. |
 | **Changes** | What's new, fixed or came back since the last scan, using stable AWS ids so drift is real. |
@@ -229,8 +247,8 @@ The repo includes config for **Render** (API + Postgres) and **Vercel** (UI):
 
 ```mermaid
 flowchart LR
-  UI["<b>Browser</b><br/>React 18 · Vite<br/>Tailwind 4 · React Flow"]
-  API["<b>FastAPI</b><br/>auth · roles · approvals<br/>Copilot"]
+  UI["<b>Browser</b><br/>React 19 · Vite 8<br/>Tailwind 4 · React Flow"]
+  API["<b>FastAPI</b><br/>auth · roles · approvals<br/>Vesper (streaming)"]
   SCAN["<b>Scan engine</b><br/>service × region units"]
   GRAPH["<b>Attack graph</b><br/>+ breach simulator"]
   DB[("<b>PostgreSQL</b><br/>SQLite locally")]
@@ -253,7 +271,8 @@ flowchart LR
 
 | Layer | Tech |
 |---|---|
-| UI | React 18, Vite 5, Tailwind CSS 4, Radix primitives, TanStack Query + Table, React Flow 12, Recharts, Motion |
+| UI | React 19, Vite 8 (Rolldown), Tailwind CSS 4, Radix primitives, TanStack Query + Table, React Flow 12, Recharts 3, NumberFlow |
+| Type | Geist and Geist Mono for reading; Bricolage Grotesque for titles and hero numbers (all self-hosted) |
 | API | Python 3.12, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2 |
 | AWS | boto3 with cached, auto-refreshing AssumeRole sessions and adaptive retries |
 | Jobs | In-process background scans + scheduler, or Celery + Redis + beat |
@@ -265,13 +284,14 @@ flowchart LR
 backend/
   app/api/routes/      REST + auth endpoints
   app/scanner/aws/     IAM · S3 · EC2 · RDS rules; inventory collector
-  app/intelligence/    attack graph builder, compliance mapping, Copilot
+  app/intelligence/    attack graph builder, compliance mapping, Vesper's engine
   app/remediation/     read → change → verify → rollback
   app/auth/            hashing, tokens, role dependencies
   tests/               pytest on a moto account + dev_server_fake_aws.py
 frontend/
   src/pages/           one file per route
-  src/components/ds/   design system (buttons, cards, sheets, TimeAgo…)
+  src/components/ds/   design system (buttons, cards, sheets, TimeAgo, AnimatedNumber, ScoreRing…)
+  src/components/vesper/  the assistant: panel, full page, streaming client, citations
   e2e/                 Playwright flows, a11y, visual specs + baselines
 infra/aws/             IAM trust/remediator policies, Render setup script
 cli/nimbus_cli.py      IaC scanner for CI
@@ -300,7 +320,7 @@ Nimbus holds credentials to your cloud, so it's built to the standard it checks 
 
 | Role | Can |
 |---|---|
-| `viewer` | See everything, watch running scans, use the Copilot |
+| `viewer` | See everything, watch running scans, ask Vesper |
 | `engineer` | + run scans, triage findings, preview and **request** fixes, scan IaC |
 | `approver` | + **approve or reject** fixes (approving is what changes AWS) |
 | `admin` | + add people, change roles, reset passwords, deactivate accounts |
@@ -313,9 +333,9 @@ The UI never hides what you can't do. It disables the control and tells you why:
 
 | Suite | Count | What it proves |
 |---|---:|---|
-| **Backend** · pytest | 25 | Full pipeline on a fake AWS account; auth, RBAC, token rotation and reuse, lockout, four-eyes, progress grid |
-| **Route smoke** · Vitest | 15 | Every page renders real API data, signed in, without crashing |
-| **Browser** · Playwright | 21 | Sign-in, reload keeps session, viewer can't act, live scan grid, four-eyes approval, self-approval blocked, phone drawer, a11y, and **visual regression** (8 screens × desktop + Pixel 7) |
+| **Backend** · pytest | 30 | Full pipeline on a fake AWS account; auth, RBAC, token rotation and reuse, lockout, four-eyes, progress grid, Vesper streaming, citations and **per-user privacy** |
+| **Unit + route smoke** · Vitest | 22 | Every page renders real API data, signed in; the forecast and progress wording rules |
+| **Browser** · Playwright | 30 | Sign-in, reload keeps session, viewer can't act, live scan grid, four-eyes approval, self-approval blocked, Vesper (streaming, citations, history, older-API fallback), waking from sleep, findings by resource, phone layout, **axe in both themes**, and **visual regression** (8 screens × desktop + Pixel 7) |
 
 ```bash
 cd backend && pytest -q

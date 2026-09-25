@@ -43,6 +43,22 @@ test('pages · dark', async ({ page }) => {
   await shot(page, 'compliance', '/compliance')
 })
 
+test('vesper · dark', async ({ page }) => {
+  await useTheme(page, 'dark')
+  await signIn(page, 'engineer')
+  await page.keyboard.press('ControlOrMeta+j')
+  const panel = page.getByRole('dialog', { name: /Vesper/ })
+  await panel.getByRole('button', { name: 'What should I fix first?' }).click()
+  await expect(panel.getByRole('button', { name: 'Helpful', exact: true })).toBeVisible()
+  await shot(page, 'vesper')
+})
+
+test('findings by resource · dark', async ({ page }) => {
+  await useTheme(page, 'dark')
+  await signIn(page, 'admin')
+  await shot(page, 'findings-by-resource', '/findings?group=resource')
+})
+
 test('four-eyes approval · dark', async ({ browser }) => {
   const eng = await (await browser.newContext()).newPage()
   await useTheme(eng, 'dark')
