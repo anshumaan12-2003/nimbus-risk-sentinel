@@ -18,7 +18,7 @@ export default [
       ...js.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       'react/jsx-uses-vars': 'error',          // <Icon /> counts as a use of Icon
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
+      'no-unused-vars': ['error', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
     },
   },
   // Playwright specs: helpers like useTheme(page) are not React hooks

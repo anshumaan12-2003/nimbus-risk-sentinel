@@ -214,7 +214,8 @@ export default function Workflow() {
                   </div>
                   <p className={cn('mt-0.5 text-xs', overWip ? 'text-crit-text' : 'text-fg-3')}>{overWip ? 'Over the limit — finish before starting more' : c.hint}</p>
                 </header>
-                <div className="grid flex-1 content-start gap-2 overflow-y-auto px-2 pb-2">
+                {/* auto-rows-max: cards are overflow-hidden, so auto rows would shrink them to fit instead of scrolling */}
+                <div className="grid flex-1 auto-rows-max content-start gap-2 overflow-y-auto px-2 pb-2">
                   {cards.length === 0 && (
                     <div className="grid h-20 place-items-center rounded-md border border-dashed border-line text-xs text-fg-3">{dragId ? 'Drop here' : 'Nothing here'}</div>
                   )}

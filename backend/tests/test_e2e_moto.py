@@ -244,6 +244,11 @@ def test_inventory_and_config(client):
     ec2 = next(a for a in inv["assets"] if a["type"] == "ec2")
     assert ec2["public"] and "22" in ec2["details"]["open_ports"]
     assert any(a["findings"] for a in inv["assets"])
+    # Assets agrees with the attack graph: a bucket with a public policy is public (and not a crown jewel)
+    site = next(a for a in inv["assets"] if a["name"] == "public-website-assets")
+    assert site["public"] and not site["crown"]
+    graph = client.get("/api/v1/topology/environment").json()
+    assert any(e["from"] == "internet" and e["to"] == site["id"] for e in graph["edges"])
     assert client.get("/api/v1/inventory?type=rds").json()["assets"][0]["crown"] is True
     cfg = client.get("/api/v1/account/config").json()
     assert cfg["regions"] == ["us-east-1", "ap-south-1"] and "AI_API_KEY" not in str(cfg)
