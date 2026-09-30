@@ -4,8 +4,8 @@ the Playwright suite, without touching real AWS.
 
     python tests/dev_server_fake_aws.py          ->  http://127.0.0.1:8000
 
-Seeds one user per role (password: nimbus-demo-password):
-    admin@nimbus.local  approver@nimbus.local  engineer@nimbus.local  viewer@nimbus.local
+Seeds one user per role (password: breachpath-demo-password):
+    admin@breachpath.local  approver@breachpath.local  engineer@breachpath.local  viewer@breachpath.local
 
 FAKE_LATENCY=0.8 (default) makes each scan unit take a little time so the live progress grid is
 visible; set FAKE_LATENCY=0 for instant scans.
@@ -22,9 +22,9 @@ import test_e2e_moto as t  # noqa: E402  (sets fake env vars)
 os.environ["DATABASE_URL"] = DB_URL   # the test module points at its own DB; keep ours
 from moto import mock_aws  # noqa: E402
 
-DEMO_PASSWORD = "nimbus-demo-password"
-DEMO_USERS = {"admin": "admin@nimbus.local", "approver": "approver@nimbus.local",
-              "engineer": "engineer@nimbus.local", "viewer": "viewer@nimbus.local"}
+DEMO_PASSWORD = "breachpath-demo-password"
+DEMO_USERS = {"admin": "admin@breachpath.local", "approver": "approver@breachpath.local",
+              "engineer": "engineer@breachpath.local", "viewer": "viewer@breachpath.local"}
 
 
 def _add_latency(seconds: float):

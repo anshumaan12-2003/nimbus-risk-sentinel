@@ -1,9 +1,9 @@
 import { expect } from '@playwright/test'
 
-export const PASSWORD = 'nimbus-demo-password'
+export const PASSWORD = 'breachpath-demo-password'
 export const USERS = {
-  admin: 'admin@nimbus.local', approver: 'approver@nimbus.local',
-  engineer: 'engineer@nimbus.local', viewer: 'viewer@nimbus.local',
+  admin: 'admin@breachpath.local', approver: 'approver@breachpath.local',
+  engineer: 'engineer@breachpath.local', viewer: 'viewer@breachpath.local',
 }
 
 export async function useTheme(page, theme) {

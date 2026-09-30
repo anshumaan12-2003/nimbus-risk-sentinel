@@ -23,7 +23,7 @@ for (const theme of ['dark', 'light']) {
       await expect(page).toHaveScreenshot(`approvals-empty-${theme}.png`, { mask: volatile(page) })
       await page.goto('/settings')
       await expect(page.getByRole('button', { name: 'Add person' })).toBeVisible()
-      await expect(page.getByText('viewer@nimbus.local')).toBeVisible()
+      await expect(page.getByText('viewer@breachpath.local')).toBeVisible()
       await settled(page)
       // "Last sign-in" depends on which users earlier tests signed in as, so mask the whole column
       const lastSignIn = page.locator('table').filter({ hasText: 'Last sign-in' }).locator('tbody td:nth-child(3)')

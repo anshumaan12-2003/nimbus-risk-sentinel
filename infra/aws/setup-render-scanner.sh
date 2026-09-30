@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time AWS setup for the Render-hosted API. Run with an admin profile for the account Nimbus scans:
+# One-time AWS setup for the Render-hosted API. Run with an admin profile for the account Breachpath scans:
 #   AWS_PROFILE=<admin-profile> ./infra/aws/setup-render-scanner.sh
 #
 # Creates:
@@ -25,7 +25,7 @@ ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
 # IAM is eventually consistent: a brand-new user can't be a trust principal for a few seconds
 for _ in 1 2 3 4 5 6; do
   if aws iam create-role --role-name "$ROLE_NAME" --max-session-duration 3600 \
-      --description "Read-only scanning for Nimbus Risk Sentinel (Render)" \
+      --description "Read-only scanning for Breachpath Cloud Recon (Render)" \
       --assume-role-policy-document "{
         \"Version\": \"2012-10-17\",
         \"Statement\": [{

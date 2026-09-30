@@ -1,5 +1,5 @@
 """
-Nimbus Risk Sentinel — Slack Block Kit Alert Dispatcher
+Breachpath Cloud Recon — Slack Block Kit Alert Dispatcher
 Formats and transmits real-time posture drift and security alert payloads to Slack.
 """
 
@@ -30,7 +30,7 @@ class SlackNotifier:
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": f"{status_emoji} Nimbus Sentinel: Infrastructure Drift Detected [{status}]",
+                    "text": f"{status_emoji} Breachpath: Infrastructure Drift Detected [{status}]",
                     "emoji": True,
                 },
             },

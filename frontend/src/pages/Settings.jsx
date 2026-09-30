@@ -92,7 +92,7 @@ export default function Settings() {
           {live && <Section id="account" title="Your account"><AccountSection /></Section>}
           {live && <Section id="team" title="Team"><TeamSection /></Section>}
 
-          <Section id="aws" title="AWS connection" description="What Nimbus can see, checked against the same AWS APIs the scanners call.">
+          <Section id="aws" title="AWS connection" description="What Breachpath can see, checked against the same AWS APIs the scanners call.">
             {!live ? <p className="text-sm text-fg-2">Demo mode — not connected to AWS.</p>
               : pre.isLoading ? <SkeletonRows rows={3} />
               : pre.isError ? <ErrorState error={pre.error} onRetry={pre.refetch} compact />

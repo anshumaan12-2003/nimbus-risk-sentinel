@@ -1,5 +1,5 @@
 /*
-  Activity log: what Nimbus has been doing (live events) and every change it made to AWS
+  Activity log: what Breachpath has been doing (live events) and every change it made to AWS
   (the remediation audit trail, with who requested and who approved each one).
 */
 import { useState } from 'react'
@@ -66,7 +66,7 @@ function AwsChanges() {
   const demo = useSentinelStore(s => s.dataSource) === 'demo'
   const q = useAuditTrail()
   const [open, setOpen] = useState(null)
-  if (demo) return <EmptyState compact title="Needs live data" body="The audit trail records real changes Nimbus made to your AWS account." />
+  if (demo) return <EmptyState compact title="Needs live data" body="The audit trail records real changes Breachpath made to your AWS account." />
   if (q.isLoading) return <div className="p-5"><SkeletonRows rows={5} /></div>
   if (q.isError) return <ErrorState compact error={q.error} onRetry={q.refetch} />
   if (!q.data?.length) return <EmptyState compact mood="calm" title="No changes to AWS yet" body="When an approver applies a fix, it’s recorded here with both names." />
@@ -104,7 +104,7 @@ export default function AuditFeedDrawer() {
   const { auditDrawerOpen, closeAuditDrawer } = useSentinelStore()
   return (
     <Sheet open={auditDrawerOpen} onOpenChange={(o) => { if (!o) closeAuditDrawer() }}>
-      <SheetContent width={520} title="Activity log" description="What Nimbus is doing, and every change it has made to AWS.">
+      <SheetContent width={520} title="Activity log" description="What Breachpath is doing, and every change it has made to AWS.">
         <Tabs defaultValue="live">
           <TabsList className="sticky top-0 z-10 bg-surface px-5">
             <TabsTrigger value="live">Live</TabsTrigger>

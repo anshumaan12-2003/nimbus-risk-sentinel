@@ -3,7 +3,7 @@ import { api, configureAuth } from '../api/nimbus'
 import { queryClient } from '../lib/queryClient'
 import { can, reasonFor } from './permissions'
 
-const DEMO_USER = { id: 'demo', email: 'demo@nimbus.local', name: 'Demo', role: 'admin', is_active: true }
+const DEMO_USER = { id: 'demo', email: 'demo@breachpath.local', name: 'Demo', role: 'admin', is_active: true }
 const isDemo = () => import.meta.env.VITE_DATA_MODE === 'demo'
 
 /*

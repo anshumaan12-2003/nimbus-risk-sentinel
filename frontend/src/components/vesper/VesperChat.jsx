@@ -221,7 +221,7 @@ export function VesperHistory({ v }) {
                       onClick={() => v.remove(c.id)}><Trash2 /></Button>
             </div>
           ))}
-          {list.length > 0 && <><MenuSeparator /><p className="px-2.5 py-1.5 text-2xs text-fg-3">Stored on your Nimbus server, not with Google.</p></>}
+          {list.length > 0 && <><MenuSeparator /><p className="px-2.5 py-1.5 text-2xs text-fg-3">Stored on your Breachpath server, not with Google.</p></>}
         </MenuContent>
       </Menu>
     </div>

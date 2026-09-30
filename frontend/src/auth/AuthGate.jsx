@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Eye, EyeOff, RefreshCw, WifiOff } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Eye, EyeOff, Loader2, RefreshCw, WifiOff } from 'lucide-react'
 import { useAuth } from './authStore'
 import { apiError } from '../api/nimbus'
-import { Button, CodeBlock, Input } from '@/components/ds'
+import { Button, CodeBlock, IconTile, Input } from '@/components/ds'
 import { BrandMark } from '@/components/shell/Sidebar'
 import { cn } from '@/lib/cn'
-import Mascot from '@/components/Mascot'
 
 /* Calm full-screen frame shared by every signed-out state. */
 function Frame({ title, lead, children, footer, wide = false }) {
@@ -18,7 +17,10 @@ function Frame({ title, lead, children, footer, wide = false }) {
         <div className="mb-6 grid justify-items-center gap-1.5">
           <div className="flex items-center gap-2.5">
             <BrandMark className="size-8" />
-            <span className="font-display text-xl font-bold tracking-[-0.02em] text-fg">Nimbus</span>
+            <span className="grid leading-none">
+              <span className="font-display text-xl font-bold tracking-[-0.02em] text-fg">Breachpath</span>
+              <span className="mt-1 font-mono text-[10px] tracking-[0.16em] text-fg-3 uppercase">Cloud Recon</span>
+            </span>
           </div>
           <p className="text-sm text-fg-3">See the risk before the breach.</p>
         </div>
@@ -96,7 +98,7 @@ function LoginScreen() {
   return (
     <Frame
       title="Sign in"
-      lead="Use the account your Nimbus admin created for you."
+      lead="Use the account your Breachpath admin created for you."
       footer="Forgot your password? An admin can reset it in Settings → Team."
     >
       {notice && !error && <Alert tone="info">{notice}</Alert>}
@@ -176,10 +178,11 @@ function WakingScreen() {
   const retry = async () => { setBusy(true); try { await bootstrap() } finally { setBusy(false) } }
   const local = ['localhost', '127.0.0.1'].includes(window.location.hostname)
   return (
-    <Frame wide title={stuck ? 'Nimbus still isn\u2019t answering' : 'Waking Nimbus up\u2026'}
+    <Frame wide title={stuck ? 'Breachpath still isn\u2019t answering' : 'Waking Breachpath up\u2026'}
            lead={stuck ? 'It usually wakes within a minute. Something may be wrong with the API service.' : 'The server sleeps when nobody\u2019s using it and takes up to a minute to wake. No need to reload: this page signs you in as soon as it\u2019s ready.'}>
       <div className="grid justify-items-center gap-4" role="status" aria-live="polite">
-        <Mascot mood={stuck ? 'alarmed' : 'thinking'} size={96} label={stuck ? 'Not answering' : 'Waking up'} />
+        {stuck ? <IconTile icon={AlertTriangle} tone="danger" size="lg" />
+               : <IconTile icon={Loader2} tone="accent" size="lg" iconClassName="animate-spin" />}
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted-2" aria-hidden>
           <div className="h-full rounded-full bg-accent transition-[width] duration-1000 ease-linear" style={{ width: `${Math.min(100, (seconds / 60) * 100)}%` }} />
         </div>

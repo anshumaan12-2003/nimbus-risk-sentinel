@@ -70,7 +70,7 @@ export default function Compliance() {
     <Page wide>
       <PageHeader
         title="Compliance"
-        description="Automated controls checked on every scan, mapped to CIS AWS, SOC 2, PCI DSS and HIPAA. These cover the technical controls Nimbus can verify — not a full audit."
+        description="Automated controls checked on every scan, mapped to CIS AWS, SOC 2, PCI DSS and HIPAA. These cover the technical controls Breachpath can verify — not a full audit."
         actions={<Button onClick={exportPack} disabled={!controls.length}><Download /> Export evidence (JSON)</Button>}
       />
 

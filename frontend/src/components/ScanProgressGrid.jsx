@@ -1,6 +1,6 @@
 /*
   Service x region grid for one scan. Each cell merges the rule-check task and the inventory task
-  for that service in that region, so you can see exactly what Nimbus has looked at, what it is
+  for that service in that region, so you can see exactly what Breachpath has looked at, what it is
   looking at now, and where AWS said no.
 */
 import { Fragment } from 'react'

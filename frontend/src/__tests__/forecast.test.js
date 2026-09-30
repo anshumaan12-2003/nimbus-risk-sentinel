@@ -21,7 +21,7 @@ describe('forecastFor: the Overview weather comes only from scan data', () => {
   })
   it('clear skies otherwise, with an honest note about what is left', () => {
     expect(forecastFor({ medium: 2, low: 1 }).why).toBe('Nothing critical or high is open. 3 lower-severity findings are worth a look this week.')
-    expect(forecastFor({}).why).toBe('Nothing is open. Every check Nimbus runs is passing.')
+    expect(forecastFor({}).why).toBe('Nothing is open. Every check Breachpath runs is passing.')
     expect(forecastFor({}).wx).toBe('clear')
   })
 })

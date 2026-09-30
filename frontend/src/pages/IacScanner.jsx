@@ -34,8 +34,8 @@ resource "aws_security_group" "web" {
 }`
 
 const CI_SNIPPET = `# .github/workflows/iac.yml — fail the PR on critical misconfigurations
-- name: Nimbus IaC scan
-  run: python cli/nimbus_cli.py scan iac ./infrastructure/terraform`
+- name: Breachpath IaC scan
+  run: python cli/breachpath_cli.py scan iac ./infrastructure/terraform`
 
 function Results({ data }) {
   const [sev, setSev] = useState('')
@@ -73,7 +73,7 @@ function Results({ data }) {
 
       <Card className="overflow-hidden">
         {rows.length === 0 ? (
-          <EmptyState compact mood="happy" title={sev ? 'Nothing at this severity' : 'No misconfigurations found'} body={sev ? undefined : 'Every resource passed the Nimbus rules.'} />
+          <EmptyState compact mood="happy" title={sev ? 'Nothing at this severity' : 'No misconfigurations found'} body={sev ? undefined : 'Every resource passed the Breachpath rules.'} />
         ) : (
           <ul className="divide-y divide-line">
             {rows.map((r, i) => (
@@ -160,7 +160,7 @@ export default function IacScanner() {
               <TabsTrigger value="upload">Upload file</TabsTrigger>
             </TabsList></div>
             <CardBody className="pt-4">
-              <TabsContent value="sample" className="text-sm text-fg-2">Scans the Terraform bundled with Nimbus (<span className="font-mono text-xs">infrastructure/terraform</span>) — a quick way to see the rules at work.</TabsContent>
+              <TabsContent value="sample" className="text-sm text-fg-2">Scans the Terraform bundled with Breachpath (<span className="font-mono text-xs">infrastructure/terraform</span>) — a quick way to see the rules at work.</TabsContent>
               <TabsContent value="paste" className="grid gap-2">
                 <Textarea value={hcl} onChange={e => setHcl(e.target.value)} spellCheck={false} aria-label="Terraform code"
                           placeholder={SAMPLE} className="min-h-64 font-mono text-xs leading-5" />

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="t d">
-  <title id="t">Nimbus Risk Sentinel</title>
+  <title id="t">Breachpath Cloud Recon</title>
   <desc id="d">See the risk before the breach. An attack path runs from the internet through an EC2 instance and an IAM user to crown-jewel data stores.</desc>
   <style>
     .f { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
@@ -52,7 +52,7 @@
       <text x="136" y="96" class="f" font-size="15" font-weight="600" fill="#8aa2ff" letter-spacing="2.4">CLOUD SECURITY POSTURE</text>
       <text x="136" y="120" class="f" font-size="15" fill="#9aa0ab">for AWS · self-hosted · FastAPI + React</text>
     </g>
-    <text x="64" y="190" class="f rise r2" font-size="50" font-weight="700" fill="#f4f5f7" letter-spacing="-1">Nimbus Risk Sentinel</text>
+    <text x="64" y="190" class="f rise r2" font-size="50" font-weight="700" fill="#f4f5f7" letter-spacing="-1">Breachpath Cloud Recon</text>
     <text x="64" y="232" class="f rise r3" font-size="22" fill="#c3c7cf">See the risk before the breach<tspan class="blink" fill="#8aa2ff">_</tspan></text>
     <g class="rise r4 m" font-size="13">
       <rect x="64" y="262" width="118" height="30" rx="15" fill="#ef4444" fill-opacity=".12" stroke="#ef4444" stroke-opacity=".45"/>

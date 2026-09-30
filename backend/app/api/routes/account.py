@@ -1,5 +1,5 @@
 """
-Preflight: "what can Nimbus actually see in this account?"
+Preflight: "what can Breachpath actually see in this account?"
 Calls each read API the scanners depend on once and reports OK / AccessDenied, so a blank
 dashboard is explained instead of silently empty.
 """

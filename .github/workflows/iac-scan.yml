@@ -1,4 +1,4 @@
-name: 🔍 IaC Security Scan — Nimbus Sentinel
+name: 🔍 IaC Security Scan — Breachpath
 
 on:
   pull_request:
@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   nimbus-iac-scan:
-    name: 🌩️ Nimbus IaC Security Scan
+    name: Breachpath IaC Security Scan
     runs-on: ubuntu-latest
 
     env:
@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0  # Full history for diff analysis
 
-      # ─── Setup Nimbus Backend ───────────────────────────────────────────────
+      # ─── Setup Breachpath Backend ───────────────────────────────────────────────
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -47,8 +47,8 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # ─── Run Nimbus IaC Scanner ─────────────────────────────────────────────
-      - name: Run Nimbus IaC Scanner
+      # ─── Run Breachpath IaC Scanner ─────────────────────────────────────────────
+      - name: Run Breachpath IaC Scanner
         id: nimbus_scan
         working-directory: backend
         run: |
@@ -72,7 +72,7 @@ jobs:
 
           # Output summary
           print(f"\n{'='*60}")
-          print(f"🌩️  NIMBUS IaC SECURITY SCAN RESULTS")
+          print(f"NIMBUS IaC SECURITY SCAN RESULTS")
           print(f"{'='*60}")
           print(f"Total Findings:  {result['total_findings']}")
           for sev, count in result.get('severity_summary', {}).items():
@@ -112,7 +112,7 @@ jobs:
             const statusIcon = passed ? '✅' : '❌';
             const statusText = passed ? 'PASSED — No CRITICAL findings' : 'BLOCKED — CRITICAL misconfigurations found';
 
-            let body = `## 🌩️ Nimbus Risk Sentinel — IaC Security Scan Report\n\n`;
+            let body = `## Breachpath Cloud Recon — IaC Security Scan Report\n\n`;
             body += `**Status**: ${statusIcon} ${statusText}\n\n`;
             body += `| Severity | Count |\n|---|---|\n`;
 
@@ -134,11 +134,11 @@ jobs:
               }
 
               if (total > 5) {
-                body += `\n> *...and ${total - 5} more findings. Check the Nimbus dashboard for full details.*\n`;
+                body += `\n> *...and ${total - 5} more findings. Check the Breachpath dashboard for full details.*\n`;
               }
             }
 
-            body += `\n---\n*Powered by [Nimbus Risk Sentinel](http://localhost:3000) — Automated IaC Security Analysis*`;
+            body += `\n---\n*Powered by [Breachpath Cloud Recon](http://localhost:3000) — Automated IaC Security Analysis*`;
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,

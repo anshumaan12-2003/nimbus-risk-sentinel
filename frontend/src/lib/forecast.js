@@ -26,7 +26,7 @@ export function forecastFor(stats, open = [], blast = null) {
   }
   return { wx: 'clear', headline: 'Clear skies over your account',
            why: rest ? `Nothing critical or high is open. ${plural(rest, 'lower-severity finding')} ${rest === 1 ? 'is' : 'are'} worth a look this week.`
-                     : 'Nothing is open. Every check Nimbus runs is passing.' }
+                     : 'Nothing is open. Every check Breachpath runs is passing.' }
 }
 
 /* Say what changed like a person would, and notice progress. */

@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Nimbus Risk Sentinel — CSPM: scans AWS, builds attack paths, scores compliance, remediates safely.",
+    description="Breachpath Cloud Recon — CSPM: scans AWS, builds attack paths, scores compliance, remediates safely.",
     lifespan=lifespan,
 )
 
@@ -67,4 +67,4 @@ def health_check():
 
 @app.get("/", tags=["Root"])
 def root():
-    return {"message": "Nimbus Risk Sentinel API", "docs": "/docs", "health": "/health"}
+    return {"message": "Breachpath Cloud Recon API", "docs": "/docs", "health": "/health"}

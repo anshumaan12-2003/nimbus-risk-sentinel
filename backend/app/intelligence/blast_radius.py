@@ -1,5 +1,5 @@
 """
-Nimbus Risk Sentinel — Blast Radius & Attack Graph Traversal Engine
+Breachpath Cloud Recon — Blast Radius & Attack Graph Traversal Engine
 Builds directed dependency graphs (V, E) across cloud infrastructure to compute
 multi-hop exploit chains and blast radius reachability to crown jewel data assets.
 """

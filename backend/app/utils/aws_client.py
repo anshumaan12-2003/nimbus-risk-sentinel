@@ -86,7 +86,7 @@ def get_session_for(purpose: str = "scan"):
     key = f"{purpose}:{role or 'base'}"
     with _lock:
         if key not in _sessions:
-            _sessions[key] = _assumed_session(role, f"Nimbus-{purpose}") if role else _base_session()
+            _sessions[key] = _assumed_session(role, f"Breachpath-{purpose}") if role else _base_session()
         return _sessions[key]
 
 
