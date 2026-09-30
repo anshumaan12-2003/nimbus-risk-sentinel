@@ -5,7 +5,7 @@ on:
     paths:
       - "infrastructure/**"
       - "**.tf"
-    branches: [main, develop]
+    branches: [master]
   workflow_dispatch:
     inputs:
       scan_directory:
@@ -26,7 +26,10 @@ jobs:
     env:
       DATABASE_URL: "sqlite:///./ci.db"
       SECRET_KEY: "ci-iac-scan-secret"
-      PYTHON_VERSION: "3.11"
+      PYTHON_VERSION: "3.12"
+      # This repo's Terraform is a deliberately vulnerable demo, so here the scan reports without blocking.
+      # In a real repo set this to "true" to fail the PR on any CRITICAL finding.
+      FAIL_ON_CRITICAL: "false"
 
     steps:
       - name: Checkout code
@@ -82,9 +85,11 @@ jobs:
 
           # Fail the pipeline if CRITICAL findings are found
           critical_count = result.get("severity_summary", {}).get("CRITICAL", 0)
-          if critical_count > 0:
+          if critical_count > 0 and os.environ.get("FAIL_ON_CRITICAL") == "true":
               print(f"❌ BUILD BLOCKED: {critical_count} CRITICAL security misconfiguration(s) found in IaC!")
               sys.exit(1)
+          elif critical_count > 0:
+              print(f"⚠️ {critical_count} CRITICAL finding(s), reported only (FAIL_ON_CRITICAL=false).")
           else:
               print("✅ No CRITICAL findings. IaC scan passed.")
           EOF
@@ -110,7 +115,9 @@ jobs:
             const passed = results.passed;
 
             const statusIcon = passed ? '✅' : '❌';
-            const statusText = passed ? 'PASSED — No CRITICAL findings' : 'BLOCKED — CRITICAL misconfigurations found';
+            const blocking = process.env.FAIL_ON_CRITICAL === 'true';
+            const statusText = passed ? 'PASSED — No CRITICAL findings'
+              : blocking ? 'BLOCKED — CRITICAL misconfigurations found' : 'CRITICAL misconfigurations found (report only)';
 
             let body = `## Breachpath Cloud Recon — IaC Security Scan Report\n\n`;
             body += `**Status**: ${statusIcon} ${statusText}\n\n`;
@@ -138,7 +145,7 @@ jobs:
               }
             }
 
-            body += `\n---\n*Powered by [Breachpath Cloud Recon](http://localhost:3000) — Automated IaC Security Analysis*`;
+            body += `\n---\n*Powered by [Breachpath Cloud Recon](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}) — Automated IaC Security Analysis*`;
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,

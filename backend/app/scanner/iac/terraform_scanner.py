@@ -5,11 +5,9 @@ Detects critical, high, medium, and low severity findings per CIS AWS Benchmark 
 """
 
 import re
-import os
-import json
 import logging
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from pathlib import Path
 
 logger = logging.getLogger("nimbus.iac_scanner")
@@ -72,7 +70,6 @@ class TerraformHCLParser:
     def _extract_resources(self, content: str, file_path: str) -> List[Dict[str, Any]]:
         """Extract resource blocks and their flattened attributes."""
         resources = []
-        lines = content.split("\n")
 
         for match in self.RESOURCE_BLOCK_RE.finditer(content):
             resource_type = match.group("type")
@@ -133,10 +130,6 @@ class TerraformSecurityRules:
     def check(self, resource: Dict[str, Any]) -> List[IaCFinding]:
         findings = []
         rtype = resource["type"]
-        rname = resource["name"]
-        attrs = resource["attributes"]
-        fpath = resource["file_path"]
-        line = resource["line_number"]
 
         # Dispatch to per-service checks
         if rtype == "aws_s3_bucket":
@@ -275,7 +268,6 @@ class TerraformSecurityRules:
     # ─── EC2 Checks ──────────────────────────────────────────────────────────
     def _check_ec2_instance(self, resource: Dict) -> List[IaCFinding]:
         findings = []
-        attrs = resource["attributes"]
         raw = resource["raw_block"]
         rname = resource["name"]
         fpath = resource["file_path"]

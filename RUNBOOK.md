@@ -1,9 +1,32 @@
 # Breachpath Cloud Recon — Runbook & Completion Roadmap
 
-Version 1.3.0 · Sign-in with roles, four-eyes remediation, live scan progress, phone layout, browser tests
-(builds on 1.2.0 frontend release and 1.1.0 real-data release)
+Version 1.4.0 · Hardening and cleanup: safe IaC uploads, integer scan counters, lint + Postgres + Docker checks in CI
+(builds on 1.3.0 roles/four-eyes release, 1.2.0 frontend release and 1.1.0 real-data release)
 
 ---
+
+## Upgrading from 1.3
+
+1. **Run the migration:** `alembic upgrade head` (005: scan counters become integers). Render does this on deploy.
+   It's reversible with `alembic downgrade 004`.
+2. **Remove `APP_NAME` and `APP_VERSION` from your `.env` and from Render → Environment** if they are set there.
+   They are product facts, not settings: an old copy makes `/health` report a stale name or version.
+
+## What's new in 1.4
+
+- **IaC upload hardening:** the uploaded filename can no longer point outside the temp folder (`../../x.tf`), zip
+  entries are checked the same way, and uploads are capped (5 MB upload, 20 MB unzipped, 500 files).
+- **Scan counters are integers** (migration 005), so SQL sorts and sums them correctly. The API now returns numbers
+  for `total_findings`, `*_count` and `risk_score`; the UI already treated them as numbers.
+- **Test isolation:** each pytest run uses its own SQLite file, so two runs at once no longer break each other.
+- **CI:** `ruff` (backend) and ESLint 9 (frontend), Alembic upgrade/downgrade on real Postgres, and both Docker images
+  build on every push. The placeholder CD workflow is gone (Render and Vercel deploy on merge). The IaC scan workflow
+  now runs on `master` PRs and reports without blocking, because this repo's Terraform is a deliberately vulnerable demo.
+- **Docker:** `.dockerignore` files keep `.env`, local databases and host `node_modules` out of the images.
+- **Clean-ups:** deprecated `datetime.utcnow`, Pydantic `class Config` and `declarative_base` imports replaced; dead
+  code and stray one-off scripts removed; the `/findings`, `/compliance` and simulator lists no longer recompute on
+  every render.
+
 
 ## Upgrading from 1.2 (do these in order)
 
@@ -380,10 +403,10 @@ Everything in section 1.
 | OIDC / SSO (Cognito, Auth0, Google Workspace) on top of the 1.3 session model | Companies won't manage separate passwords |
 | Move rate limits to Redis | Limits hold across several API replicas |
 | Persist the remediation board (column, owner) server-side | Today it lives in each browser |
-| Change scan counters from `String` to `Integer` (migration 003) | Correct sorting and aggregation in SQL |
+| ~~Change scan counters from `String` to `Integer`~~ **done in 1.4 (migration 005)** | Correct sorting and aggregation in SQL |
 | Store a `fingerprint` column on findings + unique index `(scan_id, fingerprint)` | Faster drift, carry-over and dedupe queries |
 | Rate-limit `/scans/trigger` (Copilot is limited since 1.3) | AWS API quotas |
-| ~~GitHub Actions: pytest, build, Vitest, Playwright~~ **done in 1.3**; add `ruff` + Docker build | Every push proves the pipeline still works |
+| ~~GitHub Actions: pytest, build, Vitest, Playwright~~ **done in 1.3**; ~~`ruff`, ESLint, Docker build, Postgres migrations~~ **done in 1.4** | Every push proves the pipeline still works |
 | Structured JSON logging + request ids | Debuggable in production |
 
 ### Phase 3 — Detection depth (3–4 weeks)
@@ -423,4 +446,5 @@ Everything in section 1.
 - [ ] Engineer requests a fix → a different approver approves it → audit trail shows both emails
 - [ ] Scan window fills in per service and region; Scan History shows the grid afterwards
 - [ ] App usable on a phone (menu button opens the drawer)
-- [ ] `pytest -q` 24 passed · `npm test` 14 passed · `npx playwright test` 19 passed
+- [ ] `ruff check app tests alembic ../cli` and `npm run lint` clean
+- [ ] `pytest -q` 35 passed · `npm test` 22 passed · `npx playwright test` all passed (visual baselines: CI only)

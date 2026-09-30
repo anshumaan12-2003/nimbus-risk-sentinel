@@ -1,0 +1,10 @@
+target-version = "py312"
+line-length = 120
+extend-exclude = ["tests/dev_server_fake_aws.py"]
+
+[lint]
+ignore = ["E731"]                     # short local lambdas are the house style
+
+[lint.per-file-ignores]
+"alembic/env.py" = ["E402"]           # load_dotenv() / sys.path must run before app imports
+"tests/*" = ["F811"]                  # pytest fixtures are imported, then named as test parameters

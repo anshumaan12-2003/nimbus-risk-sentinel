@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from app.config import settings
 try:
     from google import genai
