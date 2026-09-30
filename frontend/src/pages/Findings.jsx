@@ -12,6 +12,7 @@ import {
   TimeAgo
 } from '@/components/ds'
 import FindingSheet from '@/components/findings/FindingSheet'
+import { RiskScore } from '@/components/findings/RiskScore'
 import { downloadFile, toCsv } from '@/components/ui'
 import { useFindings } from '@/hooks/queries'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -87,7 +88,7 @@ function ResourceGroups({ rows, onOpen, fresh }) {
                   <span aria-hidden className={cn('h-5 w-[3px] shrink-0 rounded-full', SEV_STRIPE[f.severity])} />
                   <span className="min-w-0 flex-1 truncate text-sm text-fg">{f.title}</span>
                   <span className="hidden font-mono text-xs text-fg-3 sm:inline">{f.rule_id}</span>
-                  <span className="num w-8 text-right text-sm font-semibold text-fg" title="Risk score">{f.risk_score}</span>
+                  <RiskScore finding={f} className="w-10" />
                 </button>
               </li>
             ))}
@@ -212,7 +213,7 @@ export default function Findings() {
     {
       id: 'risk', accessorFn: f => Number(f.risk_score) || 0, size: 72,
       header: ({ column }) => <div className="flex"><SortHeader column={column} align="right">Risk</SortHeader></div>,
-      cell: ({ getValue }) => <span className="num block text-right font-semibold text-fg">{getValue()}</span>,
+      cell: ({ row }) => <div className="text-right"><RiskScore finding={row.original} focusable /></div>,
     },
   ], [])
 
@@ -339,7 +340,7 @@ export default function Findings() {
                           <span className="truncate">{f.resource_name}</span>
                         </span>
                       </span>
-                      <span className="num pt-0.5 text-sm font-semibold text-fg">{f.risk_score}</span>
+                      <RiskScore finding={f} className="pt-0.5" />
                     </button>
                   </li>
                 )
