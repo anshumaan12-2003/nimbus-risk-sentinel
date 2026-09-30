@@ -147,13 +147,18 @@ test('Vesper streams a cited answer, links to the finding, and keeps the convers
   await chip.click()
   await expect(panel).toBeHidden()
   await expect(page).toHaveURL(/\/findings/)
+  if (/\/findings\/[^/?]+$/.test(page.url())) {
+    // One match opens its detail sheet once findings load. Wait for it: pressing ⌘J first lets the sheet open
+    // on top of Vesper and make it inert.
+    await expect(page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'What’s wrong' }) })).toBeVisible()
+  }
 
   // The conversation is saved and can be reopened from History
   await page.keyboard.press('ControlOrMeta+j')
   await panel.getByRole('button', { name: 'New' }).click()
   await expect(panel.getByRole('button', { name: 'What should I fix first?' })).toBeVisible()
   await panel.getByRole('button', { name: 'History' }).click()
-  await page.getByRole('menuitem', { name: /What should I fix first\?/ }).click()
+  await page.getByRole('menuitem', { name: /What should I fix first\?/ }).first().click()   // repeat runs leave several
   await expect(panel.getByRole('log').getByText('Fix first:', { exact: true })).toBeVisible()
   expect(rule).toMatch(/^(IAM|S3|EC2|RDS)-\d{3}$/)
 })
