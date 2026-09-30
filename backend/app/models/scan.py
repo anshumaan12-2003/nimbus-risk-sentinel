@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime
-from sqlalchemy import JSON, Column, String, DateTime, Enum as SAEnum
+from sqlalchemy import JSON, Column, Integer, String, DateTime, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.utils.clock import utcnow_naive
 import enum
 
 
@@ -22,14 +22,14 @@ class Scan(Base):
     account_id = Column(String(255), nullable=True)
     region = Column(String(100), nullable=True)
     triggered_by = Column(String(255), default="manual")
-    total_findings = Column(String(10), default="0")
-    critical_count = Column(String(10), default="0")
-    high_count = Column(String(10), default="0")
-    medium_count = Column(String(10), default="0")
-    low_count = Column(String(10), default="0")
-    risk_score = Column(String(10), default="0")
+    total_findings = Column(Integer, nullable=False, default=0)
+    critical_count = Column(Integer, nullable=False, default=0)
+    high_count = Column(Integer, nullable=False, default=0)
+    medium_count = Column(Integer, nullable=False, default=0)
+    low_count = Column(Integer, nullable=False, default=0)
+    risk_score = Column(Integer, nullable=False, default=0)
     error_message = Column(String(1000), nullable=True)
-    started_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, default=utcnow_naive)
     completed_at = Column(DateTime, nullable=True)
     # live progress: per service x region task list (see app/tasks/progress.py)
     progress = Column(JSON, nullable=True)

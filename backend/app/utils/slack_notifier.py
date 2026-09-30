@@ -7,7 +7,7 @@ import json
 import logging
 import urllib.request
 import urllib.error
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Tuple
 
 logger = logging.getLogger("nimbus.slack")
 

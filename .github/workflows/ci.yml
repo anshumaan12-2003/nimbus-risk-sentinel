@@ -1,5 +1,5 @@
-# Every push proves: backend tests pass, the UI builds, every page renders against a real API,
-# the security flows work in a real browser, and no page changed visually by accident.
+# Every push proves: backend lint + tests pass, migrations run on Postgres, both Docker images build, the UI builds,
+# every page renders against a real API, the security flows work in a real browser, and no page changed visually.
 name: ci
 on: [push, pull_request]
 
@@ -12,7 +12,36 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12", cache: pip }
       - run: pip install -r requirements-dev.txt
+      - run: ruff check app tests alembic ../cli
       - run: pytest -q
+
+  # Production runs Postgres; SQLite tests can't prove the Alembic chain (type changes, defaults) works there
+  migrations:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: nimbus, POSTGRES_PASSWORD: nimbus, POSTGRES_DB: nimbus }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U nimbus" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://nimbus:nimbus@localhost:5432/nimbus
+      DEBUG: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: alembic upgrade head
+      - run: alembic downgrade 004 && alembic upgrade head   # latest migration is reversible
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t breachpath-api backend
+      - run: docker build -t breachpath-ui frontend
 
   frontend:
     runs-on: ubuntu-latest
@@ -26,7 +55,7 @@ jobs:
           python3 -m venv /opt/venv && /opt/venv/bin/pip install -r backend/requirements-dev.txt
       - name: Install + build
         working-directory: frontend
-        run: npm ci && npm run build
+        run: npm ci && npm run lint && npm run build
       - name: Colour contrast (every text token pair is WCAG AA in both themes)
         working-directory: frontend
         run: node scripts/check-contrast.mjs

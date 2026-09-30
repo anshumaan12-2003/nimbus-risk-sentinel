@@ -22,7 +22,7 @@ export default function AttackSimulator() {
   const q = useAttackEnvironment()
   const findingsQ = useFindings({ limit: 500 })
   const env = useMemo(() => (demo ? { nodes: ENV_NODES, edges: ENV_EDGES } : (q.data?.nodes ? q.data : { nodes: [], edges: [] })), [demo, q.data])
-  const findings = demo ? MOCK_FINDINGS : (findingsQ.data || [])
+  const findings = useMemo(() => (demo ? MOCK_FINDINGS : (findingsQ.data || [])), [demo, findingsQ.data])
   const nodeById = useMemo(() => Object.fromEntries(env.nodes.map(n => [n.id, n])), [env.nodes])
   const edgeById = useMemo(() => Object.fromEntries(env.edges.map(e => [e.id, e])), [env.edges])
   const findingById = useMemo(() => Object.fromEntries(findings.map(f => [f.id, f])), [findings])

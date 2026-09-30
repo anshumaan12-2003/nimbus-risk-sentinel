@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Text, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.utils.clock import utcnow_naive
 import enum
 
 
@@ -49,7 +49,7 @@ class Finding(Base):
     region = Column(String(100), nullable=True)
     resource_name = Column(String(255), nullable=True)
 
-    detected_at = Column(DateTime, default=datetime.utcnow)
+    detected_at = Column(DateTime, default=utcnow_naive)
     resolved_at = Column(DateTime, nullable=True)
 
     # Relationships

@@ -2,8 +2,8 @@ import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.database import Base
+from app.utils.clock import utcnow_naive
 
 
 class Resource(Base):
@@ -19,7 +19,7 @@ class Resource(Base):
     account_id = Column(String(255), nullable=True)
     tags = Column(JSON, default=dict)
     metadata_ = Column("metadata", JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow_naive)
 
     # Relationships
     scan = relationship("Scan", back_populates="resources")

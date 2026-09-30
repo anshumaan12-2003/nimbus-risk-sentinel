@@ -14,13 +14,14 @@ scheduling instead and this loop does not start.
 """
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from app.config import settings
 from app.database import SessionLocal
 from app.models.scan import Scan
 from app.tasks.scan_tasks import run_full_scan
 from app.utils.aws_client import get_aws_account_id, reset_sessions
+from app.utils.clock import utcnow_naive
 
 logger = logging.getLogger(__name__)
 RETRY_WHEN_DISCONNECTED = timedelta(minutes=5)
@@ -39,7 +40,7 @@ def _seconds_until_due(interval: timedelta) -> float:
         db.close()
     if not last or not last.started_at:
         return 0
-    return max(0.0, (last.started_at + interval - datetime.utcnow()).total_seconds())
+    return max(0.0, (last.started_at + interval - utcnow_naive()).total_seconds())
 
 
 async def scan_loop():

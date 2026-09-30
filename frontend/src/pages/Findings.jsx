@@ -108,7 +108,7 @@ export default function Findings() {
   const canTriage = useCan('finding:triage')
   const query = useFindings({ limit: 500 })
   const compact = useMediaQuery('(max-width: 767px)')
-  const all = demo ? MOCK_FINDINGS : (query.data || [])
+  const all = useMemo(() => (demo ? MOCK_FINDINGS : (query.data || [])), [demo, query.data])
 
   // Filters live in the URL, so any view can be shared or bookmarked.
   const severity = params.get('severity') || ''
