@@ -230,6 +230,11 @@ export default function Findings() {
   useEffect(() => { if (open) setLastOpen(open) }, [open])
   const openFinding = (f) => navigate({ pathname: `/findings/${f.id}`, search: params.toString() })
   const closeFinding = () => navigate({ pathname: '/findings', search: params.toString() }, { replace: true })
+  // Both this sheet and Vesper are fixed-position right-hand panels at the same spot; stacked, the
+  // one underneath still gets hit-tested and can swallow clicks meant for the one on top. A citation
+  // in a Vesper answer can open a finding here, so if Vesper reopens afterwards, give it the space.
+  const vesperOpen = useSentinelStore(s => s.vesperOpen)
+  useEffect(() => { if (vesperOpen && open) closeFinding() }, [vesperOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard: j/k move, Enter opens, x selects.
   const listRef = useRef(null)
