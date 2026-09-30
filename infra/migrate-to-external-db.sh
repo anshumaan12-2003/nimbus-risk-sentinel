@@ -15,7 +15,20 @@ set -euo pipefail
 : "${SOURCE_DATABASE_URL:?Set SOURCE_DATABASE_URL (Render's External Database URL)}"
 : "${TARGET_DATABASE_URL:?Set TARGET_DATABASE_URL (the new provider's connection string)}"
 
-DUMP=$(mktemp -t nimbus-db-dump).pgcustom
+# pg_dump refuses to dump a server newer than itself; catch that before starting, not halfway through.
+server_version=$(psql "$SOURCE_DATABASE_URL" -tAc "show server_version_num")   # exits here if unreachable
+server_major=$(( server_version / 10000 ))
+dump_major=$(pg_dump --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+if (( dump_major < server_major )); then
+  echo "pg_dump is version $dump_major but the source server is Postgres $server_major." >&2
+  echo "Install matching tools first:  brew install postgresql@$server_major  (then put its bin/ first on PATH)" >&2
+  exit 1
+fi
+
+# The dump holds every user's data (including password hashes): owner-only, and removed however we exit.
+umask 077
+DUMP=$(mktemp "${TMPDIR:-/tmp}/nimbus-db-dump.XXXXXX")
+trap 'rm -f "$DUMP"' EXIT
 echo "Dumping from source..."
 pg_dump --format=custom --no-owner --no-acl "$SOURCE_DATABASE_URL" > "$DUMP"
 echo "Dump size: $(du -h "$DUMP" | cut -f1)"
@@ -33,7 +46,6 @@ for t in users refresh_sessions scans findings resources remediation_requests au
   printf "  %-24s source=%-6s target=%-6s\n" "$t" "$s" "$t2"
 done
 
-rm -f "$DUMP"
 echo
 echo "Done. Next: put TARGET_DATABASE_URL into Render's DATABASE_URL env var, redeploy, verify the"
 echo "site, THEN delete the old nimbus-db Postgres instance in Render (Settings -> Delete Database)."
