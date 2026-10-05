@@ -39,12 +39,20 @@ pg_restore --clean --if-exists --no-owner --no-acl --dbname="$TARGET_DATABASE_UR
 
 echo
 echo "Row counts, source vs target:"
+mismatch=0
 for t in users refresh_sessions scans findings resources remediation_requests audit_logs \
-         inventory_snapshots assistant_conversations assistant_messages; do
+         inventory_snapshots assistant_conversations assistant_messages alembic_version; do
   s=$(psql "$SOURCE_DATABASE_URL" -tAc "select count(*) from $t" 2>/dev/null || echo "-")
   t2=$(psql "$TARGET_DATABASE_URL" -tAc "select count(*) from $t" 2>/dev/null || echo "-")
-  printf "  %-24s source=%-6s target=%-6s\n" "$t" "$s" "$t2"
+  flag=""; [[ "$s" != "$t2" ]] && { flag="  <-- MISMATCH"; mismatch=1; }
+  printf "  %-24s source=%-6s target=%-6s%s\n" "$t" "$s" "$t2" "$flag"
 done
+
+if (( mismatch )); then
+  echo >&2
+  echo "Some tables differ. Do NOT switch DATABASE_URL yet: fix the error above and re-run (it's safe to re-run)." >&2
+  exit 1
+fi
 
 echo
 echo "Done. Next: put TARGET_DATABASE_URL into Render's DATABASE_URL env var, redeploy, verify the"
