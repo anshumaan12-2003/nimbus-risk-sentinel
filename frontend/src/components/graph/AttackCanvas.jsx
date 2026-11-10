@@ -66,8 +66,19 @@ const EDGE_STYLE = {
   dim: { stroke: 'var(--line)', strokeWidth: 1 },
 }
 
+/* An edge that skips a layer on the same row would run straight through the nodes in between, as if the path went
+   through them. Arc it over the row instead, into the gap between rows (higher for longer skips). */
+function skipArc(sx, sy, tx, ty) {
+  const span = Math.round((tx - sx) / COL)
+  if (span < 2 || Math.abs(ty - sy) > ROW / 2) return null
+  const lift = 30 + span * 12
+  const k = COL * 0.6
+  return [`M ${sx},${sy} C ${sx + k},${sy - lift} ${tx - k},${ty - lift} ${tx},${ty}`, (sx + tx) / 2, (sy + ty) / 2 - lift * 0.75]
+}
+
 function AttackEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd }) {
-  const [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
+  const [path, lx, ly] = skipArc(sourceX, sourceY, targetX, targetY)
+    || getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
   const s = data.state
   return (
     <>
@@ -115,7 +126,7 @@ export default function AttackCanvas({ nodes, edges, view, onNodeClick, onEdgeCl
       const hop = view.hop?.[n.id]
       const reached = hop != null && hop <= (view.reveal ?? Infinity)
       return {
-        id: n.id, type: 'asset', position: pos[n.id] || { x: 0, y: 0 },
+        id: n.id, type: 'asset', position: pos[n.id] || { x: 0, y: 0 }, zIndex: 3,   // above every edge: lines never cross labels
         data: {
           node: n,
           state: {

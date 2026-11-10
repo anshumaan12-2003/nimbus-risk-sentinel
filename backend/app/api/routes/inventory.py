@@ -76,6 +76,10 @@ def list_assets(type: Optional[str] = None, q: Optional[str] = None, exposed: bo
         # EC2 findings are often on the security group, so attach SG findings to instances using it
         linked = list(by_res.get(a["id"], []))
         a["findings"] = linked
+        # Same rule as the attack graph: an open "public bucket policy" finding makes the bucket public even when
+        # GetBucketPolicyStatus didn't say so, so Assets and Attack paths never disagree about exposure.
+        if a["type"] == "s3" and not a["public"] and any(x["rule_id"] == "S3-005" for x in linked):
+            a["public"], a["crown"] = True, False
         a["max_severity"] = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if any(x["severity"] == s for x in linked)), None)
 
     summary = {"total": len(assets), "by_type": dict(Counter(a["type"] for a in assets)),

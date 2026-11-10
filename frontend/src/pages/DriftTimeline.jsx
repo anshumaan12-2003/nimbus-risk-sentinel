@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDownRight, ArrowUpRight, Minus, Play } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CheckCircle2, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
   Page, PageHeader, Card, CardHeader, Button, SeverityBadge, StatTile, EmptyState, ErrorState, SkeletonRows,
@@ -36,7 +36,8 @@ function FindingList({ items, empty }) {
 
 function Delta({ value }) {
   const v = Number(value) || 0
-  const Icon = v > 0 ? ArrowUpRight : v < 0 ? ArrowDownRight : Minus
+  if (v === 0) return <span className="font-medium text-fg-3">No change</span>
+  const Icon = v > 0 ? ArrowUpRight : ArrowDownRight
   return (
     <span className={cn('num inline-flex items-center gap-0.5 font-medium', v > 0 ? 'text-crit-text' : v < 0 ? 'text-low-text' : 'text-fg-3')}>
       <Icon className="size-3.5" />{v > 0 ? `+${v}` : v}
@@ -74,11 +75,22 @@ export default function DriftTimeline() {
 
   const s = report.summary
   const lists = { new: report.new_findings, resolved: report.resolved_findings, regressed: report.regressed_findings }
+  // Nothing moved: one calm line says it better than four zero cards and three empty tabs
+  const quiet = !report.risk_score_delta && !s.new_count && !s.resolved_count && !s.regressed_count
 
   return (
     <Page>
       {header}
       <div className="grid gap-4">
+        {quiet ? (
+          <Card className="flex items-center gap-3 px-5 py-4">
+            <CheckCircle2 className="size-5 shrink-0 text-low-text" aria-hidden />
+            <p className="text-sm text-fg-2">
+              <span className="font-medium text-fg">Nothing changed between the last two scans.</span>{' '}
+              Risk stayed at <span className="num font-semibold text-fg">{report.current_risk_score}</span>, no findings appeared, were fixed or came back.
+            </p>
+          </Card>
+        ) : <>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile label="Risk score change" value={<Delta value={report.risk_score_delta} />} tone={report.risk_score_delta > 0 ? 'critical' : report.risk_score_delta < 0 ? 'low' : 'neutral'}
                     hint={`${report.previous_risk_score} → ${report.current_risk_score}`} />
@@ -100,6 +112,7 @@ export default function DriftTimeline() {
             </TabsContent>
           </Tabs>
         </Card>
+        </>}
 
         <Card className="overflow-hidden">
           <CardHeader title="Timeline" description="Each completed scan compared with the one before it." />

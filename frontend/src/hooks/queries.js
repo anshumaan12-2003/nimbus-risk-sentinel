@@ -71,10 +71,22 @@ export function useControls() {
   return useQuery({ queryKey: qk.controls, queryFn: () => get('/compliance/controls'), enabled: on })
 }
 
+/* Preflight asks AWS, so it takes a few seconds. The sidebar shows the last known account at once (account id and
+   regions only; nothing secret) instead of "Connecting…" on every load. Only the sidebar uses it: other views need
+   the full result (permission checks), so they keep waiting for the real one. */
+const PREFLIGHT_KEY = 'nimbus-last-preflight'
+export const lastPreflight = () => { try { return JSON.parse(localStorage.getItem(PREFLIGHT_KEY) || 'null') } catch { return null } }
+
 export function usePreflight() {
   const on = useLive()
   // While AWS is not connected, re-check every 30s so fixing credentials shows up without a reload.
-  return useQuery({ queryKey: qk.preflight, queryFn: () => get('/account/preflight'), staleTime: 5 * 60_000, enabled: on,
+  return useQuery({
+    queryKey: qk.preflight, staleTime: 5 * 60_000, enabled: on,
+    queryFn: async () => {
+      const data = await get('/account/preflight')
+      try { localStorage.setItem(PREFLIGHT_KEY, JSON.stringify({ connected: data.connected, ready: data.ready, account_id: data.account_id, regions: data.regions })) } catch { /* private mode */ }
+      return data
+    },
     refetchInterval: (q) => (q.state.data && !q.state.data.connected ? 30_000 : false) })
 }
 

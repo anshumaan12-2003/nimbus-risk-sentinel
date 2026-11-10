@@ -192,7 +192,7 @@ export function VesperComposer({ v, autoFocus = true }) {
       </div>
       <p className="mt-1.5 flex flex-wrap items-center gap-x-3 px-1 text-2xs text-fg-3">
         <span className="hidden sm:inline"><Kbd>Enter</Kbd> send · <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> new line · <Kbd>/</Kbd> shortcuts</span>
-        {v.page && <span className="ml-auto">Looking at: {v.page.label}{v.openFinding ? ` › ${v.openFinding.rule_id}` : ''}</span>}
+        {v.page && v.page.to !== '/vesper' && <span className="ml-auto">Looking at: {v.page.label}{v.openFinding ? ` › ${v.openFinding.rule_id}` : ''}</span>}
       </p>
     </form>
   )

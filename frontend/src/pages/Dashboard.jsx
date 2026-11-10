@@ -1,15 +1,16 @@
 import { useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Area, AreaChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { ArrowUpRight, ChevronRight, CloudLightning, CloudSun, FileText, Play, Sun } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { shortDate } from '@/lib/time'
 import {
-  Page, Card, CardHeader, CardBody, Button, SeverityBadge, StatTile, EmptyState, Skeleton, ErrorState,
+  Page, Card, CardHeader, CardBody, Button, SeverityBadge, EmptyState, Skeleton, ErrorState,
   TimeAgo,
   AnimatedNumber
 } from '@/components/ds'
 import GettingStarted from '@/components/GettingStarted'
+import { RiskScore } from '@/components/findings/RiskScore'
 import { changeSentence, forecastFor } from '@/lib/forecast'
 import VesperMark from '@/components/vesper/VesperMark'
 import { useSentinelStore } from '@/store/sentinelStore'
@@ -152,8 +153,9 @@ function ForecastHero({ d, greeting, every, actions }) {
                 )}
               </p>
             </div>
-            {spark.length > 1 && (
-              <div className="mb-1 h-12 w-full max-w-[220px]" aria-hidden>
+            {spark.length >= 3 && (   // one or two points draw a flat, unlabelled line that reads as broken
+              <div className="mb-1 w-full max-w-[220px]" aria-hidden>
+                <div className="h-12">
                 <ResponsiveContainer width="100%" height="100%">
                   {/* Decorative: Recharts 3 makes charts keyboard-focusable by default, which is wrong inside aria-hidden */}
                   <AreaChart data={spark} margin={{ top: 4, right: 2, bottom: 2, left: 2 }} accessibilityLayer={false}>
@@ -167,6 +169,8 @@ function ForecastHero({ d, greeting, every, actions }) {
                     <Area type="monotone" dataKey="score" stroke="var(--accent)" strokeWidth={1.75} fill="url(#spark)" dot={false} isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
+                </div>
+                <p className="mt-1 text-2xs text-fg-3">Risk over the last {spark.length} scans</p>
               </div>
             )}
           </div>
@@ -177,6 +181,21 @@ function ForecastHero({ d, greeting, every, actions }) {
                 <span key={s.key} className={cn('h-full transition-[width] duration-700 ease-standard first:rounded-l-full last:rounded-r-full', s.bar)} style={{ width: `${(s.count / totalOpen) * 100}%` }} />
               ))}
             </div>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+              {bars.map(s => {
+                const delta = d.previous && d.latest ? num(d.latest[s.scanKey]) - num(d.previous[s.scanKey]) : 0
+                return (
+                  <li key={s.key}>
+                    <Link to={`/findings?severity=${s.key.toUpperCase()}`}
+                          className="group inline-flex items-center gap-1.5 rounded-xs text-fg-2 transition-colors hover:text-fg">
+                      <span aria-hidden className={cn('size-2 rounded-full', s.bar)} />
+                      <span className="num font-semibold text-fg">{s.count}</span> {s.label}
+                      {delta !== 0 && <span className={cn('num text-xs', delta > 0 ? 'text-crit-text' : 'text-low-text')}>{delta > 0 ? `+${delta}` : delta}</span>}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </div>
 
@@ -194,7 +213,7 @@ function ForecastHero({ d, greeting, every, actions }) {
                 <span className="block truncate font-mono text-xs text-fg-3">{x.rule_id} · {x.resource_name || x.resource_id}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span className="num text-xs text-fg-3" title="Risk score">{num(x.risk_score)}</span>
+                <span className="text-2xs text-fg-3">Risk</span><RiskScore finding={x} />
                 <ChevronRight className="size-4 text-fg-3 transition-transform group-hover:translate-x-0.5" />
               </span>
               <span className="sr-only">Fix {i + 1} of {fixes.length}</span>
@@ -210,23 +229,6 @@ function ForecastHero({ d, greeting, every, actions }) {
         </div>
       </div>
     </Card>
-  )
-}
-
-function SeverityTiles({ d }) {
-  const navigate = useNavigate()
-  return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {SEVERITIES.map(s => {
-        const cur = num(d.stats?.[s.key])
-        const delta = d.previous && d.latest ? num(d.latest[s.scanKey]) - num(d.previous[s.scanKey]) : undefined
-        return (
-          <StatTile key={s.key} label={s.label} value={cur} tone={s.tone} delta={delta}
-                    hint={delta !== undefined ? 'since last scan' : 'open'}
-                    onClick={() => navigate(`/findings?severity=${s.key.toUpperCase()}`)} />
-        )
-      })}
-    </div>
   )
 }
 
@@ -257,7 +259,7 @@ function FixFirst({ d }) {
                   </span>
                 </span>
                 <SeverityBadge severity={f.severity} size="sm" className="hidden sm:inline-flex" />
-                <span className="num w-8 text-right text-sm font-semibold text-fg" title="Risk score">{num(f.risk_score)}</span>
+                <RiskScore finding={f} className="w-10" />
                 <ChevronRight className="size-4 shrink-0 text-fg-3 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </li>
@@ -497,7 +499,6 @@ export default function Dashboard() {
               <Button size="sm" onClick={openExecutiveDossier}><FileText /> Executive report</Button>
             </div>
           } />
-          <SeverityTiles d={d} />
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             <FixFirst d={d} />
             <div className="grid gap-4">

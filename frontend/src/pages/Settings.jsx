@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CheckCircle2, Monitor, Moon, RefreshCw, Sun, XCircle } from 'lucide-react'
@@ -75,15 +75,33 @@ export default function Settings() {
     live && ['account', 'Your account'], live && ['team', 'Team'], ['aws', 'AWS connection'], ['scanning', 'Scanning'],
     ['remediation', 'Remediation'], ['copilot', 'Vesper'], ['notifications', 'Notifications'], ['appearance', 'Appearance'], ['shortcuts', 'Keyboard shortcuts'],
   ].filter(Boolean)
+  const navIds = nav.map(([id]) => id).join(',')
+
+  // Highlight the section being read: the last one whose top has scrolled past the header
+  const [current, setCurrent] = useState(null)
+  useEffect(() => {
+    const els = navIds.split(',').map(id => document.getElementById(id)).filter(Boolean)
+    const onScroll = () => {
+      const passed = els.filter(el => el.getBoundingClientRect().top < 140)
+      setCurrent((passed.at(-1) || els[0])?.id ?? null)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true })
+    return () => window.removeEventListener('scroll', onScroll, { capture: true })
+  }, [navIds])
 
   return (
     <Page>
-      <PageHeader title="Settings" description="Server settings are read-only here on purpose: credentials and write access live in backend/.env, never in the browser." />
+      <PageHeader title="Settings" description="Your account, your team and how Breachpath is set up. Server settings are read-only here on purpose: credentials and write access stay on the server, never in the browser." />
       <div className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="hidden lg:block">
           <ul className="sticky top-20 grid gap-0.5">
             {nav.map(([id, label]) => (
-              <li key={id}><a href={`#${id}`} className="block rounded-md px-2.5 py-1.5 text-sm text-fg-2 hover:bg-muted hover:text-fg">{label}</a></li>
+              <li key={id}>
+                <a href={`#${id}`} aria-current={current === id ? 'location' : undefined}
+                   className={cn('block rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-muted hover:text-fg',
+                     current === id ? 'bg-muted font-medium text-fg' : 'text-fg-2')}>{label}</a>
+              </li>
             ))}
           </ul>
         </nav>

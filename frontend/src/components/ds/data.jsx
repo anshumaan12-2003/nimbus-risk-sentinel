@@ -113,6 +113,25 @@ export function StatTile({ label, value, tone = 'neutral', delta, deltaGood = 'd
   )
 }
 
+/* A quiet row of facts in one card: for numbers that set context but don't need their own clickable tile.
+   facts: [{ label, value, hint?, tone? }] — tone colours the small mark next to the label, as on StatTile. */
+export function FactStrip({ facts, className }) {
+  return (
+    <dl className={cn('grid grid-cols-2 rounded-lg border border-line bg-surface shadow-raised sm:grid-cols-4 sm:divide-x sm:divide-line', className)}>
+      {facts.map(f => (
+        <div key={f.label} className="px-5 py-3.5">
+          <dt className="flex items-center gap-2 text-xs text-fg-3">
+            {f.tone && <span aria-hidden className={cn('size-2 rounded-[2px]', MARK[f.tone] || MARK.neutral)} />}
+            {f.label}
+          </dt>
+          <dd className="num mt-0.5 text-xl font-semibold tracking-tight text-fg">{f.value}</dd>
+          {f.hint && <dd className="text-xs text-fg-3">{f.hint}</dd>}
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 /* "5 minutes ago" as a real <time>: machine-readable date, exact time on hover, and screenshot tests
    mask it (e2e/helpers.js) because the wording changes every run. */
 export function TimeAgo({ value, className }) {

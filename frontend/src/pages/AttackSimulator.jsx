@@ -112,7 +112,8 @@ export default function AttackSimulator() {
   return (
     <Page wide>
       {header}
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      {/* The graph needs width to stay readable: the side panel moves beside it only on very wide screens */}
+      <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid min-w-0 gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="primary" onClick={run} disabled={running}><Play /> {running ? 'Simulating…' : 'Replay the breach'}</Button>
@@ -137,7 +138,7 @@ export default function AttackSimulator() {
           <p className="text-xs text-fg-3">Numbers on assets are steps from the breach. Dashed links are fixed in this simulation only — nothing changes in AWS.</p>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-4">
+        <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-3 2xl:grid-cols-1">
           <Card className={cn('p-5', contained ? 'border-low-line' : 'border-crit-line')}>
             <p className="text-sm text-fg-2">From <span className="font-medium text-fg">{nodeById[entry].short}</span> an attacker reaches</p>
             <div className="mt-3 flex items-end gap-6">
@@ -165,7 +166,7 @@ export default function AttackSimulator() {
                             className={cn('flex w-full items-center gap-2 px-5 py-2.5 text-left text-sm hover:bg-surface-2', focusCrown === id && 'bg-crit-soft')}>
                       <Crown className="size-4 text-crit-text" />
                       <span className="min-w-0 flex-1 truncate text-fg">{nodeById[id].short}</span>
-                      <span className="num text-xs text-fg-3">{result.hop[id]} steps</span>
+                      <span className="num text-xs text-fg-3">{result.hop[id]} step{result.hop[id] === 1 ? '' : 's'}</span>
                     </button>
                   </li>
                 ))}
@@ -182,9 +183,9 @@ export default function AttackSimulator() {
                   const f = e.findingId && findingById[e.findingId]
                   return (
                     <li key={p.edgeId} className="grid grid-cols-1 gap-1 px-5 py-3">
-                      <p className="flex items-center gap-2 text-sm text-fg">
+                      <p className="flex items-start gap-2 text-sm leading-5 text-fg">
                         <span className="grid size-5 shrink-0 place-items-center rounded-full bg-muted text-2xs font-semibold text-fg-2">{i + 1}</span>
-                        <span className="min-w-0 truncate">{e.technique}</span>
+                        <span className="min-w-0">{e.technique}</span>
                       </p>
                       <p className="pl-7 text-xs text-fg-3">Cuts off {p.crownsCut} crown jewel{p.crownsCut === 1 ? '' : 's'}{f ? '' : ` · ${nodeById[e.from]?.short} → ${nodeById[e.to]?.short}`}</p>
                       {f && (

@@ -11,7 +11,6 @@ const SERVICES = [
   ['ec2', 'EC2', 'regional'], ['rds', 'RDS', 'regional'], ['lambda', 'Lambda', 'regional'],
   ['dynamodb', 'DynamoDB', 'regional'], ['secretsmanager', 'Secrets Manager', 'regional'],
 ]
-const RANK = { failed: 4, running: 3, partial: 2, queued: 1, done: 0 }
 const STATUS_TEXT = { queued: 'Waiting', running: 'Scanning', done: 'Done', partial: 'Partly denied', failed: 'Failed' }
 
 export function mergeCell(tasks) {

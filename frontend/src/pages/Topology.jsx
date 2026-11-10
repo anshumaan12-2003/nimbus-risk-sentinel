@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChevronRight, Crosshair, Crown, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
-  Page, PageHeader, Card, CardHeader, CardBody, Button, StatTile, EmptyState, ErrorState, Skeleton, Switch,
+  Page, PageHeader, Card, CardHeader, CardBody, Button, FactStrip, EmptyState, ErrorState, Skeleton, Switch,
   SeverityBadge, ResourceId, Badge,
 } from '@/components/ds'
 import AttackCanvas, { LAYERS } from '@/components/graph/AttackCanvas'
@@ -81,6 +81,57 @@ function NodePanel({ node, nodes, edges, findings, onClose }) {
   )
 }
 
+/* Each reachable crown jewel's shortest route as numbered steps. Readable at any width (the graph isn't, on a
+   phone), and every step links to the finding whose fix breaks it. */
+function PathList({ a, env, findings }) {
+  const nodeById = useMemo(() => Object.fromEntries(env.nodes.map(n => [n.id, n])), [env.nodes])
+  const edgeById = useMemo(() => Object.fromEntries(env.edges.map(e => [e.id, e])), [env.edges])
+  const findingById = useMemo(() => Object.fromEntries(findings.map(f => [f.id, f])), [findings])
+  const crowns = [...a.reachedCrowns].sort((x, y) => a.hop[x.id] - a.hop[y.id])
+  if (!crowns.length) return null
+  return (
+    <Card>
+      <CardHeader title="Paths to your crown jewels" description="The shortest route an attacker could take to each one. Fixing any step breaks that path." />
+      <div className="grid gap-px border-t border-line bg-line md:grid-cols-2 xl:grid-cols-3">
+        {crowns.map(c => {
+          const steps = pathTo(c.id, a.via, env.edges).map(id => edgeById[id])
+          return (
+            <section key={c.id} className="grid content-start gap-3 bg-surface px-5 py-4" aria-label={`Path to ${c.short}`}>
+              <p className="flex items-center gap-2 text-sm font-medium text-fg">
+                <Crown className="size-4 shrink-0 text-crit-text" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{c.short}</span>
+                <span className="num text-xs font-normal text-fg-3">{steps.length} step{steps.length === 1 ? '' : 's'}</span>
+              </p>
+              <ol className="grid gap-2.5">
+                <li className="flex items-center gap-2.5 text-xs text-fg-3">
+                  <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full border border-accent-line bg-accent-soft text-2xs text-accent-text">0</span>
+                  Public internet
+                </li>
+                {steps.map((e, i) => {
+                  const f = e.findingId && findingById[e.findingId]
+                  const to = nodeById[e.to]
+                  return (
+                    <li key={e.id} className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-2.5 gap-y-0.5">
+                      <span aria-hidden className="num grid size-5 place-items-center rounded-full bg-crit-soft text-2xs font-semibold text-crit-text">{i + 1}</span>
+                      <span className="text-sm text-fg">{to?.short} <span className="text-xs text-fg-3">· {to?.kind}</span></span>
+                      <span className="col-start-2 text-xs text-fg-2">{e.technique}</span>
+                      {f && (
+                        <Link to={`/findings/${f.id}`} className="col-start-2 flex w-fit items-center gap-1 text-xs font-medium text-accent-text hover:underline">
+                          Fix via {f.rule_id} <ChevronRight className="size-3.5" />
+                        </Link>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            </section>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
 export default function Topology() {
   const demo = useSentinelStore(s => s.dataSource) === 'demo'
   const { openScanModal } = useSentinelStore()
@@ -121,14 +172,17 @@ export default function Topology() {
     <Page wide>
       {header}
       <div className="grid gap-4">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatTile label="Reachable from the internet" value={a.reachable} tone={a.reachable ? 'high' : 'low'} hint={`of ${env.nodes.length - 1} mapped assets`} />
-          <StatTile label="Crown jewels exposed" value={`${a.reachedCrowns.length} / ${a.crowns.length}`} tone={a.reachedCrowns.length ? 'critical' : 'low'} hint="data stores an attacker can reach" />
-          <StatTile label="Steps on shortest path" value={a.reachedCrowns.length ? Math.min(...a.reachedCrowns.map(c => a.hop[c.id])) : '—'} tone="neutral" hint="fewer means easier to exploit" />
-          <StatTile label="Links to cut" value={[...a.pathEdges].filter(id => env.edges.find(e => e.id === id)?.fixable !== false).length} tone="accent" hint="links on the critical paths" />
-        </div>
+        <FactStrip className="order-1" facts={[
+          { label: 'Reachable from the internet', value: a.reachable, tone: a.reachable ? 'high' : 'low', hint: `of ${env.nodes.length - 1}, directly or through other assets` },
+          { label: 'Crown jewels exposed', value: `${a.reachedCrowns.length} / ${a.crowns.length}`, tone: a.reachedCrowns.length ? 'critical' : 'low', hint: 'data stores an attacker can reach' },
+          { label: 'Shortest path', value: a.reachedCrowns.length ? `${Math.min(...a.reachedCrowns.map(c => a.hop[c.id]))} step${Math.min(...a.reachedCrowns.map(c => a.hop[c.id])) === 1 ? '' : 's'}` : '—', hint: 'fewer means easier to exploit' },
+          { label: 'Links to cut', value: [...a.pathEdges].filter(id => env.edges.find(e => e.id === id)?.fixable !== false).length, tone: 'accent', hint: 'links on the critical paths' },
+        ]} />
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Phones: the step list comes first (the graph is too small to read there); wider screens: after the graph */}
+        <div className="order-2 lg:order-5"><PathList a={a} env={env} findings={findings} /></div>
+
+        <div className="order-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4 text-xs text-fg-2">
             <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 rounded-full bg-crit" /> Path to a crown jewel</span>
             <span className="flex items-center gap-1.5"><span className="h-0.5 w-5 rounded-full bg-line-strong" /> Other access</span>
@@ -139,7 +193,7 @@ export default function Topology() {
           </label>
         </div>
 
-        <div className={cn('grid items-start gap-4', (node || edge) && 'xl:grid-cols-[minmax(0,1fr)_380px]')}>
+        <div className={cn('order-4 grid items-start gap-4', (node || edge) && 'xl:grid-cols-[minmax(0,1fr)_380px]')}>
           <AttackCanvas
             nodes={env.nodes}
             edges={env.edges}
@@ -167,7 +221,7 @@ export default function Topology() {
             </Card>
           )}
         </div>
-        <p className="text-xs text-fg-3">Click an asset to see where an attacker could go from it, or a link to see how that step works. Scroll to zoom, drag to pan.</p>
+        <p className="order-4 text-xs text-fg-3">Click an asset to see where an attacker could go from it, or a link to see how that step works. Scroll to zoom, drag to pan.</p>
       </div>
     </Page>
   )

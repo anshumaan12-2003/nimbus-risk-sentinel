@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Download, Loader2, Play } from 'lucide-react'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts'
 import {
-  Page, PageHeader, Card, CardHeader, CardBody, Button, StatTile, StatusBadge, EmptyState, QueryState, SkeletonRows,
+  Page, PageHeader, Card, CardHeader, CardBody, Button, FactStrip, StatusBadge, EmptyState, QueryState, SkeletonRows,
   Sheet, SheetContent, DescriptionList, Tooltip, Badge, CodeBlock,
   TimeAgo
 } from '@/components/ds'
@@ -95,9 +95,13 @@ export default function ScanHistory() {
       delta: latest && prev ? n(latest.risk_score) - n(prev.risk_score) : null,
     }
   }, [scans]) // eslint-disable-line react-hooks/exhaustive-deps
-  const trend = useMemo(() => [...completed].reverse().map(s => ({
-    t: shortDate(s.completed_at), risk: n(s.risk_score), findings: n(s.total_findings), critical: n(s.critical_count),
-  })), [scans]) // eslint-disable-line react-hooks/exhaustive-deps
+  const trend = useMemo(() => {
+    const pts = [...completed].reverse()
+    // Several scans on one day would all read "30 Sep": label by time then
+    const oneDay = new Set(pts.map(s => shortDate(s.completed_at))).size < pts.length
+    const label = (v) => oneDay ? new Date(v).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : shortDate(v)
+    return pts.map(s => ({ t: label(s.completed_at), risk: n(s.risk_score), findings: n(s.total_findings), critical: n(s.critical_count) }))
+  }, [scans]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (dataSource === 'demo') {
     return <Page><PageHeader title="Scan history" /><Card><EmptyState title="Scan history needs live data" body="Switch to your real AWS data (⌘K → Show my real AWS data)." /></Card></Page>
@@ -121,15 +125,16 @@ export default function ScanHistory() {
         empty={<Card><EmptyState title="No scans yet" body="Run your first scan to set a security baseline." action={<Button variant="primary" onClick={openScanModal}><Play /> Run first scan</Button>} /></Card>}>
         {() => (
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StatTile label="Scans recorded" value={scans.length} hint={`${completed.length} completed`} />
-              <StatTile label="Success rate" value={stats.success == null ? '—' : `${stats.success}%`} tone={stats.success == null ? 'neutral' : stats.success < 90 ? 'high' : 'low'} hint="completed vs failed" />
-              <StatTile label="Typical duration" value={fmtDur(stats.meanDur)} hint="mean of completed scans" />
-              <StatTile label="Latest risk score" value={stats.latest ?? '—'} tone={stats.latest >= 70 ? 'critical' : stats.latest >= 40 ? 'high' : 'low'}
-                        delta={stats.delta ?? undefined} hint={stats.delta == null ? 'first baseline' : 'vs previous scan'} />
-            </div>
+            <FactStrip facts={[
+              { label: 'Scans', value: scans.length, hint: `${completed.length} completed` },
+              { label: 'Success rate', value: stats.success == null ? '—' : `${stats.success}%`, hint: 'completed vs failed', tone: stats.success == null ? undefined : stats.success < 90 ? 'high' : 'low' },
+              { label: 'Typical duration', value: fmtDur(stats.meanDur), hint: 'mean of completed scans' },
+              { label: 'Latest risk', value: stats.latest ?? '—', tone: stats.latest >= 70 ? 'critical' : stats.latest >= 40 ? 'high' : 'low',
+                hint: stats.delta == null ? 'first baseline' : stats.delta === 0 ? 'no change vs previous' : `${stats.delta > 0 ? '+' : ''}${stats.delta} vs previous` },
+            ]} />
+            {trend.length < 3 && <p className="text-xs text-fg-3">The trend chart appears after three completed scans.</p>}
 
-            {trend.length > 1 && (
+            {trend.length >= 3 && (
               <Card>
                 <CardHeader title="Risk and findings over time" />
                 <CardBody>

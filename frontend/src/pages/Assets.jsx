@@ -159,7 +159,7 @@ export default function Assets() {
           <div className="grid gap-4">
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatTile label="Assets discovered" value={summary.total ?? 0} hint="in the latest scan" />
-              <StatTile label="Internet exposed" value={summary.public ?? 0} tone={summary.public ? 'critical' : 'low'} hint="reachable without credentials"
+              <StatTile label="Directly exposed" value={summary.public ?? 0} tone={summary.public ? 'critical' : 'low'} hint="open to the internet themselves"
                         onClick={() => setParam('exposed', !exposedOnly)} />
               <StatTile label="Crown jewels" value={summary.crown_jewels ?? 0} tone="medium" hint="data worth protecting" />
               <StatTile label="With open findings" value={summary.with_findings ?? 0} tone={summary.with_findings ? 'high' : 'low'} hint="need attention" />

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { MOCK_ENVIRONMENTS, MOCK_FINDINGS, MOCK_STATS, MOCK_LATEST_SCAN } from '../data/mockData'
+import { MOCK_ENVIRONMENTS } from '../data/mockData'
 import { listFindings, getFindingStats, getLatestScan } from '../api/nimbus'
 
 const THEME_KEY = 'nimbus-theme'

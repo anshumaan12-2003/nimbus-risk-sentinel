@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn'
 import { Kbd, Tooltip } from '@/components/ds'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { useEventStore } from '@/store/eventStore'
-import { useActiveScan, useConfig, usePreflight, useRemediationRequests, useScans } from '@/hooks/queries'
+import { lastPreflight, useActiveScan, useConfig, usePreflight, useRemediationRequests, useScans } from '@/hooks/queries'
 
 export function BrandMark({ className }) {
   return (
@@ -24,7 +24,7 @@ function AccountSwitcher({ collapsed }) {
   const pre = usePreflight()
   const mode = useEventStore(s => s.mode)
   const dataSource = useSentinelStore(s => s.dataSource)
-  const p = pre.data
+  const p = pre.data ?? (pre.isError ? null : lastPreflight())
   const state = dataSource === 'demo' ? { dot: 'bg-accent', title: 'Demo data', sub: 'Sample account' }
     : pre.isError ? { dot: 'bg-crit', title: 'API unreachable', sub: 'Start the backend' }
     : !p ? { dot: 'bg-fg-3', title: 'Connecting…', sub: '' }
