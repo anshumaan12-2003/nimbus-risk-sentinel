@@ -9,6 +9,10 @@ Seeds one user per role (password: breachpath-demo-password):
 
 FAKE_LATENCY=0.8 (default) makes each scan unit take a little time so the live progress grid is
 visible; set FAKE_LATENCY=0 for instant scans.
+
+Hosted demo (Render, DEMO_FAKE_AWS=true, see start.sh): HOST=0.0.0.0, and DEMO_PASSWORD replaces the
+public default so strangers can't sign in. SECRET_KEY and AI_* from the environment are kept, not
+replaced by the test values.
 """
 import os
 import random
@@ -18,11 +22,14 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 DB_URL = os.environ.get("DATABASE_URL", "sqlite:///./fake_aws_dev.db")
+# The test module overwrites these with test values; a hosted demo needs its real key and Gemini settings
+_KEEP = {k: os.environ[k] for k in ("SECRET_KEY", "AI_API_KEY", "AI_PROVIDER", "AI_MODEL") if os.environ.get(k)}
 import test_e2e_moto as t  # noqa: E402  (sets fake env vars)
 os.environ["DATABASE_URL"] = DB_URL   # the test module points at its own DB; keep ours
+os.environ.update(_KEEP)
 from moto import mock_aws  # noqa: E402
 
-DEMO_PASSWORD = "breachpath-demo-password"
+DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD") or "breachpath-demo-password"
 DEMO_USERS = {"admin": "admin@breachpath.local", "approver": "approver@breachpath.local",
               "engineer": "engineer@breachpath.local", "viewer": "viewer@breachpath.local"}
 
@@ -66,5 +73,8 @@ if __name__ == "__main__":
         print(run_full_scan(triggered_by="seed"))
         print(run_full_scan(triggered_by="seed"))
         _add_latency(float(os.environ.get("FAKE_LATENCY", "0.8")))
-        print(f"\nFake AWS API ready. Sign in with any of {', '.join(DEMO_USERS.values())} / {DEMO_PASSWORD}\n")
-        uvicorn.run("app.main:app", host="127.0.0.1", port=int(os.environ.get("PORT", 8000)), log_level="warning")
+        print(f"\nFake AWS API ready. Sign in with any of {', '.join(DEMO_USERS.values())}\n", flush=True)
+        # proxy headers: login lockout is keyed on email+IP, so behind Render read the real client IP
+        uvicorn.run("app.main:app", host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", 8000)),
+                    log_level="warning", proxy_headers=True,
+                    forwarded_allow_ips=os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1"))
