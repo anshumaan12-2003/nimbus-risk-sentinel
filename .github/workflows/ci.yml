@@ -14,6 +14,8 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check app tests alembic ../cli
       - run: pytest -q
+      - name: Known vulnerabilities in deployed dependencies
+        run: pip install pip-audit && pip-audit -r requirements.txt
 
   # Production runs Postgres; SQLite tests can't prove the Alembic chain (type changes, defaults) works there
   migrations:
@@ -56,6 +58,9 @@ jobs:
       - name: Install + build
         working-directory: frontend
         run: npm ci && npm run lint && npm run build
+      - name: Known vulnerabilities in shipped dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
       - name: Colour contrast (every text token pair is WCAG AA in both themes)
         working-directory: frontend
         run: node scripts/check-contrast.mjs
