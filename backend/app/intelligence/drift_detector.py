@@ -7,8 +7,8 @@ Compares infrastructure security snapshots across scans to isolate state mutatio
 - Net Risk Score Delta
 """
 
-from typing import List, Dict, Any, Tuple
-from datetime import datetime
+from typing import List, Dict, Any
+from app.utils.clock import utcnow_naive
 
 
 class DriftReport:
@@ -53,7 +53,7 @@ class DriftReport:
             "new_findings": self.new_findings,
             "resolved_findings": self.resolved_findings,
             "regressed_findings": self.regressed_findings,
-            "detected_at": datetime.utcnow().isoformat(),
+            "detected_at": utcnow_naive().isoformat(),
         }
 
 

@@ -5,11 +5,13 @@ Handles Terraform static analysis scan requests from CLI, CI/CD pipelines, and t
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from app.auth.deps import admin, engineer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
+import io
 import os
 import tempfile
 import shutil
+import zipfile
 
 from app.scanner.iac.terraform_scanner import TerraformScanner
 
@@ -17,11 +19,40 @@ router = APIRouter(prefix="/iac", tags=["IaC Security Scanning"])
 
 scanner = TerraformScanner()
 
+MAX_UPLOAD_BYTES = 5_000_000          # the upload itself
+MAX_UNZIPPED_BYTES = 20_000_000       # total .tf content inside a zip (zip-bomb guard)
+MAX_ZIP_FILES = 500
+
+
+def _extract_tf_files(data: bytes, dest: str) -> None:
+    """Extract only .tf files, refusing zip bombs and entries that would land outside dest."""
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Not a valid zip archive.")
+    members = [m for m in archive.infolist() if not m.is_dir() and m.filename.endswith(".tf")]
+    if len(members) > MAX_ZIP_FILES:
+        raise HTTPException(status_code=413, detail=f"Zip contains more than {MAX_ZIP_FILES} .tf files.")
+    if sum(m.file_size for m in members) > MAX_UNZIPPED_BYTES:
+        raise HTTPException(status_code=413, detail="Zip expands to more than 20 MB of Terraform.")
+    root = os.path.realpath(dest)
+    for m in members:
+        target = os.path.realpath(os.path.join(root, m.filename))
+        if os.path.commonpath([root, target]) != root:
+            raise HTTPException(status_code=400, detail=f"Unsafe path in zip: {m.filename}")
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with archive.open(m) as src, open(target, "wb") as out:
+            # read at most the declared size + 1 so a lying header can't inflate past the limit
+            chunk = src.read(m.file_size + 1)
+            if len(chunk) > m.file_size:
+                raise HTTPException(status_code=400, detail=f"Corrupt zip entry: {m.filename}")
+            out.write(chunk)
+
 
 # ─── Request Models ──────────────────────────────────────────────────────────
 class HCLScanRequest(BaseModel):
-    hcl_content: str
-    filename: Optional[str] = "pr-diff.tf"
+    hcl_content: str = Field(max_length=MAX_UPLOAD_BYTES)
+    filename: Optional[str] = Field("pr-diff.tf", max_length=255)
     pr_number: Optional[int] = None
     repository: Optional[str] = None
 
@@ -65,20 +96,22 @@ async def scan_uploaded_tf(file: UploadFile = File(...)):
     Scan an uploaded .tf file or zip archive.
     Useful for UI-based scanning without a CI pipeline.
     """
-    if not (file.filename.endswith(".tf") or file.filename.endswith(".zip")):
+    # The client picks the filename: keep only the last path component so "../../x.tf" can't escape tmp_dir
+    name = os.path.basename((file.filename or "").replace("\\", "/"))
+    if not (name.endswith(".tf") or name.endswith(".zip")):
         raise HTTPException(status_code=400, detail="Only .tf or .zip files are accepted.")
 
-    # Write to temp dir
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File is larger than {MAX_UPLOAD_BYTES // 1_000_000} MB.")
+
     tmp_dir = tempfile.mkdtemp(prefix="nimbus_iac_")
     try:
-        tmp_path = os.path.join(tmp_dir, file.filename)
-        with open(tmp_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
-
-        if file.filename.endswith(".zip"):
-            shutil.unpack_archive(tmp_path, tmp_dir)
-            os.remove(tmp_path)
+        if name.endswith(".zip"):
+            _extract_tf_files(content, tmp_dir)
+        else:
+            with open(os.path.join(tmp_dir, name), "wb") as f:
+                f.write(content)
 
         return scanner.scan_directory(tmp_dir)
     finally:

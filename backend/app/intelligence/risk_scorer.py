@@ -60,9 +60,7 @@ def compute_finding_risk_score(
     Compute individual finding risk score (0–100).
     Incorporates business context from resource name.
     """
-    base = SEVERITY_WEIGHTS.get(severity, 0)
     multiplier = _get_business_multiplier(resource_name)
-    raw = base * multiplier
 
     # Map to 0-100 scale
     score_map = {

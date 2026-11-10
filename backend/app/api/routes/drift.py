@@ -2,7 +2,6 @@
 Breachpath Cloud Recon — Drift Detection & Alerting REST API Routes
 """
 
-from typing import List, Optional
 from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session

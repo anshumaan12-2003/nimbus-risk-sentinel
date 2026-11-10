@@ -1,13 +1,12 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import settings
 
 connect_args = {}
 db_url = settings.DATABASE_URL
 if not db_url or "postgres" in db_url:
     try:
-        import psycopg2
+        import psycopg2  # noqa: F401  (fail fast with a clear message if the driver is missing)
         engine = create_engine(
             db_url,
             pool_pre_ping=True,

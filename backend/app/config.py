@@ -1,29 +1,12 @@
-import os
 from typing import Optional
 
-try:
-    from pydantic_settings import BaseSettings
-except ImportError:
-    try:
-        from pydantic import BaseSettings
-    except ImportError:
-        class BaseSettings:
-            def __init__(self, **kwargs):
-                for k, v in self.__class__.__dict__.items():
-                    if not k.startswith("_") and not callable(v) and not isinstance(v, property):
-                        env_val = os.getenv(k)
-                        if env_val is not None:
-                            setattr(self, k, env_val)
-                        else:
-                            setattr(self, k, v)
-                for k, v in kwargs.items():
-                    setattr(self, k, v)
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     # App
     APP_NAME: str = "Breachpath Cloud Recon"
-    APP_VERSION: str = "1.3.0"
+    APP_VERSION: str = "1.4.0"
     DEBUG: bool = True
 
     # Database
@@ -106,9 +89,7 @@ class Settings(BaseSettings):
     def aws_regions_list(self) -> list[str]:
         return [r.strip() for r in self.AWS_REGIONS.split(",") if r.strip()]
 
-    class Config:
-        env_file = (".env", "../.env")
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
 
 settings = Settings()

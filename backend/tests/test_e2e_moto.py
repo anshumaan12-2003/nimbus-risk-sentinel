@@ -11,11 +11,15 @@ Run:  pytest tests/test_e2e_moto.py -q
 """
 import json
 import os
+import tempfile
+
+# One DB file per test process: two runs sharing ./test_e2e.db drop each other's tables mid-test
+_DB = os.path.join(tempfile.mkdtemp(prefix="breachpath-tests-"), "test.db")
 
 os.environ.update({
     "AWS_ACCESS_KEY_ID": "testing", "AWS_SECRET_ACCESS_KEY": "testing", "AWS_SESSION_TOKEN": "testing",
     "AWS_DEFAULT_REGION": "us-east-1", "AWS_REGIONS": "us-east-1,ap-south-1",
-    "DATABASE_URL": "sqlite:///./test_e2e.db",
+    "DATABASE_URL": f"sqlite:///{_DB}",
     "SLACK_ENABLED": "false", "MOTO_IAM_LOAD_MANAGED_POLICIES": "true", "AI_API_KEY": "", "REMEDIATION_ENABLED": "true",
     "SECRET_KEY": "test-secret-key-that-is-at-least-32-chars-long", "REMEDIATION_TWO_PERSON_RULE": "true",
     "SCHEDULED_SCANS_ENABLED": "false",   # tests trigger scans explicitly

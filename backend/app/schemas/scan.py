@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -15,18 +15,17 @@ class ScanResponse(BaseModel):
     account_id: Optional[str] = None
     region: Optional[str] = None
     triggered_by: str
-    total_findings: str
-    critical_count: str
-    high_count: str
-    medium_count: str
-    low_count: str
-    risk_score: str
+    total_findings: int
+    critical_count: int
+    high_count: int
+    medium_count: int
+    low_count: int
+    risk_score: int
     error_message: Optional[str] = None
     started_at: datetime
     completed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ScanDetail(ScanResponse):

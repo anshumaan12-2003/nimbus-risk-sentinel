@@ -27,3 +27,6 @@ backend/e2e_fake_aws.db
 *.zip
 scratch/
 .DS_Store
+
+# personal notes (kept locally, not versioned)
+Nimbus_Project_Summary.*

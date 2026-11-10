@@ -43,7 +43,7 @@ export default function Compliance() {
   const benchQ = useCompliance()
   const controlsQ = useControls()
   const benchmarks = demo ? DEMO_BENCHMARKS : (benchQ.data || [])
-  const controls = demo ? DEMO_CONTROLS : (controlsQ.data?.controls || [])
+  const controls = useMemo(() => (demo ? DEMO_CONTROLS : (controlsQ.data?.controls || [])), [demo, controlsQ.data])
   const [fw, setFw] = useState('all')
   const [status, setStatus] = useState('FAIL')
   const [q, setQ] = useState('')

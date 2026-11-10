@@ -10,7 +10,7 @@ import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
@@ -31,6 +31,7 @@ from app.scanner.inventory import InventoryCollector
 from app.utils.aws_client import get_aws_account_id
 from app.utils.events import bus
 from app.tasks.progress import ScanProgress
+from app.utils.clock import utcnow_naive
 
 logger = logging.getLogger(__name__)
 STALE_AFTER = timedelta(minutes=30)
@@ -55,7 +56,7 @@ def _fingerprints(db: Session, scan: Scan | None) -> dict[tuple[str, str], Findi
 
 def claim_scan(db: Session, triggered_by: str, regions=None) -> Scan | None:
     """Create a scan row unless one is already running (returns None in that case)."""
-    now = datetime.utcnow()
+    now = utcnow_naive()
     # expire zombies (e.g. server restarted mid-scan) so they don't block forever
     for z in db.query(Scan).filter(Scan.status.in_([ScanStatus.PENDING, ScanStatus.RUNNING])).all():
         if z.started_at and now - z.started_at > STALE_AFTER:
@@ -91,7 +92,7 @@ def run_full_scan(scan_id: str = None, regions: list = None, triggered_by: str =
                                "Check AWS_PROFILE / keys / role in .env and call GET /api/v1/account/preflight.")
         scan.account_id = account_id
         scan.status = ScanStatus.RUNNING
-        scan.started_at = datetime.utcnow()
+        scan.started_at = utcnow_naive()
         db.commit()
 
         target_regions = regions or settings.aws_regions_list
@@ -202,11 +203,11 @@ def run_full_scan(scan_id: str = None, regions: list = None, triggered_by: str =
 
         overall = compute_risk_score(db_findings)
         scan.status = ScanStatus.COMPLETED
-        scan.completed_at = datetime.utcnow()
-        scan.total_findings = str(len(db_findings))
-        scan.critical_count, scan.high_count = str(counts["CRITICAL"]), str(counts["HIGH"])
-        scan.medium_count, scan.low_count = str(counts["MEDIUM"]), str(counts["LOW"])
-        scan.risk_score = str(overall)
+        scan.completed_at = utcnow_naive()
+        scan.total_findings = len(db_findings)
+        scan.critical_count, scan.high_count = counts["CRITICAL"], counts["HIGH"]
+        scan.medium_count, scan.low_count = counts["MEDIUM"], counts["LOW"]
+        scan.risk_score = overall
         scan.error_message = (f"{len(warnings)} permission/API warnings — see /api/v1/scans/{scan_id}/warnings"
                               if warnings else None)
         db.commit()
@@ -238,7 +239,7 @@ def run_full_scan(scan_id: str = None, regions: list = None, triggered_by: str =
         db.rollback()
         if scan is not None:
             scan.status, scan.error_message = ScanStatus.FAILED, str(e)[:1000]
-            scan.completed_at = datetime.utcnow()
+            scan.completed_at = utcnow_naive()
             db.commit()
         if progress is not None:
             try:

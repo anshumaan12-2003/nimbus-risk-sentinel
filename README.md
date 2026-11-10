@@ -10,8 +10,7 @@
 
 [![Live demo](https://img.shields.io/badge/Live_demo-Open_app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://cloud-security-posture-delta.vercel.app)
 [![CI](https://img.shields.io/github/actions/workflow/status/anshumaan12-2003/nimbus-risk-sentinel/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/anshumaan12-2003/nimbus-risk-sentinel/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-1.3.0-5c7cfa?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-82_passing-22c55e?style=for-the-badge&logo=pytest&logoColor=white)
+![Version](https://img.shields.io/badge/version-1.4.0-5c7cfa?style=for-the-badge)
 ![AWS](https://img.shields.io/badge/AWS-read--only_scan-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white)
 
 <a href="#-quick-start"><b>Quick start</b></a> &nbsp;·&nbsp;
