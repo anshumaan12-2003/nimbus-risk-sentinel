@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.auth.deps import get_current_user
+from app.auth.deps import get_current_user, not_in_demo
 from app.auth.security import (create_access_token, hash_password, hash_token, new_refresh_token,
                                password_problem, verify_password)
 from app.config import settings
@@ -68,7 +68,8 @@ def auth_status(db: Session = Depends(get_db)):
     return {"setup_required": db.query(User).count() == 0,
             "setup_token_required": bool(settings.SETUP_TOKEN),
             "password_min_length": settings.PASSWORD_MIN_LENGTH,
-            "two_person_rule": settings.REMEDIATION_TWO_PERSON_RULE}
+            "two_person_rule": settings.REMEDIATION_TWO_PERSON_RULE,
+            "demo_mode": settings.DEMO_MODE}
 
 
 @router.post("/setup", response_model=TokenResponse, status_code=201)
@@ -157,7 +158,7 @@ def me(user: User = Depends(get_current_user)):
     return user
 
 
-@router.post("/change-password", response_model=TokenResponse)
+@router.post("/change-password", response_model=TokenResponse, dependencies=[Depends(not_in_demo)])
 def change_password(body: ChangePasswordRequest, request: Request, response: Response,
                     user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     ok, _ = verify_password(body.current_password, user.password_hash)

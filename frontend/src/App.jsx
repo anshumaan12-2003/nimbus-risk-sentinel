@@ -15,6 +15,7 @@ import AuditFeedDrawer from './components/AuditFeedDrawer'
 import ExecutiveDossierModal from './components/ExecutiveDossierModal'
 import ErrorBoundary from './components/ErrorBoundary'
 import AccountHealthBanner from './components/AccountHealthBanner'
+import DemoBanner from './components/DemoBanner'
 import AuthGate from './auth/AuthGate'
 import { LiveStreamConnector, LiveToasts } from './components/LiveStream'
 import { TooltipProvider, Dialog, DialogContent, Kbd, SkeletonRows } from './components/ds'
@@ -138,6 +139,7 @@ export default function App() {
               <Sidebar />
               <div className="flex min-w-0 flex-1 flex-col">
                 <Topbar />
+                <DemoBanner />
                 <AccountHealthBanner />
                 <main id="main" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">
                   <AppRoutes />

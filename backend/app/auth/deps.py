@@ -68,3 +68,12 @@ def websocket_user(websocket: WebSocket) -> User | None:
         return None
     finally:
         db.close()
+
+
+def not_in_demo():
+    """Blocks changes to people and passwords on the shared hosted demo (settings.DEMO_MODE)."""
+    from app.config import settings
+    if settings.DEMO_MODE:
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "This is the shared demo: people and passwords can't be changed here. "
+                            "Everything resets whenever the demo restarts.")

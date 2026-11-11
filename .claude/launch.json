@@ -27,6 +27,15 @@
         "cd frontend && API_PROXY_TARGET=http://127.0.0.1:8000 npm run dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "nimbus-api-demo",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd backend && DEMO_MODE=true .venv/bin/python tests/dev_server_fake_aws.py"
+      ],
+      "port": 8000
     }
   ]
 }

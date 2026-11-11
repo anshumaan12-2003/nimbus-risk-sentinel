@@ -9,26 +9,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Fallback mock responses if API is not configured or fails
-MOCK_EXPLANATION = """
-### What is the risk?
-This misconfiguration means that your resource is publicly accessible from the internet. Attackers can exploit this to extract sensitive data or hijack the resource.
-
-### How to fix it?
-You should restrict the access control list (ACL) or security group to only allow traffic from trusted IP addresses or internal VPC networks.
-"""
-
-MOCK_REMEDIATION = """
-```bash
-# AWS CLI Remediation
-aws ec2 revoke-security-group-ingress \\
-    --group-id sg-1234567890 \\
-    --protocol tcp \\
-    --port 22 \\
-    --cidr 0.0.0.0/0
-```
-"""
-
 
 class SecurityCopilot:
     def __init__(self):
@@ -38,7 +18,23 @@ class SecurityCopilot:
             self.client = genai.Client(api_key=self.api_key)
         else:
             self.client = None
-            logger.warning("AI Copilot is not fully configured. Using mock responses.")
+            logger.warning("Vesper has no AI_API_KEY (or the Gemini SDK is missing): answering from scan facts only.")
+
+    @staticmethod
+    def _models() -> list[str]:
+        """The configured model first, then fallbacks; each is tried once."""
+        return list(dict.fromkeys([settings.AI_MODEL, 'gemini-flash-latest', 'gemini-flash-lite-latest']))
+
+    def _generate(self, prompt: str, temperature: float, what: str) -> str | None:
+        """One-shot answer from the first model that works, or None when all fail."""
+        for model in self._models():
+            try:
+                return self.client.models.generate_content(
+                    model=model, contents=prompt, config=types.GenerateContentConfig(temperature=temperature)).text
+            except Exception as e:
+                logger.warning(f"{what} failed with {model}: {e}")
+        logger.error(f"All Gemini models failed for {what}")
+        return None
 
     def explain_finding(self, finding: Dict[str, Any]) -> str:
         if not self.client:
@@ -59,19 +55,7 @@ class SecurityCopilot:
         Only use the facts above; do not invent resource names, account ids or data contents.
         Provide the response in Markdown format with headers like '### The Risk'.
         """
-        MODELS = list(dict.fromkeys([settings.AI_MODEL, 'gemini-flash-latest', 'gemini-flash-lite-latest']))
-        for model_candidate in MODELS:
-            try:
-                response = self.client.models.generate_content(
-                    model=model_candidate,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(temperature=0.3)
-                )
-                return response.text
-            except Exception as model_err:
-                logger.warning(f"Failed with {model_candidate}: {model_err}")
-        logger.error("All Gemini models failed, returning mock explanation")
-        return self._offline(finding)
+        return self._generate(prompt, 0.3, "explain") or self._offline(finding)
 
     @staticmethod
     def _offline(finding: Dict[str, Any]) -> str:
@@ -93,19 +77,8 @@ class SecurityCopilot:
         
         Only return the code block, no other conversational text.
         """
-        MODELS = list(dict.fromkeys([settings.AI_MODEL, 'gemini-flash-latest', 'gemini-flash-lite-latest']))
-        for model_candidate in MODELS:
-            try:
-                response = self.client.models.generate_content(
-                    model=model_candidate,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(temperature=0.1)
-                )
-                return response.text
-            except Exception as model_err:
-                logger.warning(f"Failed with {model_candidate}: {model_err}")
-        logger.error("All Gemini models failed, returning stored scanner command")
-        return f"```bash\n{finding.get('remediation_cmd') or '# No stored remediation command for this rule'}\n```"
+        return (self._generate(prompt, 0.1, "remediation script")
+                or f"```bash\n{finding.get('remediation_cmd') or '# No stored remediation command for this rule'}\n```")
 
 
     # ─── Vesper: streaming, grounded chat ─────────────────────────────────────
@@ -135,7 +108,7 @@ VESPER:"""
         convo = "\n".join(f"{m.get('role', 'user').upper()}: {m.get('text', '')[:2000]}" for m in history[-8:])
         if self.client:
             prompt = self.VESPER_PROMPT.format(context=context, convo=convo or "(none)", question=question)
-            for model in list(dict.fromkeys([settings.AI_MODEL, 'gemini-flash-latest', 'gemini-flash-lite-latest'])):
+            for model in self._models():
                 sent = False
                 try:
                     stream = self.client.models.generate_content_stream(

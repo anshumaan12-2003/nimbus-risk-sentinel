@@ -1,9 +1,39 @@
 # Breachpath Cloud Recon — Runbook & Completion Roadmap
 
-Version 1.4.0 · Hardening and cleanup: safe IaC uploads, integer scan counters, lint + Postgres + Docker checks in CI
-(builds on 1.3.0 roles/four-eyes release, 1.2.0 frontend release and 1.1.0 real-data release)
+Version 1.5.0 · Polish: fewer pages, a server-side Remediation board, demo mode for the hosted demo
+(builds on 1.4.0 hardening, 1.3.0 roles/four-eyes release, 1.2.0 frontend release and 1.1.0 real-data release)
 
 ---
+
+## Hosting: the demo now, your real AWS account later
+
+The Render API runs in one of two modes (`DEMO_FAKE_AWS` in Render → Environment, read by `backend/start.sh`).
+
+**Demo (now):** `DEMO_FAKE_AWS=true`. A fake AWS account with planted problems, on a throwaway SQLite file.
+No database or AWS keys needed. The app shows a "Demo account" banner, and people/passwords can't be
+changed (the shared login would let anyone lock you out). Sign in with `DEMO_PASSWORD` from Render.
+Everything resets when the free instance sleeps.
+
+**Real AWS (later), in order:**
+1. **Database that doesn't expire.** Render's free Postgres is deleted after 30 days, which is how the first
+   deployment lost its data. Create a free project at neon.tech, copy its connection string
+   (`postgresql://…?sslmode=require`), and paste it as `DATABASE_URL` in Render → Environment.
+2. **Scanner role.** Run `infra/aws/setup-render-scanner.sh` in your AWS account (CloudShell is fine) and paste
+   the four values it prints (`AWS_ROLE_ARN`, `AWS_EXTERNAL_ID`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
+3. **Switch.** Set `DEMO_FAKE_AWS=false`, then Manual Deploy. `start.sh` runs the migrations against the new
+   database and starts the real API. Open the site: it asks for `SETUP_TOKEN` (Render → Environment) to create
+   your admin account.
+4. **Back up now and then:** `DATABASE_URL='…' infra/backup-db.sh` writes `backups/breachpath-<time>.dump`
+   on your machine (git-ignored). Restore with `pg_restore --no-owner --no-acl -d "$NEW_URL" <file>`.
+
+## What's new in 1.5
+
+- **Fewer pages.** Approvals is a tab on Remediation; Changes is a tab on Scan history; Attack paths and the
+  breach simulator share one entry. Old links (`/approvals`, `/drift`, `/simulator`) still work.
+- **Remediation board on the server.** Open → In progress → Awaiting approval → Fixed, worked out from
+  finding status and fix requests, so it's the same on every device (it used to live in browser storage).
+- **Demo mode** (`DEMO_MODE`, set by `start.sh`): banner, and people/password changes refused by the API.
+- **Removed:** the old `/copilot/chat` endpoint (Vesper replaced it) and the `/ui` gallery in production.
 
 ## Upgrading from 1.3
 

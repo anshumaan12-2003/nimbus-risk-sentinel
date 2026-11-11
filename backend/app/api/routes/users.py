@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth.deps import admin, viewer
+from app.auth.deps import admin, not_in_demo, viewer
 from app.auth.security import generate_password, hash_password, password_problem
 from app.database import get_db
 from app.models.user import RefreshSession, Role, User
@@ -31,7 +31,7 @@ def list_users(_: User = Depends(viewer), db: Session = Depends(get_db)):
     return db.query(User).order_by(User.is_active.desc(), User.name).all()
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(not_in_demo)])
 def create_user(body: UserCreate, _: User = Depends(admin), db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(409, "A user with that email already exists.")
@@ -47,7 +47,7 @@ def create_user(body: UserCreate, _: User = Depends(admin), db: Session = Depend
     return {"user": UserOut.model_validate(user).model_dump(mode="json"), "temporary_password": temp}
 
 
-@router.patch("/{user_id}", response_model=UserOut)
+@router.patch("/{user_id}", response_model=UserOut, dependencies=[Depends(not_in_demo)])
 def update_user(user_id: str, body: UserUpdate, me: User = Depends(admin), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if not user:
@@ -70,7 +70,7 @@ def update_user(user_id: str, body: UserUpdate, me: User = Depends(admin), db: S
     return user
 
 
-@router.post("/{user_id}/reset-password")
+@router.post("/{user_id}/reset-password", dependencies=[Depends(not_in_demo)])
 def reset_password(user_id: str, _: User = Depends(admin), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if not user:

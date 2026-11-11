@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # App
     APP_NAME: str = "Breachpath Cloud Recon"
-    APP_VERSION: str = "1.4.0"
+    APP_VERSION: str = "1.5.0"
     DEBUG: bool = True
 
     # Database
@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # Four-eyes: the approver must be a different person from the requester.
     # Set false only for a one-person personal account; audit rows then say "self-approved".
     REMEDIATION_TWO_PERSON_RULE: bool = True
+    # Hosted demo on the fake AWS account (set by start.sh): people and passwords can't be changed, since
+    # anyone with the demo login shares them and everything resets on restart anyway
+    DEMO_MODE: bool = False
     COPILOT_REQUESTS_PER_MINUTE: int = 20      # per user; Gemini calls cost money
 
     # Scan
