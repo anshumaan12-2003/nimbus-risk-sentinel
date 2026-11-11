@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowDownRight, ArrowUpRight, CheckCircle2, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
-  Page, PageHeader, Card, CardHeader, Button, SeverityBadge, StatTile, EmptyState, ErrorState, SkeletonRows,
+  Card, CardHeader, Button, SeverityBadge, StatTile, EmptyState, ErrorState, SkeletonRows,
   Tabs, TabsList, TabsTrigger, TabsContent,
   TimeAgo
 } from '@/components/ds'
@@ -45,7 +45,8 @@ function Delta({ value }) {
   )
 }
 
-export default function DriftTimeline() {
+/* What changed between scans. Shown as the Changes tab on Scan history. */
+export default function ChangesPanel() {
   const { dataSource, openScanModal } = useSentinelStore()
   const demo = dataSource === 'demo'
   const latestQ = useLatestDrift()
@@ -54,21 +55,13 @@ export default function DriftTimeline() {
   const timeline = demo ? MOCK_DRIFT_TIMELINE : (timelineQ.data || [])
   const [tab, setTab] = useState('new')
 
-  const header = (
-    <PageHeader
-      title="Changes"
-      description="What changed between scans: findings that appeared, ones that were fixed, and ones that came back after being resolved."
-    />
-  )
-  if (!demo && latestQ.isLoading) return <Page>{header}<SkeletonRows rows={8} /></Page>
-  if (!demo && latestQ.isError) return <Page>{header}<Card><ErrorState error={latestQ.error} onRetry={latestQ.refetch} /></Card></Page>
+  if (!demo && latestQ.isLoading) return <SkeletonRows rows={8} />
+  if (!demo && latestQ.isError) return <Card><ErrorState error={latestQ.error} onRetry={latestQ.refetch} /></Card>
   if (!report || report.previous_scan_id === 'baseline' || !report.summary) {
     return (
-      <Page>{header}
         <Card><EmptyState title="Needs two scans to compare"
           body={report?.message || 'The first scan sets a baseline. Changes appear here from the second scan onwards.'}
           action={<Button variant="primary" onClick={openScanModal}><Play /> Run a scan</Button>} /></Card>
-      </Page>
     )
   }
 
@@ -78,8 +71,6 @@ export default function DriftTimeline() {
   const quiet = !report.risk_score_delta && !s.new_count && !s.resolved_count && !s.regressed_count
 
   return (
-    <Page>
-      {header}
       <div className="grid gap-4">
         {quiet ? (
           <Card className="flex items-center gap-3 px-5 py-4">
@@ -146,6 +137,5 @@ export default function DriftTimeline() {
           )}
         </Card>
       </div>
-    </Page>
   )
 }

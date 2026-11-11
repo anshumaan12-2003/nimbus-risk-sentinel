@@ -102,18 +102,21 @@ function ScanStatus({ collapsed }) {
 
 function NavItem({ item, collapsed, count }) {
   const { to, label, icon: Icon } = item
+  const { pathname } = useLocation()
+  // A page that lives as a tab of this item (e.g. /simulator under Attack paths) keeps it highlighted
+  const also = (item.also || []).some(p => pathname.startsWith(p))
   const link = (
     <NavLink
       to={to}
       end={to === '/'}
       viewTransition
-      className={({ isActive }) => cn(
+      className={({ isActive: own }) => { const isActive = own || also; return cn(
         'group relative flex h-8 items-center gap-2.5 rounded-md px-2 text-sm font-medium transition-colors duration-150',
         isActive ? 'bg-muted-2 text-fg' : 'text-fg-2 hover:bg-muted hover:text-fg',
         collapsed && 'justify-center px-0',
-      )}
+      ) }}
     >
-      {({ isActive }) => (
+      {({ isActive: own }) => { const isActive = own || also; return (
         <>
           <Icon className={cn('size-4 shrink-0', isActive ? 'text-fg' : 'text-fg-3 group-hover:text-fg-2')} aria-hidden />
           {!collapsed && <span className="flex-1 truncate">{label}</span>}
@@ -123,7 +126,7 @@ function NavItem({ item, collapsed, count }) {
               : <span className="num rounded-sm bg-accent px-1.5 text-2xs leading-4 font-semibold text-accent-fg" aria-label={`${count} waiting`}>{count}</span>
           )}
         </>
-      )}
+      ) }}
     </NavLink>
   )
   return collapsed ? <Tooltip content={label} side="right">{link}</Tooltip> : link

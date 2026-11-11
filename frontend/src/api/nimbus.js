@@ -118,8 +118,8 @@ export const getFindingStats = (scanId = null) =>
 export const getFinding = (findingId) =>
   api.get(`/findings/${findingId}`).then(r => r.data)
 
-export const updateFindingStatus = (findingId, status) =>
-  api.patch(`/findings/${findingId}/status`, null, { params: { status } }).then(r => r.data)
+export const updateFindingStatus = (findingId, status, assignedTo) =>
+  api.patch(`/findings/${findingId}/status`, null, { params: { status, ...(assignedTo ? { assigned_to: assignedTo } : {}) } }).then(r => r.data)
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 export const healthCheck = () =>

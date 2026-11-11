@@ -1,15 +1,15 @@
 /*
-  Approvals — where fixes actually happen.
+  Approvals (a tab on Remediation) — where fixes actually happen.
   An engineer requests a fix (with the dry-run frozen at that moment); a different approver reads the
   exact before/after and approves, which is the only path that changes AWS.
 */
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowRight, CheckCircle2, ShieldCheck, Undo2, XCircle } from 'lucide-react'
 import {
-  Page, PageHeader, Card, Button, SeverityBadge, StatusBadge, Tabs, TabsList, TabsTrigger, TabsContent, Textarea,
+  Card, Button, SeverityBadge, StatusBadge, Textarea,
   EmptyState, QueryState, SkeletonRows, Tooltip, ResourceId,
   TimeAgo
 } from '@/components/ds'
@@ -60,7 +60,7 @@ function RequestCard({ r, onDone }) {
     try {
       if (kind === 'approve') {
         await approveRemediation(r.id, note)
-        emitEvent({ type: 'remediation.applied', severity: 'INFO', title: `${r.rule_id} fixed`, detail: r.resource_name || r.resource_id, link: '/approvals' })
+        emitEvent({ type: 'remediation.applied', severity: 'INFO', title: `${r.rule_id} fixed`, detail: r.resource_name || r.resource_id, link: '/workflow?tab=approvals' })
         toast.success('Fix applied and verified', { description: r.title || r.rule_id })
       } else if (kind === 'reject') {
         await rejectRemediation(r.id, note)
@@ -157,38 +157,30 @@ function RequestCard({ r, onDone }) {
   )
 }
 
-export default function Approvals() {
-  const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'history' ? 'history' : 'waiting'
+/* Waiting requests, or every decided one ("history"). Lives as tabs on the Remediation page. */
+export default function ApprovalsPanel({ view = 'waiting' }) {
   const pending = useRemediationRequests('PENDING')
   const all = useRemediationRequests()
-  const query = tab === 'waiting' ? pending : all
+  const query = view === 'waiting' ? pending : all
   const qc = useQueryClient()
   const refresh = () => { qc.invalidateQueries({ queryKey: ['remediation'] }); qc.invalidateQueries({ queryKey: ['findings'] }) }
   const approve = useCan('remediation:approve')
-  const visible = (d) => (tab === 'waiting' ? d : d.filter(r => r.status !== 'PENDING'))
+  const visible = (d) => (view === 'waiting' ? d : d.filter(r => r.status !== 'PENDING'))
 
   return (
-    <Page>
-      <PageHeader
-        title="Approvals"
-        description={approve.allowed
-          ? 'Fixes requested by engineers. Approving one applies it to AWS and checks that it worked.'
+    <div className="grid gap-4">
+      <p className="text-sm text-fg-2">
+        {view === 'history' ? 'Every decided request: who asked, who approved or rejected, and what happened in AWS.'
+          : approve.allowed ? 'Fixes requested by engineers. Approving one applies it to AWS and checks that it worked.'
           : 'Fixes waiting for an approver. You can follow them here; approving needs the approver role.'}
-      />
-      <Tabs value={tab} onValueChange={(v) => setParams(v === 'history' ? { tab: 'history' } : {})}>
-        <TabsList className="mb-5">
-          <TabsTrigger value="waiting" count={pending.data?.length}>Waiting</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
-      <TabsContent value={tab} className="focus:outline-none">
+      </p>
       <QueryState
         query={query}
         loading={<SkeletonRows rows={6} />}
         isEmpty={(d) => !d || visible(d).length === 0}
         empty={
           <Card>
-            <EmptyState mood="happy" title={tab === 'waiting' ? 'Nothing waiting for approval' : 'No decisions yet'}
+            <EmptyState mood="happy" title={view === 'waiting' ? 'Nothing waiting for approval' : 'No decisions yet'}
                         body="Open a finding and choose Send for approval on its Fix tab to start one."
                         action={<Button asChild><Link to="/findings"><ShieldCheck /> Go to findings</Link></Button>} />
           </Card>
@@ -196,8 +188,6 @@ export default function Approvals() {
       >
         {(rows) => <div className="grid gap-4">{visible(rows).map(r => <RequestCard key={r.id} r={r} onDone={refresh} />)}</div>}
       </QueryState>
-      </TabsContent>
-      </Tabs>
-    </Page>
+    </div>
   )
 }

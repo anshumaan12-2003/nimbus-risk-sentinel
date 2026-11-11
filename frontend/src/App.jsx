@@ -29,12 +29,10 @@ const Assets = lazy(() => import('./pages/Assets'))
 const Topology = lazy(() => import('./pages/Topology'))
 const AttackSimulator = lazy(() => import('./pages/AttackSimulator'))
 const Workflow = lazy(() => import('./pages/Workflow'))
-const DriftTimeline = lazy(() => import('./pages/DriftTimeline'))
 const Compliance = lazy(() => import('./pages/Compliance'))
 const ScanHistory = lazy(() => import('./pages/ScanHistory'))
 const IacScanner = lazy(() => import('./pages/IacScanner'))
 const Settings = lazy(() => import('./pages/Settings'))
-const Approvals = lazy(() => import('./pages/Approvals'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const UiKit = lazy(() => import('./pages/UiKit'))
 const Vesper = lazy(() => import('./pages/Vesper'))
@@ -79,8 +77,9 @@ function AppRoutes() {
           <Route path="/topology" element={<Topology />} />
           <Route path="/simulator" element={<AttackSimulator />} />
           <Route path="/workflow" element={<Workflow />} />
-          <Route path="/approvals" element={<Approvals />} />
-          <Route path="/drift" element={<DriftTimeline />} />
+          {/* Merged pages: old links still land in the right place */}
+          <Route path="/approvals" element={<Navigate to="/workflow?tab=approvals" replace />} />
+          <Route path="/drift" element={<Navigate to="/scans?tab=changes" replace />} />
           <Route path="/compliance" element={<Compliance />} />
           <Route path="/scans" element={<ScanHistory />} />
           <Route path="/iac" element={<IacScanner />} />

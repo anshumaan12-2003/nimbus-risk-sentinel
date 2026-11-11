@@ -230,7 +230,10 @@ export default function Findings() {
   const [lastOpen, setLastOpen] = useState(null)   // keeps content on screen while the sheet animates out
   useEffect(() => { if (open) setLastOpen(open) }, [open])
   const openFinding = (f) => navigate({ pathname: `/findings/${f.id}`, search: params.toString() })
-  const closeFinding = () => navigate({ pathname: '/findings', search: params.toString() }, { replace: true })
+  const closeFinding = () => {
+    const rest = new URLSearchParams(params); rest.delete('tab')   // ?tab=fix was for opening, not for the list
+    navigate({ pathname: '/findings', search: rest.toString() }, { replace: true })
+  }
 
   // Keyboard: j/k move, Enter opens, x selects.
   const listRef = useRef(null)
@@ -401,7 +404,7 @@ export default function Findings() {
         </div>
       )}
 
-      <FindingSheet finding={open || lastOpen} open={!!open} onOpenChange={(o) => { if (!o) closeFinding() }} />
+      <FindingSheet finding={open || lastOpen} open={!!open} initialTab={params.get('tab') === 'fix' ? 'fix' : undefined} onOpenChange={(o) => { if (!o) closeFinding() }} />
     </Page>
   )
 }

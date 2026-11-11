@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react'
 import * as TabsPrimitive from '@radix-ui/react-tabs'
 import * as SwitchPrimitive from '@radix-ui/react-switch'
 import { cn } from '@/lib/cn'
+import { Link } from 'react-router-dom'
 
 export const Tabs = TabsPrimitive.Root
 export const TabsContent = TabsPrimitive.Content
@@ -90,5 +91,26 @@ export function Segmented({ value, onValueChange, options, label, className }) {
         )
       })}
     </div>
+  )
+}
+
+/*
+  Page-view tabs that change the URL (e.g. Attack paths | Breach simulator). They navigate rather than
+  show a panel, so they are links in a nav with aria-current, styled like underline tabs.
+  items: [{ to, label, active, count? }]
+*/
+export function NavTabs({ items, label, className }) {
+  return (
+    <nav aria-label={label} className={cn('mb-5 flex items-center gap-5 overflow-x-auto overflow-y-hidden border-b border-line', className)}>
+      {items.map(it => (
+        <Link key={it.to} to={it.to} aria-current={it.active ? 'page' : undefined}
+              className={cn('-mb-px inline-flex h-9 shrink-0 items-center gap-1.5 border-b-2 text-sm font-medium whitespace-nowrap transition-colors duration-150 outline-none',
+                'focus-visible:outline-2 focus-visible:outline-accent',
+                it.active ? 'border-fg text-fg' : 'border-transparent text-fg-2 hover:text-fg')}>
+          {it.label}
+          {it.count != null && <span className="num rounded-xs bg-muted-2 px-1 text-2xs text-fg-2">{it.count}</span>}
+        </Link>
+      ))}
+    </nav>
   )
 }

@@ -72,7 +72,7 @@ test('four-eyes approval · dark', async ({ browser }) => {
   const admin = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })).newPage()
   await useTheme(admin, 'dark')
   await signIn(admin, 'admin')
-  await shot(admin, 'approvals', '/approvals')
+  await shot(admin, 'approvals', '/workflow?tab=approvals')
 })
 
 test('phone', async ({ browser }) => {

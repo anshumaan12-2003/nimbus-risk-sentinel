@@ -11,7 +11,7 @@ import { USERS, PASSWORD } from './helpers'
 
 const PAGES = [
   ['overview', '/'], ['findings', '/findings'], ['assets', '/assets'], ['topology', '/topology'],
-  ['simulator', '/simulator'], ['workflow', '/workflow'], ['approvals', '/approvals'], ['drift', '/drift'],
+  ['simulator', '/simulator'], ['workflow', '/workflow'], ['approvals', '/workflow?tab=approvals'], ['drift', '/scans?tab=changes'],
   ['compliance', '/compliance'], ['scans', '/scans'], ['iac', '/iac'], ['settings', '/settings'], ['ui', '/ui'],
 ]
 const VIEWPORTS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844 } }

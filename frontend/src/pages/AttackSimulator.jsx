@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import AttackTabs from '@/components/graph/AttackTabs'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Crown, Play, RotateCcw, Scissors, ShieldCheck, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -88,12 +89,13 @@ export default function AttackSimulator() {
   const reset = () => { clearInterval(timer.current); setRunning(false); setSevered(new Set()); setEntry('internet'); setFocusCrown(null); setReveal(Infinity); setSelectedEdge(null) }
   const pickEntry = (id) => { if (!id || running || nodeById[id]?.crown) return; setEntry(id); setFocusCrown(null); setReveal(Infinity) }
 
-  const header = (
+  const header = (<>
     <PageHeader
-      title="Breach simulator"
+      title="Attack paths"
       description="Assume an attacker gets in somewhere. Click an asset to start the breach there; click a link to cut it, as if you’d fixed it. Breachpath recomputes what they can still reach."
     />
-  )
+    <AttackTabs />
+  </>)
   if (!demo && q.isLoading) return <Page wide>{header}<Skeleton className="h-[420px] rounded-lg" /></Page>
   if (!demo && q.isError) return <Page wide>{header}<Card><ErrorState error={q.error} onRetry={q.refetch} /></Card></Page>
   if (!nodeById[entry] || env.nodes.length <= 1) {
