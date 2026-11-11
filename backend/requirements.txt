@@ -1,25 +1,25 @@
 # Python 3.12 (3.9 is end-of-life). Pinned to known-good versions tested with this codebase.
 # ─── API ──────────────────────────────────────────────────────────────────
-fastapi==0.142.2
-starlette==1.7.0          # pinned: fastapi still allows 0.46, which has Host/path and form-parsing advisories
+fastapi==0.162.2
+starlette==1.10.0          # pinned: fastapi still allows 0.46, which has Host/path and form-parsing advisories
 uvicorn[standard]==0.54.0
-python-multipart==0.0.32  # >=0.0.31: multipart DoS fixes (the IaC upload parses forms)
+python-multipart==0.0.33  # >=0.0.31: multipart DoS fixes (the IaC upload parses forms)
 
 # ─── Database ─────────────────────────────────────────────────────────────
-sqlalchemy==2.0.36
-alembic==1.13.3
-psycopg2-binary==2.9.10
+sqlalchemy==2.1.8
+alembic==1.20.1
+psycopg2-binary==2.9.13
 
 # ─── Background jobs / events ─────────────────────────────────────────────
-celery==5.4.0
+celery==5.7.0
 redis==5.0.8
 
 # ─── AWS ──────────────────────────────────────────────────────────────────
 boto3>=1.35,<2
 
 # ─── Config / validation ─────────────────────────────────────────────────
-pydantic==2.13.5
-pydantic-settings==2.15.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
 python-dotenv==1.2.4
 
 # ─── Integrations ────────────────────────────────────────────────────────
@@ -30,4 +30,4 @@ python-dateutil==2.9.0
 
 # ─── Auth ─────────────────────────────────────────────────────────────────
 PyJWT==2.15.1             # signed access tokens; >=2.15 for the 2026 verification advisories
-pwdlib[argon2]==0.2.1     # Argon2id password hashing (FastAPI's current recommendation; passlib is unmaintained)
+pwdlib[argon2]==0.3.1     # Argon2id password hashing (FastAPI's current recommendation; passlib is unmaintained)
