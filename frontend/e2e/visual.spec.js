@@ -46,7 +46,7 @@ test('navigation (phone drawer / desktop rail)', async ({ page, isMobile }) => {
   await signIn(page, 'engineer')
   if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click()
   const nav = page.getByRole('complementary', { name: 'Main navigation' })
-  await expect(nav.getByRole('link', { name: 'Approvals' })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Remediation' })).toBeVisible()
   await settled(page)
   await expect(nav.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page')
   // Masks scoped to the drawer: changing content on the page behind it must not affect this test
