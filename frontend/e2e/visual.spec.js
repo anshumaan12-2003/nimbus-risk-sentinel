@@ -17,7 +17,7 @@ for (const theme of ['dark', 'light']) {
 
     test('approvals (empty) and settings', async ({ page }) => {
       await signIn(page, 'admin')
-      await page.goto('/approvals')
+      await page.goto('/workflow?tab=approvals')
       await expect(page.getByText('Nothing waiting for approval')).toBeVisible()
       await settled(page)
       await expect(page).toHaveScreenshot(`approvals-empty-${theme}.png`, { mask: volatile(page) })

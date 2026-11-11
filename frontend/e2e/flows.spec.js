@@ -58,14 +58,14 @@ test('four-eyes: engineer requests, approver cannot self-approve, a second appro
   await eng.getByRole('button', { name: 'Send for approval' }).click()
   await expect(eng.getByText('Sent for approval')).toBeVisible()
   // engineers have no approve power
-  await eng.goto('/approvals')
+  await eng.goto('/workflow?tab=approvals')
   await expect(eng.getByRole('button', { name: 'Approve and apply' })).toBeDisabled()
 
   // approver approves it; the audit shows both names
   const appr = await (await browser.newContext()).newPage()
   await signIn(appr, 'approver')
-  await expect(appr.getByRole('navigation', { name: 'Pages' }).getByRole('link', { name: /Approvals/ })).toContainText('1')
-  await appr.goto('/approvals')
+  await expect(appr.getByRole('navigation', { name: 'Pages' }).getByRole('link', { name: /Remediation/ })).toContainText('1')
+  await appr.goto('/workflow?tab=approvals')
   const card = appr.getByRole('article').filter({ hasText: 'EC2-005' })
   await expect(card.getByText(USERS.engineer)).toBeVisible()
   await card.getByRole('button', { name: 'Approve and apply' }).click()
@@ -73,6 +73,23 @@ test('four-eyes: engineer requests, approver cannot self-approve, a second appro
   const done = appr.getByRole('article').filter({ hasText: 'EC2-005' })
   await expect(done.getByText('Applied', { exact: true })).toBeVisible()
   await expect(done.getByText(USERS.approver)).toBeVisible()
+})
+
+test('the Remediation board lives on the server: starting a card survives a reload', async ({ page }) => {
+  await signIn(page, 'engineer')
+  await page.goto('/workflow')
+  const open = page.getByRole('region', { name: /^Open column/ })
+  const first = open.getByRole('article').first()
+  const rule = (await first.locator('.font-mono').first().textContent()).trim()
+  await first.getByRole('button', { name: 'Start' }).click()
+  const progress = page.getByRole('region', { name: /^In progress column/ })
+  await expect(progress.getByRole('article').filter({ hasText: rule })).toContainText(USERS.engineer)   // took ownership
+  await page.reload()
+  await expect(page.getByRole('region', { name: /^In progress column/ }).getByRole('article').filter({ hasText: rule })).toBeVisible()
+  // put it back so other tests see a clean board
+  await page.getByRole('region', { name: /^In progress column/ }).getByRole('article').filter({ hasText: rule })
+    .getByRole('button', { name: 'Move back to Open' }).click()
+  await expect(page.getByRole('region', { name: /^Open column/ }).getByRole('article').filter({ hasText: rule })).toBeVisible()
 })
 
 test('approvers cannot approve their own request', async ({ page }) => {
@@ -84,7 +101,7 @@ test('approvers cannot approve their own request', async ({ page }) => {
   if (!(await req.waitFor({ timeout: 10_000 }).then(() => true, () => false))) test.skip(true, 'RDS-001 has no automated fix in this build')
   await req.click()
   await expect(page.getByText('Sent for approval')).toBeVisible()
-  await page.goto('/approvals')
+  await page.goto('/workflow?tab=approvals')
   const card = page.getByRole('article').filter({ hasText: 'RDS-001' })
   await expect(card.getByRole('button', { name: 'Approve and apply' })).toBeDisabled()
   await expect(card.getByText(/someone else has to approve it/)).toBeVisible()
@@ -100,7 +117,7 @@ test.describe('phone', () => {
     await nav.getByRole('link', { name: 'Assets' }).click()
     await expect(page).toHaveURL(/\/assets/)
     await expect(nav).toBeHidden()
-    for (const path of ['/', '/findings', '/findings?group=resource', '/assets', '/compliance', '/approvals', '/scans', '/settings', '/vesper']) {
+    for (const path of ['/', '/findings', '/findings?group=resource', '/assets', '/compliance', '/workflow', '/scans', '/settings', '/vesper']) {
       await page.goto(path)
       await page.waitForLoadState('networkidle')
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)

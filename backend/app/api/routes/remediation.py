@@ -114,7 +114,7 @@ def create_request(payload: dict = Body(...), user: User = Depends(engineer), db
         finding.status = FindingStatus.IN_PROGRESS
     db.commit()
     bus.publish("remediation.requested", f"Approval needed: {rule_id}", f"{req.resource_name or resource_id} · by {user.name}",
-                severity="MEDIUM", link="/approvals", request_id=req.id)
+                severity="MEDIUM", link="/workflow?tab=approvals", request_id=req.id)
     return _out(req)
 
 
@@ -182,7 +182,7 @@ def approve_request(request_id: str, payload: dict = Body(default={}), user: Use
     if not ok:
         raise HTTPException(500, message)
     bus.publish("remediation.applied", f"{req.rule_id} remediated", f"{req.resource_name or req.resource_id} · "
-                f"requested by {req.requested_by}, approved by {actor}", link="/approvals", request_id=req.id)
+                f"requested by {req.requested_by}, approved by {actor}", link="/workflow?tab=approvals", request_id=req.id)
     return {"status": "success", "message": message, "audit_id": log.id, "rollback": entry.get("rollback"),
             "request": _out(req)}
 
@@ -198,7 +198,7 @@ def reject_request(request_id: str, payload: dict = Body(default={}), user: User
         RequestStatus.REJECTED, user.id, user.email, _now(), note
     db.commit()
     bus.publish("remediation.rejected", f"Rejected: {req.rule_id}", f"{req.resource_name or req.resource_id} · {note[:80]}",
-                severity="MEDIUM", link="/approvals", request_id=req.id)
+                severity="MEDIUM", link="/workflow?tab=approvals", request_id=req.id)
     return _out(req)
 
 

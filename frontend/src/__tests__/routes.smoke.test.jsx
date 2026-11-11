@@ -15,11 +15,11 @@ const ROUTES = [
   ['/compliance', /MFA enabled for the root user|Root/i],
   ['/simulator', /an attacker reaches/],
   ['/topology', /Reachable from the internet/],
-  ['/drift', /Timeline|Needs two scans/],
-  ['/workflow', /Triaged, not started/],
+  ['/scans?tab=changes', /Timeline|Needs two scans/],
+  ['/workflow', /Found, nobody on it yet/],
   ['/iac', /Run it in CI/],
   ['/settings', /123456789012/],
-  ['/approvals', /Nothing waiting for approval|Approve and apply/],
+  ['/workflow?tab=approvals', /Nothing waiting for approval|Approve and apply/],
   ['/no-such-page', /There’s nothing here/],
 ]
 

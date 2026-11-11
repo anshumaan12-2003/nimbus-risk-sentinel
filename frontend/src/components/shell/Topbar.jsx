@@ -118,7 +118,7 @@ function AccountMenu() {
         </div>
         <MenuSeparator />
         <MenuItem icon={FileText} onSelect={openExecutiveDossier}>Executive report</MenuItem>
-        <MenuItem icon={ShieldCheck} onSelect={() => navigate('/approvals')}>Approvals</MenuItem>
+        <MenuItem icon={ShieldCheck} onSelect={() => navigate('/workflow?tab=approvals')}>Approvals</MenuItem>
         <MenuItem icon={Settings} shortcut="G ," onSelect={() => navigate('/settings')}>Settings and team</MenuItem>
         <MenuSeparator />
         <MenuItem icon={LogOut} onSelect={() => logout()}>Sign out</MenuItem>

@@ -1,6 +1,6 @@
 import {
-  LayoutDashboard, ShieldAlert, Boxes, Waypoints, Crosshair, GitCompareArrows, History,
-  ShieldCheck, KanbanSquare, FileCode2, ClipboardCheck, Settings,
+  LayoutDashboard, ShieldAlert, Boxes, Waypoints, History,
+  KanbanSquare, FileCode2, ClipboardCheck, Settings,
 } from 'lucide-react'
 
 /*
@@ -19,17 +19,14 @@ export const NAV = [
   {
     group: 'Investigate',
     items: [
-      { to: '/topology', label: 'Attack paths', icon: Waypoints, key: 't' },
-      { to: '/simulator', label: 'Breach simulator', icon: Crosshair, key: 's' },
-      { to: '/drift', label: 'Changes', icon: GitCompareArrows, key: 'r' },
+      { to: '/topology', label: 'Attack paths', icon: Waypoints, key: 't', also: ['/simulator'] },
       { to: '/scans', label: 'Scan history', icon: History, key: 'h' },
     ],
   },
   {
     group: 'Fix',
     items: [
-      { to: '/approvals', label: 'Approvals', icon: ShieldCheck, key: 'p', countKey: 'pending' },
-      { to: '/workflow', label: 'Remediation', icon: KanbanSquare, key: 'w' },
+      { to: '/workflow', label: 'Remediation', icon: KanbanSquare, key: 'w', countKey: 'pending' },
       { to: '/iac', label: 'IaC scanner', icon: FileCode2 },
     ],
   },
@@ -44,7 +41,9 @@ export const NAV = [
 export const SETTINGS_ITEM = { to: '/settings', label: 'Settings', icon: Settings, key: ',' }
 
 // Pages outside the sidebar still need a title (top bar, browser tab) and a name for Vesper's page context.
-export const ALL_PAGES = [...NAV.flatMap(g => g.items), SETTINGS_ITEM, { to: '/ui', label: 'Design system' }, { to: '/vesper', label: 'Vesper' }]
+// /simulator is a tab of Attack paths; it keeps its own URL (deep links like ?entry=…) and its own title.
+export const ALL_PAGES = [...NAV.flatMap(g => g.items), SETTINGS_ITEM, { to: '/simulator', label: 'Breach simulator' },
+  { to: '/ui', label: 'Design system' }, { to: '/vesper', label: 'Vesper' }]
 
 export function pageFor(pathname) {
   const base = '/' + (pathname.split('/')[1] || '')

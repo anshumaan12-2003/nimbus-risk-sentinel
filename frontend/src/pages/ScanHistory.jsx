@@ -4,8 +4,10 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as
 import {
   Page, PageHeader, Card, CardHeader, CardBody, Button, FactStrip, StatusBadge, EmptyState, QueryState, SkeletonRows,
   Sheet, SheetContent, DescriptionList, Tooltip, Badge, CodeBlock,
-  TimeAgo
+  TimeAgo, NavTabs,
 } from '@/components/ds'
+import ChangesPanel from '@/components/ChangesPanel'
+import { useSearchParams } from 'react-router-dom'
 import ScanProgressGrid from '@/components/ScanProgressGrid'
 import { downloadFile } from '@/components/ui'
 import { useScans, useActiveScan, useScanWarnings, useScanProgress } from '@/hooks/queries'
@@ -87,7 +89,27 @@ function ScanDetail({ scan }) {
   )
 }
 
+const TITLE = 'Scan history'
+const DESCRIPTION = 'Every scan, its outcome, how long it took and what it couldn’t see — and what changed between them.'
+
+/* Scans | Changes: two views of the same history, one page */
+function ViewTabs({ view }) {
+  return <NavTabs label="Scan history views" items={[
+    { to: '/scans', label: 'Scans', active: view === 'scans' },
+    { to: '/scans?tab=changes', label: 'Changes', active: view === 'changes' },
+  ]} />
+}
+
 export default function ScanHistory() {
+  const [params] = useSearchParams()
+  const view = params.get('tab') === 'changes' ? 'changes' : 'scans'
+  if (view === 'changes') {
+    return <Page><PageHeader title={TITLE} description={DESCRIPTION} /><ViewTabs view={view} /><ChangesPanel /></Page>
+  }
+  return <ScansView tabs={<ViewTabs view={view} />} />
+}
+
+function ScansView({ tabs }) {
   const { dataSource, openScanModal } = useSentinelStore()
   const q = useScans(50)
   const active = useActiveScan()
@@ -116,17 +138,18 @@ export default function ScanHistory() {
   }, [scans]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (dataSource === 'demo') {
-    return <Page><PageHeader title="Scan history" /><Card><EmptyState title="Scan history needs live data" body="Switch to your real AWS data (⌘K → Show my real AWS data)." /></Card></Page>
+    return <Page><PageHeader title={TITLE} />{tabs}<Card><EmptyState title="Scan history needs live data" body="Switch to your real AWS data (⌘K → Show my real AWS data)." /></Card></Page>
   }
   const shown = scans.find(s => s.id === (openId || shownId))
 
   return (
     <Page wide>
       <PageHeader
-        title="Scan history"
-        description="Every scan, its outcome, how long it took and what it couldn’t see."
+        title={TITLE}
+        description={DESCRIPTION}
         actions={active.data && <Button variant="primary" onClick={openScanModal}><Loader2 className="animate-spin" /> Watch running scan</Button>}
       />
+      {tabs}
       {active.data && (
         <div role="status" className="mb-4 flex items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3 text-sm text-accent-text">
           <Loader2 className="size-4 animate-spin" />

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import AttackTabs from '@/components/graph/AttackTabs'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronRight, Crosshair, Crown, Play } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -147,13 +148,13 @@ export default function Topology() {
   const edge = env.edges.find(e => e.id === selectedEdge)
   const edgeFinding = edge?.findingId && findings.find(f => f.id === edge.findingId)
 
-  const header = (
+  const header = (<>
     <PageHeader
       title="Attack paths"
       description="How an attacker on the internet could move through your account — network exposure, IAM permissions and data access, built from the latest scan."
-      actions={<Button asChild><Link to="/simulator"><Play /> Open breach simulator</Link></Button>}
     />
-  )
+    <AttackTabs />
+  </>)
 
   if (!demo && q.isLoading) return <Page wide>{header}<Skeleton className="h-[420px] rounded-lg" /></Page>
   if (!demo && q.isError) return <Page wide>{header}<Card><ErrorState error={q.error} onRetry={q.refetch} /></Card></Page>

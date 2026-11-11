@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import { toast } from 'sonner'
@@ -124,12 +124,14 @@ function VesperExplain({ finding }) {
   )
 }
 
-export default function FindingSheet({ finding, open, onOpenChange }) {
+export default function FindingSheet({ finding, open, onOpenChange, initialTab }) {
   const demo = useSentinelStore(s => s.dataSource) === 'demo'
   const canTriage = useCan('finding:triage')
   const controls = useControls()
   const qc = useQueryClient()
   const [tab, setTab] = useState('overview')
+  // Links like /findings/:id?tab=fix (from the Remediation board) open straight on that tab
+  useEffect(() => { if (open && initialTab) setTab(initialTab) }, [open, initialTab, finding?.id])
 
   const broken = useMemo(() => (controls.data?.controls || []).filter(c => (c.failing_finding_ids || []).includes(finding?.id)), [controls.data, finding?.id])
   const setStatus = useMutation({
