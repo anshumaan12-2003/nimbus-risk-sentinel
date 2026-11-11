@@ -4,7 +4,7 @@
 set -e
 if [ "$DEMO_FAKE_AWS" = "true" ]; then
   unset DATABASE_URL                       # never touch a real database from the demo
-  export HOST=0.0.0.0 FORWARDED_ALLOW_IPS='*' FAKE_LATENCY="${FAKE_LATENCY:-0.3}"
+  export HOST=0.0.0.0 FORWARDED_ALLOW_IPS='*' FAKE_LATENCY="${FAKE_LATENCY:-0.3}" DEMO_MODE=true
   exec python tests/dev_server_fake_aws.py
 fi
 alembic upgrade head

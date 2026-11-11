@@ -72,6 +72,9 @@ export function AccountSection() {
         </div>
         <div className="ml-auto text-right"><RoleBadge role={user.role} /><p className="mt-1 text-xs text-fg-3">{ROLE_INFO[user.role]}</p></div>
       </div>
+      {info?.demo_mode ? (
+        <p className="border-t border-line pt-5 text-sm text-fg-2">This is the shared demo login, so its password can’t be changed here.</p>
+      ) : (
       <form onSubmit={submit} className="grid gap-3 border-t border-line pt-5 sm:grid-cols-3">
         <Field label="Current password">{(p) => <Input {...p} type="password" autoComplete="current-password" value={form.current} onChange={set('current')} required />}</Field>
         <Field label="New password" hint={`At least ${info?.password_min_length || 12} characters`}>{(p) => <Input {...p} type="password" autoComplete="new-password" minLength={info?.password_min_length || 12} value={form.next} onChange={set('next')} required />}</Field>
@@ -81,6 +84,7 @@ export function AccountSection() {
           {error && <p role="alert" className="text-sm text-crit-text">{error}</p>}
         </div>
       </form>
+      )}
     </div>
   )
 }
@@ -88,7 +92,10 @@ export function AccountSection() {
 export function TeamSection() {
   const users = useUsers()
   const me = useAuth(s => s.user)
-  const manage = useCan('users:manage')
+  const can = useCan('users:manage')
+  const demo = useAuth(s => s.info?.demo_mode)
+  // The shared demo login can look at the team but not change it (the server refuses too)
+  const manage = demo ? { allowed: false } : can
   const qc = useQueryClient()
   const [form, setForm] = useState({ name: '', email: '', role: 'viewer' })
   const [secret, setSecret] = useState(null)
@@ -117,6 +124,7 @@ export function TeamSection() {
     <div className="grid gap-5">
       <p className="text-sm text-fg-2">{manage.allowed
         ? 'Add people and set what they can do. Role changes apply on their next click — no need to sign in again.'
+        : demo ? 'Who has access and what they can do. People can’t be changed on the shared demo.'
         : 'Who has access and what they can do. Only admins can change this.'}</p>
       {users.isLoading ? <SkeletonRows rows={3} /> : users.isError ? <ErrorState error={users.error} onRetry={users.refetch} compact /> : (
         <div className="overflow-x-auto rounded-md border border-line">
