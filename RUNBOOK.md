@@ -1,6 +1,6 @@
 # Breachpath Cloud Recon — Runbook & Completion Roadmap
 
-Version 1.5.0 · Polish: fewer pages, a server-side Remediation board, demo mode for the hosted demo
+Version 1.5.1 · Security fixes from CodeQL, on top of 1.5.0 · Polish: fewer pages, a server-side Remediation board, demo mode for the hosted demo
 (builds on 1.4.0 hardening, 1.3.0 roles/four-eyes release, 1.2.0 frontend release and 1.1.0 real-data release)
 
 ---
@@ -27,6 +27,18 @@ Everything resets when the free instance sleeps.
    your admin account.
 4. **Back up now and then:** `DATABASE_URL='…' infra/backup-db.sh` writes `backups/breachpath-<time>.dump`
    on your machine (git-ignored). Restore with `pg_restore --no-owner --no-acl -d "$NEW_URL" <file>`.
+
+## What's new in 1.5.1 (security)
+
+Fixes from the first CodeQL scan, each with a regression test in `backend/tests/test_security_hardening.py`:
+- **Removed `POST /iac/scan/directory`.** It scanned any folder on the API host, and the hosted demo's admin
+  login is public. Nothing used it: CI and the CLI scan locally.
+- **Slack webhooks:** every sender now accepts only `https://hooks.slack.com/services/…`, rebuilds the URL on
+  that fixed host and refuses redirects, so the server can't be pointed at internal addresses (SSRF).
+- **Terraform scanner:** bounded regex repeats. Crafted input took 6 s per 350 KB before (quadratic, so a
+  5 MB upload could stall the API); now linear.
+- **Error messages:** AWS failures show a code and a plain hint; the raw exception (endpoints, ARNs) goes to
+  the server log only. Graph edge ids use SHA-256.
 
 ## What's new in 1.5
 

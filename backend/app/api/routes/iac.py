@@ -4,7 +4,7 @@ Handles Terraform static analysis scan requests from CLI, CI/CD pipelines, and t
 """
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from app.auth.deps import admin, engineer
+from app.auth.deps import engineer
 from pydantic import BaseModel, Field
 from typing import Optional
 import io
@@ -57,10 +57,6 @@ class HCLScanRequest(BaseModel):
     repository: Optional[str] = None
 
 
-class DirectoryScanRequest(BaseModel):
-    directory: str  # Absolute path to scan (for local dev / CI runners)
-
-
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 @router.post("/scan/content", dependencies=[Depends(engineer)])
 def scan_hcl_content(req: HCLScanRequest):
@@ -77,17 +73,8 @@ def scan_hcl_content(req: HCLScanRequest):
     return result
 
 
-# reads arbitrary paths on the API host -> admin only
-@router.post("/scan/directory", dependencies=[Depends(admin)])
-def scan_directory(req: DirectoryScanRequest):
-    """
-    Scan all .tf files in a given directory.
-    Used by CI runners or local developer invocations.
-    """
-    if not os.path.isdir(req.directory):
-        raise HTTPException(status_code=404, detail=f"Directory not found: {req.directory}")
-    
-    return scanner.scan_directory(req.directory)
+# There is deliberately no "scan this server directory" endpoint: it read arbitrary paths on the API host,
+# and on the hosted demo the admin login is public. CI and the CLI scan locally (cli/breachpath_cli.py).
 
 
 @router.post("/scan/upload", dependencies=[Depends(engineer)])

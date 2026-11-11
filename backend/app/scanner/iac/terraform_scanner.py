@@ -205,12 +205,13 @@ class TerraformSecurityRules:
         fpath = resource["file_path"]
         line = resource["line_number"]
 
-        # Detect unrestricted ingress on dangerous ports
-        ingress_blocks = re.findall(r'ingress\s*\{([^}]*)\}', raw, re.DOTALL)
+        # Detect unrestricted ingress on dangerous ports.
+        # Bounded repeats: input comes from users (paste / upload), so no pattern may go quadratic (ReDoS)
+        ingress_blocks = re.findall(r'ingress\s{0,20}\{([^}]{0,20000})\}', raw)
         for ingress in ingress_blocks:
             from_port_m = re.search(r'from_port\s*=\s*(\d+)', ingress)
             to_port_m = re.search(r'to_port\s*=\s*(\d+)', ingress)
-            cidr_m = re.search(r'cidr_blocks\s*=\s*\["?([^"\]]+)"?\]', ingress)
+            cidr_m = re.search(r'cidr_blocks\s{0,20}=\s{0,20}\["?([^"\]]{1,2000})"?\]', ingress)
 
             from_port = int(from_port_m.group(1)) if from_port_m else None
             to_port = int(to_port_m.group(1)) if to_port_m else None
@@ -275,7 +276,7 @@ class TerraformSecurityRules:
 
         # Check EBS encryption
         ebs_encrypted = None
-        ebs_match = re.search(r'root_block_device\s*\{([^}]*)\}', raw, re.DOTALL)
+        ebs_match = re.search(r'root_block_device\s{0,20}\{([^}]{0,20000})\}', raw)
         if ebs_match:
             ebs_block = ebs_match.group(1)
             enc_m = re.search(r'encrypted\s*=\s*(true|false)', ebs_block)

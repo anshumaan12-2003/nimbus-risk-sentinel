@@ -56,7 +56,6 @@ def test_role_gates(api):
     assert api.post("/api/v1/users", json={"email": "a@b.c", "name": "A"}).status_code == 403
     login(api, "engineer")
     assert api.post("/api/v1/users", json={"email": "a@b.c", "name": "A"}).status_code == 403
-    assert api.post("/api/v1/iac/scan/directory", json={"path": "/etc"}).status_code == 403
     assert api.post("/api/v1/drift/webhook/test", json={"webhook_url": "http://169.254.169.254/"}).status_code == 403
     login(api, "admin")
     ssrf = api.post("/api/v1/drift/webhook/test", json={"webhook_url": "http://169.254.169.254/latest/meta-data"})

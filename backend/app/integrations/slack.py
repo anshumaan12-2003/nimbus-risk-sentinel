@@ -1,6 +1,7 @@
 import requests
 import logging
 from app.config import settings
+from app.utils.slack_notifier import slack_webhook_url
 
 logger = logging.getLogger(__name__)
 
@@ -11,9 +12,9 @@ def send_slack_alert(finding):
     if not getattr(settings, 'SLACK_ENABLED', False):
         return False
 
-    webhook_url = settings.SLACK_WEBHOOK_URL
+    webhook_url = slack_webhook_url(settings.SLACK_WEBHOOK_URL or "")
     if not webhook_url or "your/webhook/url" in webhook_url:
-        logger.info("SLACK_WEBHOOK_URL not configured or disabled. Skipping Slack alert.")
+        logger.info("SLACK_WEBHOOK_URL not configured, or not an https://hooks.slack.com/ URL. Skipping Slack alert.")
         return False
 
     title = finding.get("title", "Unknown Finding")
@@ -58,7 +59,7 @@ def send_slack_alert(finding):
     }
 
     try:
-        response = requests.post(webhook_url, json=payload, timeout=10)
+        response = requests.post(webhook_url, json=payload, timeout=10, allow_redirects=False)
         response.raise_for_status()
         logger.info(f"Successfully dispatched Slack alert for {rule_id}.")
         return True
