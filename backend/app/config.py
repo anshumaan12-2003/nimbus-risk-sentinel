@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # App
     APP_NAME: str = "Breachpath Cloud Recon"
-    APP_VERSION: str = "1.5.0"
+    APP_VERSION: str = "1.5.1"
     DEBUG: bool = True
 
     # Database

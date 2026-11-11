@@ -90,7 +90,7 @@ class AttackGraph:
         return nid
 
     def edge(self, src: str, dst: str, technique: str, finding_id: str | None = None, fixable: bool = True):
-        eid = "e-" + hashlib.sha1(f"{src}|{dst}".encode()).hexdigest()[:10]
+        eid = "e-" + hashlib.sha256(f"{src}|{dst}".encode()).hexdigest()[:12]   # a stable id, not a secret
         if eid in self.edges:
             if finding_id and not self.edges[eid].get("findingId"):
                 self.edges[eid]["findingId"] = finding_id

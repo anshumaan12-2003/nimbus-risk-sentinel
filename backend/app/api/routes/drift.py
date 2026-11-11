@@ -2,7 +2,6 @@
 Breachpath Cloud Recon — Drift Detection & Alerting REST API Routes
 """
 
-from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -11,7 +10,7 @@ from app.database import get_db
 from app.models.scan import Scan, ScanStatus
 from app.models.finding import Finding
 from app.intelligence.drift_detector import DriftDetector
-from app.utils.slack_notifier import SlackNotifier
+from app.utils.slack_notifier import SlackNotifier, slack_webhook_url
 from app.config import settings
 
 router = APIRouter(prefix="/drift", tags=["Drift Detection & Alerting"])
@@ -135,8 +134,8 @@ def test_slack_webhook(payload: dict = Body(...)):
     if not webhook_url:
         raise HTTPException(status_code=400, detail="Missing webhook_url in request payload or environment.")
     # the server makes this request: only allow Slack, never an arbitrary internal URL (SSRF)
-    if urlparse(webhook_url).scheme != "https" or urlparse(webhook_url).hostname != "hooks.slack.com":
-        raise HTTPException(status_code=422, detail="webhook_url must be an https://hooks.slack.com/ URL.")
+    if not slack_webhook_url(webhook_url):
+        raise HTTPException(status_code=422, detail="webhook_url must be an https://hooks.slack.com/services/… URL.")
 
     # Create realistic test drift data
     sample_drift = {

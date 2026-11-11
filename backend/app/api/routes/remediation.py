@@ -32,6 +32,7 @@ from app.models.remediation_request import RemediationRequest, RequestStatus
 from app.models.user import Role, User
 from app.remediation.aws_remediators import RemediationNotSupported, get_remediator_for_finding
 from app.utils.events import bus
+from app.utils.aws_client import aws_error_text
 
 router = APIRouter(prefix="/remediation", tags=["Auto-Remediation"])
 
@@ -59,10 +60,7 @@ def _resolve(payload: dict, db: Session):
 
 
 def _aws_error(e: Exception) -> HTTPException:
-    if isinstance(e, ClientError):
-        err = e.response.get("Error", {})
-        return HTTPException(502, f"AWS {err.get('Code')}: {err.get('Message')}")
-    return HTTPException(502, f"AWS error: {e}")
+    return HTTPException(502, aws_error_text(e))
 
 
 def _out(r: RemediationRequest) -> dict:

@@ -8,7 +8,7 @@ from fastapi import APIRouter
 
 from app.config import settings
 from app.tasks import scheduler
-from app.utils.aws_client import credential_mode, get_aws_client, reset_sessions
+from app.utils.aws_client import aws_error_text, credential_mode, get_aws_client, reset_sessions
 
 router = APIRouter(prefix="/account", tags=["Account"])
 
@@ -34,7 +34,7 @@ def preflight(refresh: bool = False):
     try:
         ident = get_aws_client("sts").get_caller_identity()
     except (NoCredentialsError, ClientError, BotoCoreError) as e:
-        return {"connected": False, "error": str(e), "auth_mode": credential_mode(),
+        return {"connected": False, "error": aws_error_text(e), "auth_mode": credential_mode(),
                 "hint": "Set AWS_PROFILE (recommended) or AWS_ROLE_ARN / keys in backend/.env, then restart."}
 
     checks = []

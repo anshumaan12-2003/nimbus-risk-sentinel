@@ -5,12 +5,38 @@ Formats and transmits real-time posture drift and security alert payloads to Sla
 
 import json
 import logging
+import urllib.parse
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Tuple
 
 logger = logging.getLogger("nimbus.slack")
 
+
+
+SLACK_HOST = "hooks.slack.com"
+
+
+def slack_webhook_url(url: str) -> str | None:
+    """The Slack webhook URL rebuilt on a fixed host, or None if it isn't one.
+    Rebuilding (instead of trusting the string) rules out userinfo tricks, other ports and other hosts."""
+    try:
+        p = urllib.parse.urlsplit(url.strip())
+    except ValueError:
+        return None
+    if p.scheme != "https" or p.hostname != SLACK_HOST or p.port not in (None, 443) or p.username or p.password:
+        return None
+    if not p.path.startswith("/services/"):
+        return None
+    return urllib.parse.urlunsplit(("https", SLACK_HOST, p.path, "", ""))
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):   # a redirect could point anywhere: refuse it
+        return None
+
+
+_NO_REDIRECTS = urllib.request.build_opener(_NoRedirect)
 
 class SlackNotifier:
     """Dispatches formatted Block Kit security notifications to Slack incoming webhooks."""
@@ -88,14 +114,18 @@ class SlackNotifier:
         """Transmits JSON payload to Slack webhook URL synchronously."""
         if not webhook_url:
             return False, "Slack Webhook URL is not configured."
+        # The server makes this request, so it may only ever reach Slack (no internal URLs: SSRF)
+        safe_url = slack_webhook_url(webhook_url)
+        if not safe_url:
+            return False, "Webhook URL must be an https://hooks.slack.com/ URL."
 
         try:
             req = urllib.request.Request(
-                webhook_url,
+                safe_url,
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with _NO_REDIRECTS.open(req, timeout=10) as response:
                 if response.status == 200:
                     return True, "Slack alert delivered successfully."
                 return False, f"Slack responded with status {response.status}"

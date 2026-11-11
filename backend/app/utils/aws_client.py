@@ -14,6 +14,7 @@ Why a cached Session instead of boto3.client(...) everywhere:
 """
 from __future__ import annotations
 
+import logging
 import threading
 from typing import Any, Optional
 
@@ -112,3 +113,24 @@ def get_aws_account_id() -> Optional[str]:
 
 # Backward-compatible alias used by remediators
 get_boto3_client = get_aws_client
+
+
+# AWS error codes we explain in plain words; anything else shows only its code
+_AWS_HINTS = {
+    "NoCredentialsError": "No AWS credentials found.",
+    "AccessDenied": "AWS refused: the scanner identity lacks permission for this call.",
+    "AccessDeniedException": "AWS refused: the scanner identity lacks permission for this call.",
+    "ExpiredToken": "The AWS session expired.",
+    "InvalidClientTokenId": "The AWS access key is not valid.",
+    "SignatureDoesNotMatch": "The AWS secret key does not match the access key.",
+}
+
+
+def aws_error_text(e: Exception) -> str:
+    """A short, safe message for an AWS failure: the error code and a hint, never the raw exception text
+    (which can carry endpoints, ARNs or request details)."""
+    from botocore.exceptions import ClientError
+    code = e.response.get("Error", {}).get("Code", "Unknown") if isinstance(e, ClientError) else type(e).__name__
+    hint = _AWS_HINTS.get(code, "AWS returned an error.")
+    logging.getLogger("nimbus.aws").warning("AWS call failed: %s", e)   # full detail stays in the server log
+    return f"{hint} ({code})"
