@@ -58,7 +58,6 @@ export default function DriftTimeline() {
     <PageHeader
       title="Changes"
       description="What changed between scans: findings that appeared, ones that were fixed, and ones that came back after being resolved."
-      actions={<Button variant="primary" onClick={openScanModal}><Play /> Scan now</Button>}
     />
   )
   if (!demo && latestQ.isLoading) return <Page>{header}<SkeletonRows rows={8} /></Page>

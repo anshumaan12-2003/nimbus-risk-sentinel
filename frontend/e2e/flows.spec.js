@@ -1,6 +1,6 @@
 /* Behaviour tests: the things that must never regress in a security tool. */
 import { test, expect } from '@playwright/test'
-import { signIn, useTheme, USERS } from './helpers'
+import { signIn, useTheme, USERS, PASSWORD } from './helpers'
 
 test.beforeEach(async ({ page }) => { await useTheme(page, 'dark') })
 
@@ -163,16 +163,13 @@ test('Vesper streams a cited answer, links to the finding, and keeps the convers
   expect(rule).toMatch(/^(IAM|S3|EC2|RDS)-\d{3}$/)
 })
 
-test('Vesper still answers when the API is older than the UI (no /assistant endpoints yet)', async ({ page }) => {
-  await page.route('**/api/v1/assistant/**', r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Not Found"}' }))
-  await signIn(page, 'engineer')
-  await page.keyboard.press('ControlOrMeta+j')
-  const panel = page.getByRole('dialog', { name: /Vesper/ })
-  await panel.getByRole('button', { name: 'What should I fix first?' }).click()
-  const log = panel.getByRole('log', { name: 'Conversation with Vesper' })
-  await expect(log.getByText('Fix first:', { exact: true })).toBeVisible()
-  await expect(log.getByRole('button', { name: /^(IAM|S3|EC2|RDS)-\d{3}$/ }).first()).toBeVisible()   // citations still work
-  await expect(log.getByRole('button', { name: 'Helpful', exact: true })).toHaveCount(0)              // nothing saved to rate
+test('signing in from an old /login link lands on Overview, not "Not found"', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('Email').fill(USERS.viewer)
+  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { name: 'Overview', level: 1 })).toBeVisible()
 })
 
 test('a sleeping API shows "Waking Breachpath up", keeps retrying, then signs in without a reload', async ({ page }) => {

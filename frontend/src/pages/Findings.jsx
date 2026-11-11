@@ -12,7 +12,7 @@ import {
   TimeAgo
 } from '@/components/ds'
 import FindingSheet from '@/components/findings/FindingSheet'
-import { RiskScore } from '@/components/findings/RiskScore'
+import { RiskLegend, RiskScore } from '@/components/findings/RiskScore'
 import { downloadFile, toCsv } from '@/components/ui'
 import { useFindings } from '@/hooks/queries'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -275,6 +275,7 @@ export default function Findings() {
     <Page wide>
       <PageHeader
         title="Findings"
+        meta={<RiskLegend />}
         description={query.isLoading && !demo ? 'Loading…' : `${openCount} open across ${new Set(all.filter(STATUS_VIEWS.open.match).map(f => f.service)).size} services in the latest scan.`}
         actions={<Button onClick={() => exportCsv(sorted.map(r => r.original))} disabled={!sorted.length}><Download /> Export CSV</Button>}
       />

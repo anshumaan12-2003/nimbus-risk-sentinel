@@ -108,34 +108,6 @@ class SecurityCopilot:
         return f"```bash\n{finding.get('remediation_cmd') or '# No stored remediation command for this rule'}\n```"
 
 
-    def chat(self, question: str, history: list, context: str, fallback: str) -> tuple[str, bool]:
-        """Free-form Q&A grounded in the account's real posture. Returns (answer, ai_used)."""
-        if not self.client:
-            return fallback, False
-        convo = "\n".join(f"{m.get('role', 'user').upper()}: {m.get('text', '')[:2000]}" for m in history[-8:])
-        prompt = f"""You are the security copilot inside Breachpath Cloud Recon, a CSPM for AWS.
-Answer using ONLY the account data below. If the data does not contain the answer, say so plainly.
-Never invent resource names, account ids, counts or findings. Prefer concrete next steps and
-AWS CLI / Terraform snippets when asked. Use short Markdown.
-
-=== ACCOUNT DATA (latest completed scan) ===
-{context}
-
-=== CONVERSATION SO FAR ===
-{convo}
-
-USER: {question}
-ASSISTANT:"""
-        for model in list(dict.fromkeys([settings.AI_MODEL, 'gemini-flash-latest', 'gemini-flash-lite-latest'])):
-            try:
-                r = self.client.models.generate_content(model=model, contents=prompt,
-                                                        config=types.GenerateContentConfig(temperature=0.2))
-                return r.text, True
-            except Exception as e:
-                logger.warning(f"chat failed with {model}: {e}")
-        return fallback, False
-
-
     # ─── Vesper: streaming, grounded chat ─────────────────────────────────────
     VESPER_PROMPT = """You are Vesper, the assistant inside Breachpath Cloud Recon, a cloud security tool for AWS.
 Voice: calm, plain-spoken and specific, like a senior engineer who is on the reader's side. No hype,

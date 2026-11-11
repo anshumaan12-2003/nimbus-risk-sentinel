@@ -5,6 +5,17 @@ import { riskContext } from '@/lib/risk'
 
 /* The risk number with its reason: an arrow when the resource's sensitivity moved it away from the severity's base
    score, so "High · 97" ranking above "Critical · 85" explains itself. */
+/* One-line key for the arrows, shown where findings are ranked so nobody has to hover to learn it. */
+export function RiskLegend({ className }) {
+  return (
+    <span className={cn('inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-3', className)}>
+      <span>Ranked by risk, not severity:</span>
+      <span className="inline-flex items-center gap-1"><ArrowUp aria-hidden className="size-3 text-crit-text" /> raised for sensitive resources (prod, customer, billing)</span>
+      <span className="inline-flex items-center gap-1"><ArrowDown aria-hidden className="size-3 text-low-text" /> lowered for dev or test</span>
+    </span>
+  )
+}
+
 /* focusable: only where it isn't already inside a link or button (nested interactive elements are invalid). */
 export function RiskScore({ finding, focusable = false, className }) {
   const r = riskContext(finding)
