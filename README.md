@@ -10,7 +10,9 @@
 
 [![Live demo](https://img.shields.io/badge/Live_demo-Open_app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://cloud-security-posture-delta.vercel.app)
 [![CI](https://img.shields.io/github/actions/workflow/status/anshumaan12-2003/nimbus-risk-sentinel/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/anshumaan12-2003/nimbus-risk-sentinel/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-1.4.0-5c7cfa?style=for-the-badge)
+[![Release](https://img.shields.io/github/v/release/anshumaan12-2003/nimbus-risk-sentinel?style=for-the-badge&color=5c7cfa)](https://github.com/anshumaan12-2003/nimbus-risk-sentinel/releases/latest)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/anshumaan12-2003/nimbus-risk-sentinel/codeql.yml?style=for-the-badge&logo=github&label=CodeQL)](https://github.com/anshumaan12-2003/nimbus-risk-sentinel/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge)](LICENSE)
 ![AWS](https://img.shields.io/badge/AWS-read--only_scan-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white)
 
 <a href="#-quick-start"><b>Quick start</b></a> &nbsp;·&nbsp;
@@ -47,7 +49,7 @@ An attack graph from the internet to your data, plus a breach simulator that fin
 <td width="33%" valign="top">
 
 **🛡️ Fix safely**<br>
-One person requests, a *different* person approves. Every fix is verified and can be rolled back.
+A board from found to fixed. One person requests a fix, a *different* person approves it, and AWS is re-read to verify.
 
 </td>
 </tr>
@@ -94,6 +96,10 @@ Command palette, `g`-shortcuts, light and dark themes, works on a phone.
 <td width="50%"><img src="docs/readme/approvals.png" alt="Four-eyes approval with before/after"></td>
 </tr>
 <tr>
+<td><img src="docs/readme/remediation.png" alt="Remediation board: open, in progress, awaiting approval, fixed"></td>
+<td><img src="docs/readme/assets.png" alt="Assets ranked by exposure"></td>
+</tr>
+<tr>
 <td><img src="docs/readme/finding-sheet.png" alt="Finding detail"></td>
 <td><img src="docs/readme/compliance.png" alt="Compliance by framework"></td>
 </tr>
@@ -102,7 +108,10 @@ Command palette, `g`-shortcuts, light and dark themes, works on a phone.
 
 ## 🚀 Quick start
 
-**Just want to look?** Open the [live demo](https://cloud-security-posture-delta.vercel.app). The first load can take a minute while the free server wakes up.
+**Just want to look?** Open the [live demo](https://cloud-security-posture-delta.vercel.app) and sign in as
+`admin@breachpath.local` with password `breachpath-demo-password` (`engineer@`, `approver@` and `viewer@` work too,
+so you can try the four-eyes approval from both sides). It's a fake AWS account with planted problems: nothing
+touches real AWS, and it resets whenever the free server sleeps. The first load can take a minute while it wakes up.
 
 **Run it locally.** No AWS account needed: the demo runs on a fake, deliberately vulnerable account ([moto](https://github.com/getmoto/moto)).
 
@@ -152,10 +161,20 @@ flowchart LR
 - **Hardened sessions:** Argon2id passwords, in-memory access tokens, rotating `httpOnly` refresh cookies with reuse detection.
 - **Honest results:** a fix counts only after AWS is re-read to confirm it; unchecked controls are never marked as passing.
 
-Tested with **pytest + moto**, **Vitest** and **Playwright** (flows, accessibility and visual regression) on every push.
+Tested with **pytest + moto**, **Vitest** and **Playwright** (flows, accessibility and visual regression) on every pull
+request, alongside CodeQL, `pip-audit`, `npm audit`, secret scanning and Dependabot. Found a security problem? See
+[SECURITY.md](SECURITY.md) and report it privately.
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) has the local setup and the checks to run.
+
+## 📄 License
+
+[MIT](LICENSE) © Anshumaan Singh
 
 <br>
 
 <div align="center">
-<sub>Built by <a href="https://github.com/anshumaan12-2003">Anshumaan Singh</a> · Upgrade notes and changelog in <a href="RUNBOOK.md">RUNBOOK.md</a></sub>
+<sub>Built by <a href="https://github.com/anshumaan12-2003">Anshumaan Singh</a> · Upgrade notes and changelog in <a href="RUNBOOK.md">RUNBOOK.md</a> · <a href="https://github.com/anshumaan12-2003/nimbus-risk-sentinel/releases">Releases</a></sub>
 </div>

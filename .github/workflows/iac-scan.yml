@@ -1,4 +1,4 @@
-name: 🔍 IaC Security Scan — Breachpath
+name: IaC security scan
 
 on:
   pull_request:
@@ -15,11 +15,14 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write        # Required to post PR review comments
-  checks: write               # Required to create check runs
+  pull-requests: write        # post / update the report comment
+
+concurrency:
+  group: iac-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  nimbus-iac-scan:
+  iac-scan:
     name: Breachpath IaC Security Scan
     runs-on: ubuntu-latest
 
@@ -52,7 +55,7 @@ jobs:
 
       # ─── Run Breachpath IaC Scanner ─────────────────────────────────────────────
       - name: Run Breachpath IaC Scanner
-        id: nimbus_scan
+        id: iac_scan
         working-directory: backend
         run: |
           python - <<'EOF'
@@ -70,12 +73,12 @@ jobs:
               result = {"total_findings": 0, "severity_summary": {}, "findings": [], "passed": True}
 
           # Write results to file for next steps
-          with open("/tmp/nimbus_iac_results.json", "w") as f:
+          with open("/tmp/breachpath_iac_results.json", "w") as f:
               json.dump(result, f, indent=2)
 
           # Output summary
           print(f"\n{'='*60}")
-          print(f"NIMBUS IaC SECURITY SCAN RESULTS")
+          print("BREACHPATH IaC SECURITY SCAN RESULTS")
           print(f"{'='*60}")
           print(f"Total Findings:  {result['total_findings']}")
           for sev, count in result.get('severity_summary', {}).items():
@@ -103,7 +106,7 @@ jobs:
             const fs = require('fs');
             let results;
             try {
-              results = JSON.parse(fs.readFileSync('/tmp/nimbus_iac_results.json', 'utf8'));
+              results = JSON.parse(fs.readFileSync('/tmp/breachpath_iac_results.json', 'utf8'));
             } catch (e) {
               console.log('No scan results to post.');
               return;
@@ -147,18 +150,20 @@ jobs:
 
             body += `\n---\n*Powered by [Breachpath Cloud Recon](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}) — Automated IaC Security Analysis*`;
 
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
+            // One report per PR, updated on every push, instead of a new comment each time
+            const marker = '<!-- breachpath-iac-report -->';
+            body = `${marker}\n${body}`;
+            const { owner, repo } = context.repo;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: context.issue.number });
+            const mine = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
+            if (mine) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number: context.issue.number, body });
 
       # ─── Upload Scan Artifact ───────────────────────────────────────────────
       - name: Upload scan results artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nimbus-iac-scan-${{ github.run_number }}
-          path: /tmp/nimbus_iac_results.json
+          name: breachpath-iac-scan-${{ github.run_number }}
+          path: /tmp/breachpath_iac_results.json
           retention-days: 30

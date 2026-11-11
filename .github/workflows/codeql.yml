@@ -1,0 +1,34 @@
+name: CodeQL
+
+# Static analysis for security bugs in the Python API and the React app.
+on:
+  push: { branches: [master] }
+  pull_request: { branches: [master] }
+  schedule: [{ cron: "0 3 * * 1" }]   # weekly, to catch newly added queries
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+          # The Terraform demo and test fixtures are deliberately unsafe
+          config: |
+            paths-ignore: [infrastructure, backend/tests, frontend/e2e, "**/__tests__"]
+      - uses: github/codeql-action/analyze@v3
+        with: { category: "/language:${{ matrix.language }}" }

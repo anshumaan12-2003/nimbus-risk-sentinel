@@ -41,6 +41,7 @@ test('pages · dark', async ({ page }) => {
   await shot(page, 'simulator', '/simulator')
   await shot(page, 'assets', '/assets')
   await shot(page, 'compliance', '/compliance')
+  await shot(page, 'remediation', '/workflow')
 })
 
 test('vesper · dark', async ({ page }) => {
