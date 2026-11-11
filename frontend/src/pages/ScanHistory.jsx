@@ -11,16 +11,28 @@ import { downloadFile } from '@/components/ui'
 import { useScans, useActiveScan, useScanWarnings, useScanProgress } from '@/hooks/queries'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { dateTime, parseUtc, shortDate } from '@/lib/time'
+import { cn } from '@/lib/cn'
 
 const durationSec = (s) => (s.started_at && s.completed_at ? (parseUtc(s.completed_at) - parseUtc(s.started_at)) / 1000 : null)
 const fmtDur = (sec) => (sec == null ? '—' : sec < 60 ? `${sec.toFixed(1)}s` : `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`)
 const n = (v) => Number(v || 0)
 
+// Internal trigger names -> words people use. User-started scans carry the person's email.
+const TRIGGERS = { seed: 'Demo setup', scheduler: 'Schedule', api: 'API' }
+const triggerLabel = t => TRIGGERS[t] || t || '—'
+
 function Counts({ s }) {
-  const items = [['C', s.critical_count, 'text-crit-text'], ['H', s.high_count, 'text-high-text'], ['M', s.medium_count, 'text-med-text'], ['L', s.low_count, 'text-low-text']]
+  const items = [['Critical', s.critical_count, 'bg-crit'], ['High', s.high_count, 'bg-high'], ['Medium', s.medium_count, 'bg-med'], ['Low', s.low_count, 'bg-low']]
   return (
-    <span className="num flex gap-2.5 text-xs">
-      {items.map(([k, v, cls]) => <span key={k} className={n(v) ? cls : 'text-fg-3'} title={{ C: 'Critical', H: 'High', M: 'Medium', L: 'Low' }[k]}>{n(v)}<span className="ml-0.5 opacity-60">{k}</span></span>)}
+    <span className="num flex gap-3 text-xs">
+      {items.map(([label, v, dot]) => (
+        <Tooltip key={label} content={`${n(v)} ${label.toLowerCase()}`}>
+          <span className={cn('inline-flex items-center gap-1', n(v) ? 'text-fg' : 'text-fg-3')}>
+            <span aria-hidden className={cn('size-1.5 rounded-full', n(v) ? dot : 'bg-line-strong')} />
+            {n(v)}<span className="sr-only"> {label}</span>
+          </span>
+        </Tooltip>
+      ))}
     </span>
   )
 }
@@ -38,7 +50,7 @@ function ScanDetail({ scan }) {
         ['Regions', <span className="font-mono text-xs">{scan.region || '—'}</span>],
         ['Started', dateTime(scan.started_at)],
         ['Duration', fmtDur(durationSec(scan))],
-        ['Triggered by', scan.triggered_by],
+        ['Triggered by', triggerLabel(scan.triggered_by)],
         scan.status === 'COMPLETED' ? ['Risk score', <span className="num font-semibold">{scan.risk_score}</span>] : null,
       ]} />
       {scan.status === 'FAILED' && (
@@ -113,7 +125,7 @@ export default function ScanHistory() {
       <PageHeader
         title="Scan history"
         description="Every scan, its outcome, how long it took and what it couldn’t see."
-        actions={<Button variant="primary" onClick={openScanModal}>{active.data ? <><Loader2 className="animate-spin" /> Watch running scan</> : <><Play /> Run scan</>}</Button>}
+        actions={active.data && <Button variant="primary" onClick={openScanModal}><Loader2 className="animate-spin" /> Watch running scan</Button>}
       />
       {active.data && (
         <div role="status" className="mb-4 flex items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3 text-sm text-accent-text">
@@ -179,8 +191,8 @@ export default function ScanHistory() {
                           </span>
                         </td>
                         <td className="num px-3 text-fg-2">{fmtDur(durationSec(s))}</td>
-                        <td className="max-w-[180px] truncate px-3 text-fg-2">{s.triggered_by}</td>
-                        <td className="px-3 font-mono text-xs text-fg-3">{s.region || '—'}</td>
+                        <td className="max-w-[180px] truncate px-3 text-fg-2">{triggerLabel(s.triggered_by)}</td>
+                        <td className="px-3 font-mono text-xs text-fg-3">{s.region ? s.region.split(',').join(', ') : '—'}</td>
                         <td className="num px-3 text-right font-semibold text-fg">{s.status === 'COMPLETED' ? s.risk_score : '—'}</td>
                         <td className="px-3">{s.status === 'COMPLETED' ? <Counts s={s} /> : <span className="block max-w-[220px] truncate text-xs text-fg-3" title={s.error_message}>{s.error_message || '—'}</span>}</td>
                         <td className="pr-5 pl-3 text-right">
@@ -203,7 +215,7 @@ export default function ScanHistory() {
 
       <Sheet open={!!openId} onOpenChange={(o) => { if (!o) setOpenId(null) }}>
         {shown && (
-          <SheetContent width={600} title={`Scan ${shown.id.slice(0, 8)}`} description={`Started ${dateTime(shown.started_at)} by ${shown.triggered_by}`}>
+          <SheetContent width={600} title={`Scan ${shown.id.slice(0, 8)}`} description={`Started ${dateTime(shown.started_at)} · ${triggerLabel(shown.triggered_by)}`}>
             <ScanDetail scan={shown} />
           </SheetContent>
         )}

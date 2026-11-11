@@ -10,7 +10,7 @@ import {
   AnimatedNumber
 } from '@/components/ds'
 import GettingStarted from '@/components/GettingStarted'
-import { RiskScore } from '@/components/findings/RiskScore'
+import { RiskLegend, RiskScore } from '@/components/findings/RiskScore'
 import { changeSentence, forecastFor } from '@/lib/forecast'
 import VesperMark from '@/components/vesper/VesperMark'
 import { useSentinelStore } from '@/store/sentinelStore'
@@ -209,7 +209,7 @@ function ForecastHero({ d, greeting, every, actions }) {
                   className="group grid grid-cols-[4px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-surface/85 px-3 py-2.5 backdrop-blur-sm transition-colors hover:border-line-strong">
               <span className={cn('h-full min-h-8 rounded-full', SEV_STRIPE[x.severity] || 'bg-fg-3')} />
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-fg">{x.title}</span>
+                <span className="line-clamp-2 text-sm font-medium text-fg">{x.title}</span>
                 <span className="block truncate font-mono text-xs text-fg-3">{x.rule_id} · {x.resource_name || x.resource_id}</span>
               </span>
               <span className="flex items-center gap-2">
@@ -220,10 +220,11 @@ function ForecastHero({ d, greeting, every, actions }) {
             </Link>
           ))}
           {fixes[0] && (
-            <div className="mt-1 flex items-center gap-3 rounded-lg border border-transparent px-3 py-3 [background:linear-gradient(var(--surface),var(--surface))_padding-box,linear-gradient(115deg,var(--dawn-1),var(--dawn-2)_55%,var(--dawn-3))_border-box]">
+            <div className="mt-1 grid grid-cols-[auto_1fr] items-center gap-3 rounded-lg sm:flex border border-transparent px-3 py-3 [background:linear-gradient(var(--surface),var(--surface))_padding-box,linear-gradient(115deg,var(--dawn-1),var(--dawn-2)_55%,var(--dawn-3))_border-box]">
               <VesperMark size={30} />
               <p className="min-w-0 flex-1 text-sm text-fg-2">Want me to walk you through <span className="font-mono text-xs text-fg">{fixes[0].rule_id}</span>? It usually takes a couple of minutes.</p>
-              <Button size="sm" onClick={() => askVesper(`Walk me through fixing ${fixes[0].rule_id} safely, step by step.`)}>Ask Vesper</Button>
+              {/* On phones the button gets its own row instead of squeezing the text to four lines */}
+              <Button size="sm" className="col-span-2 sm:col-span-1" onClick={() => askVesper(`Walk me through fixing ${fixes[0].rule_id} safely, step by step.`)}>Ask Vesper</Button>
             </div>
           )}
         </div>
@@ -237,7 +238,7 @@ function FixFirst({ d }) {
   const rows = d.findings.filter(f => f.status !== 'RESOLVED').sort((a, b) => num(b.risk_score) - num(a.risk_score)).slice(3, 10)
   return (
     <Card className="overflow-hidden">
-      <CardHeader title="Next up" description="After today's three: open findings ranked by risk, exposure and what they can reach."
+      <CardHeader title="Next up" description={<><span className="block">After today's three: open findings ranked by risk, exposure and what they can reach.</span><RiskLegend className="mt-1.5" /></>}
                   actions={<Button variant="ghost" size="sm" asChild><Link to="/findings">View all <ChevronRight /></Link></Button>} />
       {d.findingsLoading ? (
         <CardBody className="grid gap-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</CardBody>
@@ -250,7 +251,7 @@ function FixFirst({ d }) {
               <Link to={`/findings/${f.id}`} className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-2">
                 <span className={cn('h-8 w-1 shrink-0 rounded-full', SEV_STRIPE[f.severity] || 'bg-fg-3')} aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-fg">{f.title}</span>
+                  <span className="line-clamp-2 text-sm font-medium text-fg sm:block sm:truncate">{f.title}</span>
                   <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-fg-3">
                     <span className="font-mono">{f.rule_id}</span>
                     <span aria-hidden>·</span>
@@ -399,11 +400,8 @@ function ScoreTrend({ d }) {
   const data = d.history.map(s => ({ date: shortDate(s.completed_at || s.started_at), score: num(s.risk_score) }))
   return (
     <Card>
-      <CardHeader title="Risk score over time" description={data.length > 1 ? `Last ${data.length} scans` : undefined} />
+      <CardHeader title="Risk score over time" description={`Last ${data.length} scans`} />
       <CardBody>
-        {data.length < 2 ? (
-          <p className="grid h-[200px] place-items-center text-center text-sm text-fg-2">{d.demo ? 'Built from real scans — switch to live data.' : 'Appears after two completed scans.'}</p>
-        ) : (
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -24 }}>
@@ -427,7 +425,6 @@ function ScoreTrend({ d }) {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        )}
       </CardBody>
     </Card>
   )
@@ -507,8 +504,9 @@ export default function Dashboard() {
               <Coverage d={d} />
             </div>
           </div>
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            <ScoreTrend d={d} />
+          {/* Same rule as Scan history: two points only draw a line, so the trend waits for three scans */}
+          <div className={cn('grid items-start gap-4', d.history.length >= 3 && 'lg:grid-cols-2')}>
+            {d.history.length >= 3 && <ScoreTrend d={d} />}
             <ByService d={d} />
           </div>
           <CompliancePanel d={d} />

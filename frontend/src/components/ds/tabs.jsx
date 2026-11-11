@@ -16,7 +16,7 @@ export function TabsList({ className, segmented = false, ...props }) {
         className={cn(
           segmented
             ? 'inline-flex h-8 items-center gap-0.5 rounded-md bg-muted p-0.5'
-            : 'flex items-center gap-5 overflow-x-auto border-b border-line',
+            : 'flex items-center gap-5 overflow-x-auto overflow-y-hidden border-b border-line',
           className,
         )}
         {...props}

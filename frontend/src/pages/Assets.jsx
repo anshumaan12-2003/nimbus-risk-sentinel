@@ -14,8 +14,10 @@ import { useSentinelStore } from '@/store/sentinelStore'
 
 const TYPE_LABEL = {
   ec2: 'EC2', s3: 'S3', rds: 'RDS', lambda: 'Lambda', dynamodb: 'DynamoDB',
-  secret: 'Secrets', iam_role: 'IAM roles', iam_user: 'IAM users',
+  secret: 'Secret', iam_role: 'IAM role', iam_user: 'IAM user',
 }
+// Filter chips count several of a kind, so they read in the plural
+const TYPE_PLURAL = { secret: 'Secrets', iam_role: 'IAM roles', iam_user: 'IAM users' }
 const TYPE_SERVICE = { ec2: 'ec2', s3: 's3', rds: 'rds', iam_role: 'iam', iam_user: 'iam' }
 const SEV_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 const SEV_STRIPE = { CRITICAL: 'bg-crit', HIGH: 'bg-high', MEDIUM: 'bg-med', LOW: 'bg-low' }
@@ -141,10 +143,7 @@ export default function Assets() {
         title="Assets"
         description="Every resource discovered in the latest scan, ranked by exposure. Healthy resources are listed too — attack paths run through them."
         meta={q.data?.collected_at && <><span className="font-mono">AWS {q.data.account_id}</span><span aria-hidden>·</span><span>Collected <TimeAgo value={q.data.collected_at} /></span></>}
-        actions={<>
-          <Button onClick={exportCsv} disabled={!rows.length}><Download /> Export CSV</Button>
-          <Button variant="primary" onClick={openScanModal}><Play /> Rescan</Button>
-        </>}
+        actions={<Button onClick={exportCsv} disabled={!rows.length}><Download /> Export CSV</Button>}
       />
 
       <QueryState
@@ -167,7 +166,7 @@ export default function Assets() {
 
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap gap-1.5" role="group" aria-label="Asset type">
-                {[['all', 'All', summary.total], ...Object.entries(summary.by_type || {}).map(([t, n]) => [t, TYPE_LABEL[t] || t, n])].map(([t, label, n]) => (
+                {[['all', 'All', summary.total], ...Object.entries(summary.by_type || {}).map(([t, n]) => [t, TYPE_PLURAL[t] || TYPE_LABEL[t] || t, n])].map(([t, label, n]) => (
                   <button key={t} type="button" onClick={() => setParam('type', t)} aria-pressed={type === t}
                           className={cn('inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
                             type === t ? 'border-fg bg-fg text-bg' : 'border-line bg-surface text-fg-2 hover:border-line-strong hover:text-fg')}>

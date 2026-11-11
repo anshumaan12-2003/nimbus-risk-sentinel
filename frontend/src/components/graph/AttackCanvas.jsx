@@ -43,8 +43,9 @@ const AssetNode = memo(function AssetNode({ data }) {
         {node.crown ? <Crown className="size-4" /> : <Icon className="size-4" />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-fg" title={node.short}>{node.short}</span>
-        <span className="block truncate text-2xs text-fg-3">{node.crown ? `${node.kind} · crown jewel` : node.kind}</span>
+        {/* Names wrap to two lines instead of cutting off; the crown icon and red border already mark crown jewels */}
+        <span className="line-clamp-2 text-sm leading-tight font-medium break-all text-fg" title={node.short}>{node.short}</span>
+        <span className="mt-0.5 block truncate text-xs text-fg-3">{node.kind}{node.crown && <span className="sr-only"> · crown jewel</span>}</span>
       </span>
       {state.hop != null && state.hop > 0 && (
         <span className="num shrink-0 rounded-xs bg-muted px-1 text-2xs text-fg-3" title={`${state.hop} step${state.hop === 1 ? '' : 's'} from the entry point`}>{state.hop}</span>

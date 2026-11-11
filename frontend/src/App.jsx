@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { queryClient } from './lib/queryClient'
@@ -85,7 +85,10 @@ function AppRoutes() {
           <Route path="/scans" element={<ScanHistory />} />
           <Route path="/iac" element={<IacScanner />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/ui" element={<UiKit />} />
+          {/* Signing in happens in place on any URL, so an old /login link would otherwise land on Not found */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          {/* Component gallery for development only; not shipped to the live site */}
+          {import.meta.env.DEV && <Route path="/ui" element={<UiKit />} />}
           <Route path="/vesper" element={<Vesper />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

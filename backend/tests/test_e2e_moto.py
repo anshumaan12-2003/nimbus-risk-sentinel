@@ -275,13 +275,6 @@ def test_scan_progress_grid(client):
     assert "progress" not in client.get("/api/v1/scans").json()[0]   # list stays light
 
 
-def test_copilot_chat_grounded_fallback(client):
-    assert "no completed scan" in client.post("/api/v1/copilot/chat", json={"question": "hi"}).json()["answer"].lower()
-    _scan(client)
-    r = client.post("/api/v1/copilot/chat", json={"question": "what should I fix first?"}).json()
-    assert r["ai"] is False and "Fix first" in r["answer"] and "123456789012" in r["answer"]
-
-
 def test_temporary_credentials_and_scheduler(client, monkeypatch):
     # The fake env uses AWS_SESSION_TOKEN, so preflight passing proves temporary keys are honoured
     pre = client.get("/api/v1/account/preflight").json()

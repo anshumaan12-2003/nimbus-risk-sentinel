@@ -142,7 +142,7 @@
   --font-display: "Bricolage Grotesque Variable", "Geist Variable", ui-sans-serif, system-ui, sans-serif;
 
   /* Type scale (size / line-height / tracking). Large sizes track tighter, like SF Pro. */
-  --text-2xs: 11px;   --text-2xs--line-height: 16px;
+  --text-2xs: 11.5px; --text-2xs--line-height: 16px;   /* was 11px: helper text read too small on the dark theme */
   --text-xs: 12px;    --text-xs--line-height: 16px;
   --text-sm: 13px;    --text-sm--line-height: 20px;
   --text-base: 14px;  --text-base--line-height: 22px;

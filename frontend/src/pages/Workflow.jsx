@@ -161,7 +161,7 @@ export default function Workflow() {
       />
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatTile label="In progress" value={findings.length - (counts.verified || 0)} hint="not yet verified" />
+          <StatTile label="Not yet verified" value={findings.length - (counts.verified || 0)} hint="open across every stage" />
           <StatTile label="Past SLA" value={overdue} tone={overdue ? 'critical' : 'low'} hint="overdue for their severity" />
           <StatTile label="Verified" value={closed.length} tone="low" hint="confirmed fixed" />
           <StatTile label="Closure rate" value={`${findings.length ? Math.round((closed.length / findings.length) * 100) : 0}%`} hint="of all findings" />

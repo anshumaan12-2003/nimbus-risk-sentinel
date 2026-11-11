@@ -54,7 +54,6 @@ def generate_remediation(payload: Dict[str, Any] = Body(...)):
 from fastapi import Depends  # noqa: E402
 from sqlalchemy.orm import Session, joinedload  # noqa: E402
 from app.api.deps import latest_completed_scan  # noqa: E402
-from app.database import get_db  # noqa: E402
 from app.models.finding import Finding, FindingStatus  # noqa: E402
 
 SEV_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
@@ -84,12 +83,3 @@ def _posture_context(db: Session) -> tuple[str, str]:
                 + ("\n\n**Fix first:**\n" + "\n".join(f"1. `{f.rule_id}` {f.title} — `{f.resource_name or f.resource.resource_id}`" for f in top) if top else ""))
     return ctx, fallback
 
-
-@router.post("/chat", dependencies=[Depends(rate_limited)])
-def chat(payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
-    question = (payload.get("question") or "").strip()
-    if not question:
-        raise HTTPException(status_code=422, detail="question is required")
-    ctx, fallback = _posture_context(db)
-    answer, ai_used = copilot_engine.chat(question, payload.get("history") or [], ctx, fallback)
-    return {"answer": answer, "ai": ai_used}
