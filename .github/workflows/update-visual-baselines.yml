@@ -8,6 +8,9 @@ name: Update visual baselines
 # ones, which leaves small-but-real changes (under the 1% tolerance) showing the old look.
 on: workflow_dispatch
 
+permissions:
+  contents: read
+
 jobs:
   baselines:
     runs-on: ubuntu-latest

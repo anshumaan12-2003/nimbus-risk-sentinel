@@ -11,7 +11,9 @@ The Render API runs in one of two modes (`DEMO_FAKE_AWS` in Render → Environme
 
 **Demo (now):** `DEMO_FAKE_AWS=true`. A fake AWS account with planted problems, on a throwaway SQLite file.
 No database or AWS keys needed. The app shows a "Demo account" banner, and people/passwords can't be
-changed (the shared login would let anyone lock you out). Sign in with `DEMO_PASSWORD` from Render.
+changed (the shared login would let anyone lock you out). The login is public on purpose:
+`admin@breachpath.local` / `breachpath-demo-password` (from the README). To make the demo private, add
+`DEMO_PASSWORD` in Render → Environment and redeploy.
 Everything resets when the free instance sleeps.
 
 **Real AWS (later), in order:**

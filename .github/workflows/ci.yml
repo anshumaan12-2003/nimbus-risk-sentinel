@@ -1,7 +1,19 @@
 # Every push proves: backend lint + tests pass, migrations run on Postgres, both Docker images build, the UI builds,
 # every page renders against a real API, the security flows work in a real browser, and no page changed visually.
 name: ci
-on: [push, pull_request]
+# Pull requests, and master after a merge. (Branch pushes alone used to run everything twice.)
+on:
+  push: { branches: [master] }
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same PR cancels the run it replaces
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:

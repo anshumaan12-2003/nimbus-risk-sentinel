@@ -26,10 +26,9 @@ services:
         value: 3.12.7
       - key: DEMO_FAKE_AWS
         value: "true"            # set to "false" once DATABASE_URL and the AWS role below are filled in
-      # Demo login password for admin@ / approver@ / engineer@ / viewer@breachpath.local. Copy it from
-      # Render → Environment. (Unset, it falls back to the public default in the repo.)
-      - key: DEMO_PASSWORD
-        generateValue: true
+      # Demo login: admin@ / approver@ / engineer@ / viewer@breachpath.local with the public password in the
+      # README (breachpath-demo-password). Demo mode blocks people and password changes, and the data is
+      # fake and resets. To make the demo private instead, add DEMO_PASSWORD in Render → Environment.
       - key: DATABASE_URL        # real mode only: e.g. a Neon connection string (postgresql://…?sslmode=require)
         sync: false
       - key: SECRET_KEY

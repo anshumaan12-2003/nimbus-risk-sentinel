@@ -1,0 +1,26 @@
+# Weekly, grouped so a quiet week is one pull request per ecosystem, not twenty.
+# Security fixes still arrive immediately and on their own (Dependabot security updates).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule: { interval: weekly, day: monday }
+    groups:
+      python-minor-and-patch: { update-types: [minor, patch] }
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday }
+    groups:
+      npm-minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      # Playwright must match the CI container image tag (ci.yml); bump both together by hand
+      - dependency-name: "@playwright/test"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    groups:
+      actions: { patterns: ["*"] }
