@@ -10,6 +10,7 @@ from alembic import context
 # Add app to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+from app.config import normalize_db_url
 from app.database import Base
 from app.models import *  # noqa — import all models to register them
 
@@ -18,7 +19,7 @@ config = context.config
 # Override sqlalchemy.url with env variable
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+    config.set_main_option("sqlalchemy.url", normalize_db_url(database_url))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

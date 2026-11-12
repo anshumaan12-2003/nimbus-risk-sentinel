@@ -8,7 +8,7 @@ python-multipart==0.0.33  # >=0.0.31: multipart DoS fixes (the IaC upload parses
 # ─── Database ─────────────────────────────────────────────────────────────
 sqlalchemy==2.1.8
 alembic==1.20.1
-psycopg2-binary==2.9.13
+psycopg[binary]==3.3.9      # psycopg 3: SQLAlchemy 2.1's default for postgresql://
 
 # ─── Background jobs / events ─────────────────────────────────────────────
 celery==5.7.0
