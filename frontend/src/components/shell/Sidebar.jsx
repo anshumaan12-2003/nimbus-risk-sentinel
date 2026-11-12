@@ -156,7 +156,9 @@ export default function Sidebar() {
         )}
       >
         <div className={cn('flex h-13 items-center gap-2.5 px-3.5', collapsed && 'justify-center px-0')}>
-          <Link to="/" className="flex min-w-0 items-center gap-2.5" aria-label="Breachpath overview">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5" 
+            // Expanded, the visible "Breachpath Cloud Recon" is the name; collapsed, only the mark shows
+            aria-label={collapsed ? 'Breachpath Cloud Recon' : undefined}>
             <BrandMark />
             {!collapsed && (
               <span className="grid min-w-0 leading-none">

@@ -3,6 +3,7 @@ line-length = 120
 extend-exclude = ["tests/dev_server_fake_aws.py"]
 
 [lint]
+select = ["E4", "E7", "E9", "F"]     # the classic default; ruff 0.17 widened it. Opt into more rules deliberately.
 ignore = ["E731"]                     # short local lambdas are the house style
 
 [lint.per-file-ignores]

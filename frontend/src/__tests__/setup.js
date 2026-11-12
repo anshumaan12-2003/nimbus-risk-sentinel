@@ -4,6 +4,9 @@ globalThis.ResizeObserver ||= class { observe() {} unobserve() {} disconnect() {
 globalThis.IntersectionObserver ||= class { observe() {} unobserve() {} disconnect() {} takeRecords() { return [] } }
 window.scrollTo = () => {}
 Element.prototype.scrollIntoView = () => {}
+// jsdom >= 27 has no WebSocket, so Node's (undici) would be used and choke on jsdom's Event class.
+// Live events aren't under test here: refuse the socket and let LiveStream take its offline path.
+globalThis.WebSocket = class { constructor() { throw new Error('no WebSocket in unit tests') } }
 
 /*
   The app now requires sign-in. Sign in once as the seeded admin of the fake-AWS dev server
