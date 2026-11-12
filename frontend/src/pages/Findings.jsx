@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
+import {
+  columnSizingFeature, columnVisibilityFeature, createSortedRowModel, flexRender, rowSelectionFeature, rowSortingFeature,
+  sortFn_alphanumeric, sortFn_basic, sortFn_datetime, sortFn_text, tableFeatures, useTable,
+} from '@tanstack/react-table'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, CheckCircle2, Download, Search, ShieldCheck, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -20,6 +23,13 @@ import { useCan } from '@/auth/authStore'
 import { useSentinelStore } from '@/store/sentinelStore'
 import { apiError, requestRemediation, updateFindingStatus } from '@/api/nimbus'
 import { MOCK_FINDINGS } from '@/data/mockData'
+
+// TanStack Table v9 registers only the features a table uses; 'auto' sorting picks from these comparators
+const TABLE_FEATURES = tableFeatures({
+  columnVisibilityFeature, columnSizingFeature, rowSortingFeature, rowSelectionFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic, datetime: sortFn_datetime, text: sortFn_text },
+})
 
 const SEV_ORDER = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, INFO: 0 }
 const SEV_STRIPE = { CRITICAL: 'bg-crit', HIGH: 'bg-high', MEDIUM: 'bg-med', LOW: 'bg-low' }
@@ -217,10 +227,10 @@ export default function Findings() {
     },
   ], [])
 
-  const table = useReactTable({
+  const table = useTable({
+    features: TABLE_FEATURES,
     data: rows, columns, state: { sorting, rowSelection: selection }, getRowId: (f) => String(f.id),
     onSortingChange: setSorting, onRowSelectionChange: setSelection, enableRowSelection: !demo,
-    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
   })
   const sorted = table.getRowModel().rows
   const selected = table.getSelectedRowModel().rows.map(r => r.original)

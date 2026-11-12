@@ -5,7 +5,7 @@ x-backend: &backend
   build: ./backend
   env_file: ./backend/.env
   environment:
-    DATABASE_URL: postgresql+psycopg2://nimbus:nimbus@postgres:5432/nimbus
+    DATABASE_URL: postgresql://nimbus:nimbus@postgres:5432/nimbus
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/0
     CELERY_RESULT_BACKEND: redis://redis:6379/0

@@ -1,6 +1,17 @@
 from typing import Optional
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def normalize_db_url(url: str) -> str:
+    """Point every Postgres URL spelling at psycopg 3, the one driver installed.
+    SQLAlchemy 2.1 maps a bare postgresql:// to psycopg 3; older guides and hosts still hand out
+    postgres:// or postgresql+psycopg2://."""
+    for prefix in ("postgresql+psycopg2://", "postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
 
 
 class Settings(BaseSettings):
@@ -11,6 +22,11 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite:///./nimbus.db"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def _db_driver(cls, v: str) -> str:
+        return normalize_db_url(v)
 
     # Redis / Celery
     REDIS_URL: str = "redis://redis:6379/0"

@@ -36,13 +36,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Full history for diff analysis
 
       # ─── Setup Breachpath Backend ───────────────────────────────────────────────
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
@@ -100,7 +100,7 @@ jobs:
       # ─── Post PR Comment with Findings ──────────────────────────────────────
       - name: Post PR Security Report
         if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -161,7 +161,7 @@ jobs:
 
       # ─── Upload Scan Artifact ───────────────────────────────────────────────
       - name: Upload scan results artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: breachpath-iac-scan-${{ github.run_number }}

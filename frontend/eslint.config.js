@@ -16,7 +16,10 @@ export default [
     plugins: { react, 'react-hooks': reactHooks },
     rules: {
       ...js.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
+      // The classic hook rules. v7's recommended set adds React Compiler rules (set-state-in-effect, purity…);
+      // this app doesn't use the compiler, so those are opt-in for a dedicated refactor, not a dependency bump.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       'react/jsx-uses-vars': 'error',          // <Icon /> counts as a use of Icon
       'no-unused-vars': ['error', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
     },

@@ -17,6 +17,9 @@ updates:
     ignore:
       # Playwright must match the CI container image tag (ci.yml); bump both together by hand
       - dependency-name: "@playwright/test"
+      # jsdom 30+ needs Node >= 22.22; lift once local + CI Node are there (unit tests run on jsdom)
+      - dependency-name: "jsdom"
+        versions: [">=30"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions

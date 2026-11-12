@@ -16,8 +16,9 @@ stamp="$(date -u +%Y%m%d-%H%M)"
 file="$out_dir/breachpath-$stamp.dump"
 
 command -v pg_dump >/dev/null || { echo "pg_dump not found: install the PostgreSQL client (brew install libpq)" >&2; exit 1; }
-# SQLAlchemy-style URLs (postgresql+psycopg2://) aren't understood by pg_dump
+# SQLAlchemy-style URLs (postgresql+psycopg://, +psycopg2://) aren't understood by pg_dump
 url="${DATABASE_URL/postgresql+psycopg2:\/\//postgresql://}"
+url="${url/postgresql+psycopg:\/\//postgresql://}"
 
 # Write to a temp name first so a failed dump never looks like a good backup
 pg_dump --format=custom --no-owner --no-acl --file="$file.part" "$url"
