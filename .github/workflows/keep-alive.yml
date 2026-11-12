@@ -1,0 +1,28 @@
+# Keeps the free Render API awake so the live demo opens instantly instead of after a ~40-60 s cold start.
+# Render's free plan sleeps after 15 idle minutes; 750 free instance hours a month cover one service running
+# all month, so this costs nothing. GitHub runs cron on a best-effort basis (runs can be late), hence every
+# 10 minutes rather than 14. Note: GitHub pauses scheduled workflows after 60 days without repo activity;
+# re-enable it from the Actions tab if that happens.
+name: Keep demo awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the API health check
+        run: |
+          curl --fail --silent --show-error --max-time 120 \
+               --retry 3 --retry-delay 10 --retry-all-errors \
+               https://nimbus-risk-sentinel-api.onrender.com/health

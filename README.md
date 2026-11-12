@@ -15,6 +15,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge)](LICENSE)
 ![AWS](https://img.shields.io/badge/AWS-read--only_scan-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white)
 
+<sub>The live demo scans a <b>simulated AWS account</b> (moto) with planted problems: nothing touches real AWS. Sign in as <code>admin@breachpath.local</code> / <code>breachpath-demo-password</code>. If it has been idle, the first load can take up to a minute.</sub>
+
+<br><br>
+
 <a href="#-quick-start"><b>Quick start</b></a> &nbsp;·&nbsp;
 <a href="#-features"><b>Features</b></a> &nbsp;·&nbsp;
 <a href="#-built-with"><b>Stack</b></a> &nbsp;·&nbsp;
