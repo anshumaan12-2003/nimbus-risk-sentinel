@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="at ad">
+  <title id="at">Breachpath architecture</title>
+  <desc id="ad">A React 19 UI talks to a FastAPI backend over REST and WebSocket. The backend scans AWS with a read-only role, applies approved fixes with a separate write role, stores results in PostgreSQL and asks Gemini for answers grounded in scan facts.</desc>
+  <style>
+    .f { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+    .m { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .flow { stroke-dasharray: 6 6; animation: flow 1.2s linear infinite; }
+    .back { stroke-dasharray: 6 6; animation: back 1.2s linear infinite; }
+    @keyframes flow { to { stroke-dashoffset: -24; } }
+    @keyframes back { to { stroke-dashoffset: 24; } }
+    @media (prefers-reduced-motion: reduce) { .flow, .back { animation: none; } }
+  </style>
+  <defs>
+    <linearGradient id="abg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0c1020"/><stop offset="1" stop-color="#101114"/>
+    </linearGradient>
+    <radialGradient id="aglow" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#3b5bdb" stop-opacity=".22"/><stop offset="1" stop-color="#3b5bdb" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="agrid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#ffffff" stroke-opacity=".045"/>
+    </pattern>
+    <clipPath id="acard"><rect width="1200" height="440" rx="22"/></clipPath>
+    <marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1l6 3.5-6 3.5" fill="none" stroke="#8aa2ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="ao" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1l6 3.5-6 3.5" fill="none" stroke="#fdba74" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M1 1l6 3.5-6 3.5" fill="none" stroke="#9aa0ab" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+
+  <g clip-path="url(#acard)">
+    <rect width="1200" height="440" fill="url(#abg)"/>
+    <rect width="1200" height="440" fill="url(#agrid)"/>
+    <rect width="1200" height="440" fill="url(#aglow)"/>
+
+    <!-- column labels -->
+    <g class="m" font-size="11" fill="#6b7280" letter-spacing="1.6" text-anchor="middle">
+      <text x="166" y="48">BROWSER</text><text x="600" y="48">API</text><text x="1037" y="48">OUTSIDE</text>
+    </g>
+
+    <!-- UI -->
+    <rect x="56" y="150" width="220" height="140" rx="14" fill="#14161c" stroke="#3a3f4b"/>
+    <text x="78" y="186" class="f" font-size="19" font-weight="700" fill="#f4f5f7">React 19 UI</text>
+    <g class="m" font-size="12" fill="#9aa0ab">
+      <text x="78" y="214">Vite · Tailwind 4</text>
+      <text x="78" y="236">TanStack Query + Table</text>
+      <text x="78" y="258">attack graph · ⌘K palette</text>
+    </g>
+
+    <!-- UI <-> API -->
+    <text x="348" y="187" class="m" font-size="11" fill="#b4c3ff" text-anchor="middle">REST /api</text>
+    <path class="flow" d="M280 198H414" stroke="#5b7cfa" stroke-width="2" fill="none" marker-end="url(#ab)"/>
+    <path class="back" d="M416 248H282" stroke="#5b7cfa" stroke-width="2" fill="none" marker-end="url(#ab)"/>
+    <text x="348" y="270" class="m" font-size="11" fill="#b4c3ff" text-anchor="middle">WebSocket · live</text>
+
+    <!-- API -->
+    <rect x="420" y="70" width="360" height="310" rx="16" fill="#12162a" stroke="#5b7cfa" stroke-opacity=".7"/>
+    <text x="442" y="106" class="f" font-size="19" font-weight="700" fill="#f4f5f7">FastAPI</text>
+    <text x="758" y="106" class="m" font-size="12" fill="#8aa2ff" text-anchor="end">Python 3.12</text>
+    <g class="f" font-size="13.5" font-weight="600" fill="#e6e8ee">
+      <g fill="#1a1f38" stroke="#39447a">
+        <rect x="440" y="126" width="152" height="46" rx="10"/><rect x="608" y="126" width="152" height="46" rx="10"/>
+        <rect x="440" y="184" width="152" height="46" rx="10"/><rect x="608" y="184" width="152" height="46" rx="10"/>
+        <rect x="440" y="242" width="152" height="46" rx="10"/><rect x="608" y="242" width="152" height="46" rx="10"/>
+      </g>
+      <g stroke="none" text-anchor="middle">
+        <text x="516" y="146">Auth · roles</text><text x="684" y="146">Scan engine</text>
+        <text x="516" y="204">Attack graph</text><text x="684" y="204">Risk scoring</text>
+        <text x="516" y="262">Four-eyes fixes</text><text x="684" y="262">Vesper assistant</text>
+      </g>
+    </g>
+    <g class="m" font-size="10.5" fill="#8f96a8" text-anchor="middle">
+      <text x="516" y="162">Argon2id · JWT</text><text x="684" y="162">19 rules · 4 services</text>
+      <text x="516" y="220">internet → data</text><text x="684" y="220">exposure-aware</text>
+      <text x="516" y="278">request → approve</text><text x="684" y="278">cites findings</text>
+    </g>
+    <rect x="440" y="306" width="320" height="50" rx="10" fill="#14161c" stroke="#3a3f4b"/>
+    <text x="600" y="327" class="f" font-size="13.5" font-weight="600" fill="#e6e8ee" text-anchor="middle">Celery + Redis</text>
+    <text x="600" y="344" class="m" font-size="10.5" fill="#8f96a8" text-anchor="middle">scheduled scans · drift detection</text>
+
+    <!-- AWS -->
+    <rect x="930" y="70" width="214" height="118" rx="14" fill="#1f1710" stroke="#f59e0b" stroke-opacity=".75"/>
+    <text x="952" y="104" class="f" font-size="19" font-weight="700" fill="#f4f5f7">AWS account</text>
+    <g class="m" font-size="12" fill="#d6b98a">
+      <text x="952" y="130">IAM · S3 · EC2 · RDS</text>
+      <text x="952" y="152">the regions you choose</text>
+      <text x="952" y="172" fill="#a08a63">or moto, in the demo</text>
+    </g>
+    <text x="855" y="97" class="m" font-size="11" fill="#b4c3ff" text-anchor="middle">read-only scan</text>
+    <path class="flow" d="M784 106H924" stroke="#5b7cfa" stroke-width="2" fill="none" marker-end="url(#ab)"/>
+    <path class="flow" d="M784 152H924" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#ao)"/>
+    <text x="855" y="172" class="m" font-size="11" fill="#fdba74" text-anchor="middle">approved fixes</text>
+    <text x="855" y="187" class="m" font-size="10" fill="#a08a63" text-anchor="middle">separate write role</text>
+
+    <!-- Postgres -->
+    <rect x="930" y="212" width="214" height="74" rx="14" fill="#14161c" stroke="#3a3f4b"/>
+    <text x="952" y="243" class="f" font-size="17" font-weight="700" fill="#f4f5f7">PostgreSQL</text>
+    <text x="952" y="266" class="m" font-size="12" fill="#9aa0ab">findings · scans · audit</text>
+    <path d="M784 249H924" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#ag)"/>
+    <text x="855" y="240" class="m" font-size="11" fill="#9aa0ab" text-anchor="middle">SQLAlchemy 2</text>
+
+    <!-- Gemini -->
+    <rect x="930" y="306" width="214" height="74" rx="14" fill="#14161c" stroke="#3a3f4b"/>
+    <text x="952" y="337" class="f" font-size="17" font-weight="700" fill="#f4f5f7">Gemini</text>
+    <text x="952" y="360" class="m" font-size="12" fill="#9aa0ab">optional · facts-only fallback</text>
+    <path d="M784 343H924" stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#ag)"/>
+    <text x="855" y="334" class="m" font-size="11" fill="#9aa0ab" text-anchor="middle">scan facts in</text>
+
+    <text x="600" y="416" class="m" font-size="12" fill="#6b7280" text-anchor="middle">Scanning never writes. A fix needs a second person, then AWS is re-read to prove it worked.</text>
+  </g>
+</svg>
