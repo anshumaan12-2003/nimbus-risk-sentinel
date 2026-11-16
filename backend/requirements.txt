@@ -24,7 +24,7 @@ python-dotenv==1.2.4
 
 # ─── Integrations ────────────────────────────────────────────────────────
 requests==2.34.2          # Slack webhook; >=2.33 fixes .netrc credential leak
-google-genai>=3.0,<4      # Gemini (Vesper); checked against 3.x, cap before a breaking 4.x
+google-genai>=3.3.0,<4      # Gemini (Vesper); checked against 3.x, cap before a breaking 4.x
 httpx==0.28.1
 
 # ─── Auth ─────────────────────────────────────────────────────────────────
