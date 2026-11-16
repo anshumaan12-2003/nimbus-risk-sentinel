@@ -29,11 +29,11 @@
 
 ## ⚡ Try it in 30 seconds
 
-| | |
-|---|---|
-| **Open** | [cloud-security-posture-delta.vercel.app](https://cloud-security-posture-delta.vercel.app) |
-| **Email** | `admin@breachpath.local` |
-| **Password** | `breachpath-demo-password` |
+<table>
+<tr><td><b>Open</b></td><td><a href="https://cloud-security-posture-delta.vercel.app">cloud-security-posture-delta.vercel.app</a></td></tr>
+<tr><td><b>Email</b></td><td><code>admin@breachpath.local</code></td></tr>
+<tr><td><b>Password</b></td><td><code>breachpath-demo-password</code></td></tr>
+</table>
 
 The demo scans a **simulated AWS account** ([moto](https://github.com/getmoto/moto)) with planted problems, so nothing touches real AWS.
 `engineer@`, `approver@` and `viewer@` use the same password: sign in as two of them to try the approval from both sides.
@@ -85,15 +85,15 @@ Breachpath applies the change with a separate write role, then re-reads AWS to p
 
 **Also inside**
 
-| | |
-|---|---|
-| 📊 **Risk, not just severity** | Scores rise for exposed or sensitive resources and drop for dev and test, so a High can outrank a Critical. |
-| 📋 **Compliance** | Every rule maps to CIS, SOC 2, PCI DSS and HIPAA controls. Controls nobody checked are never shown as passing. |
-| 🗂️ **Remediation board** | Open → In progress → Awaiting approval → Fixed, with owners and SLA countdowns. |
-| 🤖 **Vesper assistant** <kbd>⌘ J</kbd> | Answers questions about your latest scan and cites findings as clickable chips. Falls back to scan facts when no AI key is set. |
-| 🧱 **Terraform scanner** | Checks Terraform files for the same kinds of mistakes before they are deployed. |
-| 🔁 **Scan history** | What is new, fixed or back since the last scan, plus an executive report. |
-| ⌨️ **Keyboard first** <kbd>⌘ K</kbd> | Command palette, `g` shortcuts, light and dark themes, and a phone layout. |
+<table>
+<tr><td width="30%">📊 <b>Risk, not just severity</b></td><td>Scores rise for exposed or sensitive resources and drop for dev and test, so a High can outrank a Critical.</td></tr>
+<tr><td width="30%">📋 <b>Compliance</b></td><td>Every rule maps to CIS, SOC 2, PCI DSS and HIPAA controls. Controls nobody checked are never shown as passing.</td></tr>
+<tr><td width="30%">🗂️ <b>Remediation board</b></td><td>Open → In progress → Awaiting approval → Fixed, with owners and SLA countdowns.</td></tr>
+<tr><td width="30%">🤖 <b>Vesper assistant</b> <kbd>⌘ J</kbd></td><td>Answers questions about your latest scan and cites findings as clickable chips. Falls back to scan facts when no AI key is set.</td></tr>
+<tr><td width="30%">🧱 <b>Terraform scanner</b></td><td>Checks Terraform files for the same kinds of mistakes before they are deployed.</td></tr>
+<tr><td width="30%">🔁 <b>Scan history</b></td><td>What is new, fixed or back since the last scan, plus an executive report.</td></tr>
+<tr><td width="30%">⌨️ <b>Keyboard first</b> <kbd>⌘ K</kbd></td><td>Command palette, <code>g</code> shortcuts, light and dark themes, and a phone layout.</td></tr>
+</table>
 
 <details>
 <summary><b>More screenshots</b></summary>

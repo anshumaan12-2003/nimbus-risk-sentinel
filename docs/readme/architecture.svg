@@ -49,7 +49,7 @@
     <text x="348" y="187" class="m" font-size="11" fill="#b4c3ff" text-anchor="middle">REST /api</text>
     <path class="flow" d="M280 198H414" stroke="#5b7cfa" stroke-width="2" fill="none" marker-end="url(#ab)"/>
     <path class="back" d="M416 248H282" stroke="#5b7cfa" stroke-width="2" fill="none" marker-end="url(#ab)"/>
-    <text x="348" y="270" class="m" font-size="11" fill="#b4c3ff" text-anchor="middle">WebSocket · live scans</text>
+    <text x="348" y="270" class="m" font-size="11" fill="#b4c3ff" text-anchor="middle">WebSocket · live</text>
 
     <!-- API -->
     <rect x="420" y="70" width="360" height="310" rx="16" fill="#12162a" stroke="#5b7cfa" stroke-opacity=".7"/>
