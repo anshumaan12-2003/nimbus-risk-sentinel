@@ -28,7 +28,7 @@
     "@radix-ui/react-tabs": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.4.1",
     "@tailwindcss/vite": "^4.3.5",
-    "@tanstack/react-query": "^5.107.1",
+    "@tanstack/react-query": "^5.108.1",
     "@tanstack/react-table": "^9.3.1",
     "@xyflow/react": "^12.12.1",
     "axios": "^1.21.1",
@@ -36,15 +36,15 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "lucide-react": "^1.72.0",
-    "motion": "^14.12.0",
+    "lucide-react": "^1.76.0",
+    "motion": "^14.14.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.18.5",
-    "recharts": "^3.10.1",
+    "react-router-dom": "^7.18.6",
+    "recharts": "^3.11.0",
     "sonner": "^2.0.8",
-    "tailwind-merge": "^3.7.0",
+    "tailwind-merge": "^3.7.1",
     "tailwindcss": "^4.3.3",
     "zustand": "^5.1.0"
   },
@@ -62,7 +62,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "jsdom": "^29.1.1",
-    "vite": "^8.3.1",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   }
 }
